@@ -1,0 +1,45 @@
+{
+  "name": "@mcpio/jira",
+  "version": "1.0.0",
+  "description": "Model Context Protocol (MCP) server for Jira API integration with enhanced ADF formatting support and security hardening",
+  "author": {
+    "name": "Volodymyr Press",
+    "email": "volodymyr.press.gpt@gmail.com"
+  },
+  "license": "MIT",
+  "type": "module",
+  "main": "index.js",
+  "bin": {
+    "mcpio-jira": "index.js"
+  },
+  "scripts": {
+    "start": "node index.js"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "jira",
+    "atlassian",
+    "adf",
+    "jira-api",
+    "ai-tools",
+    "claude",
+    "automation"
+  ],
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.20.2",
+    "axios": "^1.13.1",
+    "dotenv": "^17.2.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wince87/mcp_jira.git"
+  },
+  "bugs": {
+    "url": "https://github.com/wince87/mcp_jira/issues"
+  },
+  "homepage": "https://github.com/wince87/mcp_jira#readme"
+}
