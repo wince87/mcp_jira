@@ -1,0 +1,216 @@
+From 941935b50e8f534291897b88b24ccc43631feabc Mon Sep 17 00:00:00 2001
+From: Volodymyr Press <volodymyr.press.gpt@gmail.com>
+Date: Thu, 13 Nov 2025 19:02:19 +0000
+Subject: [PATCH] Fix critical bugs in Jira integration
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- Fix incorrect API endpoint: /search/jql → /search (Jira API v3 compliance)
+- Fix ADF bullet list structure: consecutive items now grouped into single bulletList
+- Fix JIRA_HOST configuration: remove ambiguous JIRA_URL fallback
+- Add unclosed code block detection with warning
+---
+ index.js | 129 +++++++++++++++++++++++--------------------------------
+ 1 file changed, 53 insertions(+), 76 deletions(-)
+
+diff --git a/index.js b/index.js
+index 8c5b27d..0254d04 100644
+--- a/index.js
++++ b/index.js
+@@ -21,7 +21,7 @@ function getRequiredEnv(name, fallback = null) {
+   return value;
+ }
+ 
+-const JIRA_URL = getRequiredEnv('JIRA_HOST', process.env.JIRA_URL);
++const JIRA_URL = getRequiredEnv('JIRA_HOST');
+ const JIRA_EMAIL = getRequiredEnv('JIRA_EMAIL');
+ const JIRA_API_TOKEN = getRequiredEnv('JIRA_API_TOKEN');
+ const JIRA_PROJECT_KEY = process.env.JIRA_PROJECT_KEY || 'PROJ';
+@@ -124,11 +124,13 @@ const server = new Server(
+ function createADFDocument(content) {
+   const nodes = [];
+   const lines = content.split('\n');
++  let i = 0;
+ 
+-  for (let i = 0; i < lines.length; i++) {
++  while (i < lines.length) {
+     const line = lines[i].trim();
+ 
+     if (!line) {
++      i++;
+       continue;
+     }
+ 
+@@ -138,57 +140,24 @@ function createADFDocument(content) {
+         attrs: { level: 1 },
+         content: [{ type: 'text', text: line.substring(4) }]
+       });
++      i++;
+     } else if (line.startsWith('h2. ')) {
+       nodes.push({
+         type: 'heading',
+         attrs: { level: 2 },
+         content: [{ type: 'text', text: line.substring(4) }]
+       });
++      i++;
+     } else if (line.startsWith('h3. ')) {
+       nodes.push({
+         type: 'heading',
+         attrs: { level: 3 },
+         content: [{ type: 'text', text: line.substring(4) }]
+       });
+-    } else if (line.startsWith('- [') && line.includes('|')) {
+-      const match = line.match(/- \[([^\]]+)\|([^\]]+)\] (.+)/);
+-      if (match) {
+-        nodes.push({
+-          type: 'bulletList',
+-          content: [{
+-            type: 'listItem',
+-            content: [{
+-              type: 'paragraph',
+-              content: [
+-                {
+-                  type: 'text',
+-                  text: match[1],
+-                  marks: [{
+-                    type: 'link',
+-                    attrs: { href: match[2] }
+-                  }]
+-                },
+-                { type: 'text', text: ' ' + match[3] }
+-              ]
+-            }]
+-          }]
+-        });
+-      }
+-    } else if (line.startsWith('* ')) {
+-      nodes.push({
+-        type: 'bulletList',
+-        content: [{
+-          type: 'listItem',
+-          content: [{
+-            type: 'paragraph',
+-            content: [{ type: 'text', text: line.substring(2) }]
+-          }]
+-        }]
+-      });
++      i++;
+     } else if (line === '----') {
+-      nodes.push({
+-        type: 'rule'
+-      });
++      nodes.push({ type: 'rule' });
++      i++;
+     } else if (line === '```' || line.startsWith('```')) {
+       const codeLines = [];
+       i++;
+@@ -196,53 +165,61 @@ function createADFDocument(content) {
+         codeLines.push(lines[i]);
+         i++;
+       }
++      if (i >= lines.length) {
++        console.error('Warning: Unclosed code block detected');
++      }
+       nodes.push({
+         type: 'codeBlock',
+-        content: [{
+-          type: 'text',
+-          text: codeLines.join('\n')
+-        }]
++        content: codeLines.length > 0 ? [{ type: 'text', text: codeLines.join('\n') }] : []
+       });
+-    } else if (line.includes('*') && line.includes(':')) {
+-      const parts = [];
+-      const regex = /\*([^*]+)\*/g;
+-      let lastIndex = 0;
+-      let match;
+-
+-      while ((match = regex.exec(line)) !== null) {
+-        if (match.index > lastIndex) {
+-          parts.push({ type: 'text', text: line.substring(lastIndex, match.index) });
++      i++;
++    } else if (line.startsWith('* ') || (line.startsWith('- [') && line.includes('|'))) {
++      const listItems = [];
++
++      while (i < lines.length) {
++        const currentLine = lines[i].trim();
++
++        if (currentLine.startsWith('- [') && currentLine.includes('|')) {
++          const match = currentLine.match(/- \[([^\]]+)\|([^\]]+)\](.*)$/);
++          if (match) {
++            const paragraphContent = [
++              {
++                type: 'text',
++                text: match[1],
++                marks: [{ type: 'link', attrs: { href: match[2] } }]
++              }
++            ];
++            if (match[3].trim()) {
++              paragraphContent.push({ type: 'text', text: ' ' + match[3].trim() });
++            }
++            listItems.push({
++              type: 'listItem',
++              content: [{ type: 'paragraph', content: paragraphContent }]
++            });
++            i++;
++          } else {
++            break;
++          }
++        } else if (currentLine.startsWith('* ')) {
++          listItems.push({
++            type: 'listItem',
++            content: [{ type: 'paragraph', content: [{ type: 'text', text: currentLine.substring(2) }] }]
++          });
++          i++;
++        } else {
++          break;
+         }
+-        parts.push({
+-          type: 'text',
+-          text: match[1],
+-          marks: [{ type: 'strong' }]
+-        });
+-        lastIndex = regex.lastIndex;
+       }
+ 
+-      if (lastIndex < line.length) {
+-        parts.push({ type: 'text', text: line.substring(lastIndex) });
++      if (listItems.length > 0) {
++        nodes.push({ type: 'bulletList', content: listItems });
+       }
+-
+-      nodes.push({
+-        type: 'paragraph',
+-        content: parts
+-      });
+-    } else if (line.startsWith('*') && line.endsWith('*')) {
+-      nodes.push({
+-        type: 'paragraph',
+-        content: [{
+-          type: 'text',
+-          text: line.substring(1, line.length - 1),
+-          marks: [{ type: 'strong' }]
+-        }]
+-      });
+     } else {
+       nodes.push({
+         type: 'paragraph',
+         content: [{ type: 'text', text: line }]
+       });
++      i++;
+     }
+   }
+ 
+@@ -653,7 +630,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
+       case 'jira_search_issues': {
+         const { jql, maxResults = 50 } = args;
+         validateJQL(jql);
+-        const response = await jiraApi.get('/search/jql', {
++        const response = await jiraApi.get('/search', {
+           params: {
+             jql,
+             maxResults,
+-- 
+2.43.0
+

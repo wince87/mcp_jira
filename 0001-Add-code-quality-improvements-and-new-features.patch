@@ -1,0 +1,318 @@
+From 7be50a08ff99f43f728444558e5e674f809c71c5 Mon Sep 17 00:00:00 2001
+From: Volodymyr Press <volodymyr.press.gpt@gmail.com>
+Date: Thu, 13 Nov 2025 19:05:19 +0000
+Subject: [PATCH] Add code quality improvements and new features
+
+New features:
+- Add support for ordered lists (# prefix) in ADF formatting
+- Add h4 and h5 heading support
+- Add validation for issueType, priority, and linkType with warnings for non-standard values
+
+Code quality improvements:
+- Add comprehensive JSDoc comments to all functions
+- Extract parseBoldText() into separate function for better text formatting
+- Improve validation with dedicated functions for each field type
+- Add validation constants for standard Jira values
+---
+ index.js | 187 ++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 185 insertions(+), 2 deletions(-)
+
+diff --git a/index.js b/index.js
+index 0254d04..12a0c22 100644
+--- a/index.js
++++ b/index.js
+@@ -13,6 +13,13 @@ import * as dotenv from 'dotenv';
+ 
+ dotenv.config();
+ 
++/**
++ * Gets a required environment variable value.
++ * @param {string} name - Environment variable name
++ * @param {string|null} fallback - Optional fallback value
++ * @returns {string} The environment variable value
++ * @throws {Error} If the variable is not set and no fallback provided
++ */
+ function getRequiredEnv(name, fallback = null) {
+   const value = process.env[name] || fallback;
+   if (!value) {
+@@ -31,6 +38,17 @@ if (!JIRA_URL.startsWith('https://')) {
+   throw new Error('JIRA_HOST must use HTTPS protocol for security');
+ }
+ 
++// Validation constants
++const VALID_ISSUE_TYPES = ['Task', 'Story', 'Bug', 'Epic', 'Subtask', 'Sub-task'];
++const VALID_PRIORITIES = ['Highest', 'High', 'Medium', 'Low', 'Lowest'];
++const VALID_LINK_TYPES = ['Relates', 'Blocks', 'Cloners', 'Duplicate', 'Causes', 'Relates to'];
++
++/**
++ * Validates a Jira issue key format.
++ * @param {string} key - The issue key to validate
++ * @returns {string} The validated key
++ * @throws {Error} If the key is invalid
++ */
+ function validateIssueKey(key) {
+   if (!key || typeof key !== 'string') {
+     throw new Error('Invalid issue key: must be a string');
+@@ -41,6 +59,12 @@ function validateIssueKey(key) {
+   return key;
+ }
+ 
++/**
++ * Validates a JQL query string.
++ * @param {string} jql - The JQL query to validate
++ * @returns {string} The validated JQL query
++ * @throws {Error} If the JQL is invalid
++ */
+ function validateJQL(jql) {
+   if (!jql || typeof jql !== 'string') {
+     throw new Error('Invalid JQL query: must be a string');
+@@ -51,6 +75,14 @@ function validateJQL(jql) {
+   return jql;
+ }
+ 
++/**
++ * Validates and sanitizes a string input.
++ * @param {string} str - The string to validate
++ * @param {number} maxLength - Maximum allowed length
++ * @param {string} fieldName - Name of the field for error messages
++ * @returns {string} The trimmed string
++ * @throws {Error} If the string is invalid
++ */
+ function sanitizeString(str, maxLength = 1000, fieldName = 'input') {
+   if (!str || typeof str !== 'string') {
+     throw new Error(`Invalid ${fieldName}: must be a string`);
+@@ -61,6 +93,59 @@ function sanitizeString(str, maxLength = 1000, fieldName = 'input') {
+   return str.trim();
+ }
+ 
++/**
++ * Validates an issue type.
++ * @param {string} issueType - The issue type to validate
++ * @returns {string} The validated issue type
++ * @throws {Error} If the issue type is invalid
++ */
++function validateIssueType(issueType) {
++  if (!issueType || typeof issueType !== 'string') {
++    throw new Error('Invalid issue type: must be a string');
++  }
++  if (!VALID_ISSUE_TYPES.includes(issueType)) {
++    console.warn(`Warning: Issue type "${issueType}" is not in the standard list. Proceeding anyway.`);
++  }
++  return issueType;
++}
++
++/**
++ * Validates a priority level.
++ * @param {string} priority - The priority to validate
++ * @returns {string} The validated priority
++ * @throws {Error} If the priority is invalid
++ */
++function validatePriority(priority) {
++  if (!priority || typeof priority !== 'string') {
++    throw new Error('Invalid priority: must be a string');
++  }
++  if (!VALID_PRIORITIES.includes(priority)) {
++    console.warn(`Warning: Priority "${priority}" is not in the standard list. Proceeding anyway.`);
++  }
++  return priority;
++}
++
++/**
++ * Validates a link type.
++ * @param {string} linkType - The link type to validate
++ * @returns {string} The validated link type
++ * @throws {Error} If the link type is invalid
++ */
++function validateLinkType(linkType) {
++  if (!linkType || typeof linkType !== 'string') {
++    throw new Error('Invalid link type: must be a string');
++  }
++  if (!VALID_LINK_TYPES.includes(linkType)) {
++    console.warn(`Warning: Link type "${linkType}" is not in the standard list. Proceeding anyway.`);
++  }
++  return linkType;
++}
++
++/**
++ * Creates a formatted success response for MCP.
++ * @param {Object} data - The data to return in the response
++ * @returns {Object} MCP-formatted success response
++ */
+ function createSuccessResponse(data) {
+   return {
+     content: [{
+@@ -70,10 +155,21 @@ function createSuccessResponse(data) {
+   };
+ }
+ 
++/**
++ * Creates a Jira browse URL for an issue.
++ * @param {string} issueKey - The Jira issue key (e.g., PROJ-123)
++ * @returns {string} Full URL to the issue in Jira
++ */
+ function createIssueUrl(issueKey) {
+   return `${JIRA_URL}/browse/${issueKey}`;
+ }
+ 
++/**
++ * Handles errors and formats them for MCP response.
++ * In development mode, includes full error details and stack trace.
++ * @param {Error} error - The error object to handle
++ * @returns {Object} MCP-formatted error response
++ */
+ function handleError(error) {
+   const isDevelopment = process.env.NODE_ENV === 'development';
+ 
+@@ -121,6 +217,12 @@ const server = new Server(
+   }
+ );
+ 
++/**
++ * Converts text content to Atlassian Document Format (ADF).
++ * Supports headings, lists, code blocks, links, and text formatting.
++ * @param {string} content - The text content to convert
++ * @returns {Object} ADF document object
++ */
+ function createADFDocument(content) {
+   const nodes = [];
+   const lines = content.split('\n');
+@@ -155,6 +257,20 @@ function createADFDocument(content) {
+         content: [{ type: 'text', text: line.substring(4) }]
+       });
+       i++;
++    } else if (line.startsWith('h4. ')) {
++      nodes.push({
++        type: 'heading',
++        attrs: { level: 4 },
++        content: [{ type: 'text', text: line.substring(4) }]
++      });
++      i++;
++    } else if (line.startsWith('h5. ')) {
++      nodes.push({
++        type: 'heading',
++        attrs: { level: 5 },
++        content: [{ type: 'text', text: line.substring(4) }]
++      });
++      i++;
+     } else if (line === '----') {
+       nodes.push({ type: 'rule' });
+       i++;
+@@ -203,7 +319,10 @@ function createADFDocument(content) {
+         } else if (currentLine.startsWith('* ')) {
+           listItems.push({
+             type: 'listItem',
+-            content: [{ type: 'paragraph', content: [{ type: 'text', text: currentLine.substring(2) }] }]
++            content: [{
++              type: 'paragraph',
++              content: parseBoldText(currentLine.substring(2))
++            }]
+           });
+           i++;
+         } else {
+@@ -214,10 +333,33 @@ function createADFDocument(content) {
+       if (listItems.length > 0) {
+         nodes.push({ type: 'bulletList', content: listItems });
+       }
++    } else if (line.startsWith('# ')) {
++      const listItems = [];
++
++      while (i < lines.length) {
++        const currentLine = lines[i].trim();
++
++        if (currentLine.startsWith('# ')) {
++          listItems.push({
++            type: 'listItem',
++            content: [{
++              type: 'paragraph',
++              content: parseBoldText(currentLine.substring(2))
++            }]
++          });
++          i++;
++        } else {
++          break;
++        }
++      }
++
++      if (listItems.length > 0) {
++        nodes.push({ type: 'orderedList', content: listItems });
++      }
+     } else {
+       nodes.push({
+         type: 'paragraph',
+-        content: [{ type: 'text', text: line }]
++        content: parseBoldText(line)
+       });
+       i++;
+     }
+@@ -230,6 +372,42 @@ function createADFDocument(content) {
+   };
+ }
+ 
++/**
++ * Parses text and extracts bold formatting (*text*).
++ * @param {string} text - The text to parse
++ * @returns {Array} Array of text nodes with marks
++ */
++function parseBoldText(text) {
++  const parts = [];
++  const regex = /\*([^*]+)\*/g;
++  let lastIndex = 0;
++  let match;
++
++  while ((match = regex.exec(text)) !== null) {
++    if (match.index > lastIndex) {
++      parts.push({
++        type: 'text',
++        text: text.substring(lastIndex, match.index)
++      });
++    }
++    parts.push({
++      type: 'text',
++      text: match[1],
++      marks: [{ type: 'strong' }]
++    });
++    lastIndex = regex.lastIndex;
++  }
++
++  if (lastIndex < text.length) {
++    parts.push({
++      type: 'text',
++      text: text.substring(lastIndex)
++    });
++  }
++
++  return parts.length > 0 ? parts : [{ type: 'text', text: text }];
++}
++
+ server.setRequestHandler(ListPromptsRequestSchema, async () => {
+   return {
+     prompts: [
+@@ -581,6 +759,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
+       case 'jira_create_issue': {
+         const { summary, description, issueType = 'Task', priority = 'Medium', labels = [], storyPoints } = args;
+ 
++        validateIssueType(issueType);
++        validatePriority(priority);
++
+         const issueData = {
+           fields: {
+             project: { key: JIRA_PROJECT_KEY },
+@@ -704,6 +885,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
+         const { inwardIssue, outwardIssue, linkType = 'Relates' } = args;
+         validateIssueKey(inwardIssue);
+         validateIssueKey(outwardIssue);
++        validateLinkType(linkType);
+ 
+         try {
+           await jiraApi.post('/issueLink', {
+@@ -756,6 +938,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
+       case 'jira_create_subtask': {
+         const { parentKey, summary, description, priority = 'Medium' } = args;
+         validateIssueKey(parentKey);
++        validatePriority(priority);
+ 
+         const issueData = {
+           fields: {
+-- 
+2.43.0
+
