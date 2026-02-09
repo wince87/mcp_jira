@@ -27,6 +27,11 @@ test/
 # Documentation drafts
 docs/
 
+# Source and config
+src/
+tsconfig.json
+.claude/
+
 # Git files
 .git/
 .gitignore

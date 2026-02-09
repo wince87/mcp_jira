@@ -1,19 +1,18 @@
-# Jira MCP Server with ADF Support
+# Jira MCP Server v2.0
 
-Model Context Protocol (MCP) server for Jira API integration with enhanced Atlassian Document Format (ADF) support.
+Model Context Protocol (MCP) server for Jira API integration with automatic Markdown-to-ADF conversion.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue)](https://www.typescriptlang.org/)
 
 ## Features
 
-- Full Jira API integration via MCP protocol
-- Enhanced ADF formatting with **clickable issue links**
-- Support for code blocks, lists, headers, and rich text formatting
-- Complete CRUD operations: create, read, update, delete issues
-- Issue linking, subtasks, comments, and JQL search
-- Built-in security: input validation, HTTPS enforcement, error sanitization
-- Automatic formatting prompts for AI models
+- 23 Jira API tools via MCP protocol
+- Automatic Markdown to ADF conversion (write Markdown, get proper Jira formatting)
+- ADF to Markdown conversion when reading issues and comments
+- Input validation, HTTPS enforcement, Jira error details in responses
+- TypeScript source with full type definitions
 
 ## Installation
 
@@ -21,15 +20,9 @@ Model Context Protocol (MCP) server for Jira API integration with enhanced Atlas
 npm install @mcpio/jira
 ```
 
-Or install globally:
-
-```bash
-npm install -g @mcpio/jira
-```
-
 ## Setup
 
-1. Create a `.env` file with your Jira credentials:
+1. Create a `.env` file:
 
 ```bash
 JIRA_HOST=https://your-domain.atlassian.net
@@ -38,70 +31,75 @@ JIRA_API_TOKEN=your-api-token
 JIRA_PROJECT_KEY=YOUR-PROJECT-KEY
 ```
 
-2. Get your Jira API token from: https://id.atlassian.com/manage-profile/security/api-tokens
+2. Get your API token: https://id.atlassian.com/manage-profile/security/api-tokens
 
-3. Run the server:
+3. Run:
 
 ```bash
 mcpio-jira
 ```
 
-Or if installed locally:
+## Formatting
 
-```bash
-npm start
+All description and comment fields accept standard Markdown:
+
+```markdown
+# Heading
+**bold** *italic* ~~strike~~ `code`
+[link text](https://example.com)
+- bullet item
+1. numbered item
+> blockquote
 ```
 
-## Formatting Guide
-
-### Clickable Issue Links
-
-**Format for clickable links:**
-```
-- [ISSUE-KEY|URL] Description
-```
-
-**Example:**
-```
-- [PROJ-123|https://your-domain.atlassian.net/browse/PROJ-123] Implement authentication
-```
-
-### Basic Formatting
-
-```
-h1. Heading Level 1
-h2. Heading Level 2
-
-* Bullet item
-# Numbered item
-
-*bold text*
-
-----  (horizontal rule)
-
-​```
-Code block
-​```
-```
+Automatically converted to Atlassian Document Format (ADF).
 
 ## Available Tools
 
+### Issue Management
 - `jira_create_issue` - Create new issue
 - `jira_get_issue` - Get issue details
 - `jira_search_issues` - Search with JQL
-- `jira_update_issue` - Update issue (description, status, summary)
-- `jira_add_comment` - Add comment to issue
-- `jira_link_issues` - Link two issues
-- `jira_get_project_info` - Get project information
+- `jira_update_issue` - Update issue fields and status
 - `jira_delete_issue` - Delete issue
-- `jira_create_subtask` - Create subtask under parent
+- `jira_create_subtask` - Create subtask
+- `jira_assign_issue` - Assign/unassign user
+- `jira_add_comment` - Add comment
+- `jira_link_issues` - Link two issues
+- `jira_list_transitions` - Get available status transitions
+- `jira_get_comments` - Get issue comments
+- `jira_add_worklog` - Add time tracking entry
+- `jira_get_worklogs` - Get worklog entries
+
+### Project Management
+- `jira_list_projects` - List all projects
+- `jira_get_project_info` - Get project details
+- `jira_get_project_components` - Get project components
+- `jira_get_project_versions` - Get project versions/releases
+
+### Metadata
+- `jira_get_fields` - Get all fields (find custom field IDs)
+- `jira_get_issue_types` - Get issue types for project
+- `jira_get_priorities` - Get available priorities
+- `jira_get_link_types` - Get issue link types
+- `jira_search_users` - Search users by name/email
 
 ## Environment Variables
 
-- `JIRA_HOST` - Jira instance URL (HTTPS required)
-- `JIRA_EMAIL` - Your email address
-- `JIRA_API_TOKEN` - API token from Atlassian
-- `JIRA_PROJECT_KEY` - Default project key (optional, defaults to "PROJ")
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `JIRA_HOST` | Yes | Jira instance URL (HTTPS) |
+| `JIRA_EMAIL` | Yes | Your email address |
+| `JIRA_API_TOKEN` | Yes | API token from Atlassian |
+| `JIRA_PROJECT_KEY` | No | Default project key (defaults to "PROJ") |
+| `JIRA_STORY_POINTS_FIELD` | No | Custom field ID for story points (defaults to "customfield_10016") |
+
+## Development
+
+```bash
+npm run build   # Compile TypeScript
+npm start       # Run compiled server
+```
 
 ## License
 
