@@ -14,21 +14,14 @@ import * as dotenv from 'dotenv';
 dotenv.config();
 
 function getRequiredEnv(name, fallback = null) {
-  const value = process.env[name] || fallback;
-  if (!value) {
-    throw new Error(`Required environment variable ${name} is not set. Please check your .env file.`);
+  const value = process.env[name];
+  if (value !== undefined && value !== '') {
+    return value;
   }
-  return value;
-}
-
-const JIRA_URL = getRequiredEnv('JIRA_HOST', process.env.JIRA_URL);
-const JIRA_EMAIL = getRequiredEnv('JIRA_EMAIL');
-const JIRA_API_TOKEN = getRequiredEnv('JIRA_API_TOKEN');
-const JIRA_PROJECT_KEY = process.env.JIRA_PROJECT_KEY || 'PROJ';
-const STORY_POINTS_FIELD = process.env.JIRA_STORY_POINTS_FIELD || 'customfield_10016';
-
-if (!JIRA_URL.startsWith('https://')) {
-  throw new Error('JIRA_HOST must use HTTPS protocol for security');
+  if (fallback !== null && fallback !== undefined && fallback !== '') {
+    return fallback;
+  }
+  throw new Error(`Required environment variable ${name} is not set. Please check your .env file.`);
 }
 
 function validateIssueKey(key) {
@@ -37,6 +30,16 @@ function validateIssueKey(key) {
   }
   if (!/^[A-Z]+-\d+$/.test(key)) {
     throw new Error(`Invalid issue key format: ${key}. Expected format: PROJECT-123`);
+  }
+  return key;
+}
+
+function validateProjectKey(key) {
+  if (!key || typeof key !== 'string') {
+    throw new Error('Invalid project key: must be a string');
+  }
+  if (!/^[A-Z][A-Z0-9_]{1,9}$/.test(key)) {
+    throw new Error(`Invalid project key format: ${key}. Expected 2-10 uppercase alphanumeric characters`);
   }
   return key;
 }
@@ -61,6 +64,58 @@ function sanitizeString(str, maxLength = 1000, fieldName = 'input') {
   return str.trim();
 }
 
+function validateSafeParam(str, fieldName, maxLength = 100) {
+  if (!str || typeof str !== 'string') {
+    throw new Error(`Invalid ${fieldName}: must be a non-empty string`);
+  }
+  if (str.length > maxLength) {
+    throw new Error(`${fieldName} exceeds maximum length of ${maxLength} characters`);
+  }
+  if (/[\/\\]/.test(str)) {
+    throw new Error(`Invalid ${fieldName}: contains unsafe characters`);
+  }
+  return str.trim();
+}
+
+function validateMaxResults(maxResults) {
+  if (typeof maxResults !== 'number' || !Number.isInteger(maxResults) || maxResults < 1) {
+    throw new Error('maxResults must be a positive integer');
+  }
+  return Math.min(maxResults, 100);
+}
+
+function validateStoryPoints(points) {
+  if (typeof points !== 'number' || points < 0 || points > 1000) {
+    throw new Error('Story points must be a number between 0 and 1000');
+  }
+  return points;
+}
+
+function validateLabels(labels) {
+  if (!Array.isArray(labels)) {
+    throw new Error('Labels must be an array');
+  }
+  return labels.map((label, index) => {
+    if (typeof label !== 'string') {
+      throw new Error(`Label at index ${index} must be a string`);
+    }
+    if (label.length > 255) {
+      throw new Error(`Label at index ${index} exceeds maximum length of 255 characters`);
+    }
+    return label;
+  });
+}
+
+const JIRA_URL = getRequiredEnv('JIRA_HOST', process.env.JIRA_URL);
+const JIRA_EMAIL = getRequiredEnv('JIRA_EMAIL');
+const JIRA_API_TOKEN = getRequiredEnv('JIRA_API_TOKEN');
+const JIRA_PROJECT_KEY = validateProjectKey(process.env.JIRA_PROJECT_KEY || 'PROJ');
+const STORY_POINTS_FIELD = process.env.JIRA_STORY_POINTS_FIELD || 'customfield_10016';
+
+if (!JIRA_URL.startsWith('https://')) {
+  throw new Error('JIRA_HOST must use HTTPS protocol for security');
+}
+
 function createSuccessResponse(data) {
   return {
     content: [{
@@ -77,13 +132,22 @@ function createIssueUrl(issueKey) {
 function handleError(error) {
   const isDevelopment = process.env.NODE_ENV === 'development';
 
+  const jiraErrors = error.response?.data?.errorMessages;
+  const jiraFieldErrors = error.response?.data?.errors;
+
   const errorResponse = {
     error: 'Operation failed',
     message: error.message || 'An unexpected error occurred',
   };
 
+  if (jiraErrors?.length) {
+    errorResponse.jiraErrors = jiraErrors;
+  }
+  if (jiraFieldErrors && Object.keys(jiraFieldErrors).length > 0) {
+    errorResponse.fieldErrors = jiraFieldErrors;
+  }
+
   if (isDevelopment) {
-    errorResponse.details = error.response?.data;
     errorResponse.stack = error.stack;
   }
 
@@ -121,129 +185,149 @@ const server = new Server(
   }
 );
 
+function parseInlineContent(text) {
+  if (!text) return [];
+
+  const parts = [];
+  const regex = /\*\*([^*]+)\*\*|~~([^~]+)~~|\*([^*]+)\*|\[([^\]]+)\]\(([^)]+)\)|\[([^\]]+)\|([^\]]+)\]|`([^`]+)`/g;
+  let lastIndex = 0;
+  let match;
+
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push({ type: 'text', text: text.substring(lastIndex, match.index) });
+    }
+
+    if (match[1] !== undefined) {
+      parts.push({ type: 'text', text: match[1], marks: [{ type: 'strong' }] });
+    } else if (match[2] !== undefined) {
+      parts.push({ type: 'text', text: match[2], marks: [{ type: 'strike' }] });
+    } else if (match[3] !== undefined) {
+      parts.push({ type: 'text', text: match[3], marks: [{ type: 'em' }] });
+    } else if (match[4] !== undefined) {
+      parts.push({ type: 'text', text: match[4], marks: [{ type: 'link', attrs: { href: match[5] } }] });
+    } else if (match[6] !== undefined) {
+      parts.push({ type: 'text', text: match[6], marks: [{ type: 'link', attrs: { href: match[7] } }] });
+    } else if (match[8] !== undefined) {
+      parts.push({ type: 'text', text: match[8], marks: [{ type: 'code' }] });
+    }
+
+    lastIndex = regex.lastIndex;
+  }
+
+  if (lastIndex < text.length) {
+    parts.push({ type: 'text', text: text.substring(lastIndex) });
+  }
+
+  if (parts.length > 0) return parts;
+  return text ? [{ type: 'text', text }] : [];
+}
+
+function addBulletItem(nodes, content) {
+  const listItem = {
+    type: 'listItem',
+    content: [{ type: 'paragraph', content }]
+  };
+  const lastNode = nodes[nodes.length - 1];
+  if (lastNode && lastNode.type === 'bulletList') {
+    lastNode.content.push(listItem);
+  } else {
+    nodes.push({ type: 'bulletList', content: [listItem] });
+  }
+}
+
+function addOrderedItem(nodes, content) {
+  const listItem = {
+    type: 'listItem',
+    content: [{ type: 'paragraph', content }]
+  };
+  const lastNode = nodes[nodes.length - 1];
+  if (lastNode && lastNode.type === 'orderedList') {
+    lastNode.content.push(listItem);
+  } else {
+    nodes.push({ type: 'orderedList', content: [listItem] });
+  }
+}
+
 function createADFDocument(content) {
+  if (!content || typeof content !== 'string') {
+    return {
+      type: 'doc',
+      version: 1,
+      content: [{ type: 'paragraph', content: [] }]
+    };
+  }
+
   const nodes = [];
   const lines = content.split('\n');
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
 
-    if (!line) {
-      continue;
-    }
+    if (!line) continue;
 
-    if (line.startsWith('h1. ')) {
+    const jiraHeading = line.match(/^h([1-6])\.\s+(.+)/);
+    const mdHeading = line.match(/^(#{1,6})\s+(.+)/);
+
+    if (jiraHeading) {
       nodes.push({
         type: 'heading',
-        attrs: { level: 1 },
-        content: [{ type: 'text', text: line.substring(4) }]
+        attrs: { level: parseInt(jiraHeading[1]) },
+        content: parseInlineContent(jiraHeading[2])
       });
-    } else if (line.startsWith('h2. ')) {
+    } else if (mdHeading) {
       nodes.push({
         type: 'heading',
-        attrs: { level: 2 },
-        content: [{ type: 'text', text: line.substring(4) }]
+        attrs: { level: mdHeading[1].length },
+        content: parseInlineContent(mdHeading[2])
       });
-    } else if (line.startsWith('h3. ')) {
-      nodes.push({
-        type: 'heading',
-        attrs: { level: 3 },
-        content: [{ type: 'text', text: line.substring(4) }]
-      });
-    } else if (line.startsWith('- [') && line.includes('|')) {
-      const match = line.match(/- \[([^\]]+)\|([^\]]+)\] (.+)/);
-      if (match) {
+    } else if (line.startsWith('* ') || line.startsWith('- ')) {
+      addBulletItem(nodes, parseInlineContent(line.substring(2)));
+    } else if (/^\d+\.\s+/.test(line)) {
+      addOrderedItem(nodes, parseInlineContent(line.replace(/^\d+\.\s+/, '')));
+    } else if (line.startsWith('> ')) {
+      const text = line.substring(2);
+      const lastNode = nodes[nodes.length - 1];
+      if (lastNode && lastNode.type === 'blockquote') {
+        lastNode.content.push({
+          type: 'paragraph',
+          content: parseInlineContent(text)
+        });
+      } else {
         nodes.push({
-          type: 'bulletList',
-          content: [{
-            type: 'listItem',
-            content: [{
-              type: 'paragraph',
-              content: [
-                {
-                  type: 'text',
-                  text: match[1],
-                  marks: [{
-                    type: 'link',
-                    attrs: { href: match[2] }
-                  }]
-                },
-                { type: 'text', text: ' ' + match[3] }
-              ]
-            }]
-          }]
+          type: 'blockquote',
+          content: [{ type: 'paragraph', content: parseInlineContent(text) }]
         });
       }
-    } else if (line.startsWith('* ')) {
-      nodes.push({
-        type: 'bulletList',
-        content: [{
-          type: 'listItem',
-          content: [{
-            type: 'paragraph',
-            content: [{ type: 'text', text: line.substring(2) }]
-          }]
-        }]
-      });
-    } else if (line === '----') {
-      nodes.push({
-        type: 'rule'
-      });
+    } else if (line === '----' || line === '---') {
+      nodes.push({ type: 'rule' });
     } else if (line === '```' || line.startsWith('```')) {
+      const lang = line.length > 3 ? line.substring(3).trim() : null;
       const codeLines = [];
       i++;
       while (i < lines.length && lines[i].trim() !== '```') {
         codeLines.push(lines[i]);
         i++;
       }
-      nodes.push({
-        type: 'codeBlock',
-        content: [{
-          type: 'text',
-          text: codeLines.join('\n')
-        }]
-      });
-    } else if (line.includes('*') && line.includes(':')) {
-      const parts = [];
-      const regex = /\*([^*]+)\*/g;
-      let lastIndex = 0;
-      let match;
-
-      while ((match = regex.exec(line)) !== null) {
-        if (match.index > lastIndex) {
-          parts.push({ type: 'text', text: line.substring(lastIndex, match.index) });
-        }
-        parts.push({
-          type: 'text',
-          text: match[1],
-          marks: [{ type: 'strong' }]
-        });
-        lastIndex = regex.lastIndex;
+      const codeText = codeLines.join('\n');
+      const codeBlock = { type: 'codeBlock' };
+      if (codeText) {
+        codeBlock.content = [{ type: 'text', text: codeText }];
       }
-
-      if (lastIndex < line.length) {
-        parts.push({ type: 'text', text: line.substring(lastIndex) });
+      if (lang) {
+        codeBlock.attrs = { language: lang };
       }
-
-      nodes.push({
-        type: 'paragraph',
-        content: parts
-      });
-    } else if (line.startsWith('*') && line.endsWith('*')) {
-      nodes.push({
-        type: 'paragraph',
-        content: [{
-          type: 'text',
-          text: line.substring(1, line.length - 1),
-          marks: [{ type: 'strong' }]
-        }]
-      });
+      nodes.push(codeBlock);
     } else {
       nodes.push({
         type: 'paragraph',
-        content: [{ type: 'text', text: line }]
+        content: parseInlineContent(line)
       });
     }
+  }
+
+  if (nodes.length === 0) {
+    nodes.push({ type: 'paragraph', content: [] });
   }
 
   return {
@@ -251,6 +335,79 @@ function createADFDocument(content) {
     version: 1,
     content: nodes
   };
+}
+
+function inlineNodesToText(nodes) {
+  if (!Array.isArray(nodes)) return '';
+  return nodes.map(node => {
+    if (node.type === 'text') {
+      let text = node.text || '';
+      if (node.marks) {
+        for (const mark of node.marks) {
+          switch (mark.type) {
+            case 'strong': text = `**${text}**`; break;
+            case 'em': text = `*${text}*`; break;
+            case 'strike': text = `~~${text}~~`; break;
+            case 'code': text = `\`${text}\``; break;
+            case 'link': text = `[${text}](${mark.attrs?.href || ''})`; break;
+          }
+        }
+      }
+      return text;
+    }
+    if (node.type === 'hardBreak') return '\n';
+    if (node.type === 'mention') return `@${node.attrs?.text || node.attrs?.id || ''}`;
+    if (node.type === 'inlineCard') return node.attrs?.url || '';
+    if (node.type === 'emoji') return node.attrs?.shortName || '';
+    return '';
+  }).join('');
+}
+
+function blockNodeToText(node) {
+  if (!node) return '';
+  switch (node.type) {
+    case 'paragraph':
+      return inlineNodesToText(node.content);
+    case 'heading': {
+      const level = node.attrs?.level || 1;
+      return '#'.repeat(level) + ' ' + inlineNodesToText(node.content);
+    }
+    case 'bulletList':
+      return (node.content || []).map(item =>
+        '- ' + (item.content || []).map(c => blockNodeToText(c)).join('\n')
+      ).join('\n');
+    case 'orderedList':
+      return (node.content || []).map((item, i) =>
+        `${i + 1}. ` + (item.content || []).map(c => blockNodeToText(c)).join('\n')
+      ).join('\n');
+    case 'blockquote':
+      return (node.content || []).map(c => '> ' + blockNodeToText(c)).join('\n');
+    case 'codeBlock': {
+      const lang = node.attrs?.language || '';
+      const code = inlineNodesToText(node.content);
+      return '```' + lang + '\n' + code + '\n```';
+    }
+    case 'rule':
+      return '---';
+    case 'table':
+      return (node.content || []).map(row =>
+        '| ' + (row.content || []).map(cell =>
+          (cell.content || []).map(c => blockNodeToText(c)).join(' ')
+        ).join(' | ') + ' |'
+      ).join('\n');
+    case 'mediaSingle':
+    case 'mediaGroup':
+      return '[media]';
+    default:
+      return inlineNodesToText(node.content);
+  }
+}
+
+function adfToText(doc) {
+  if (!doc || doc.type !== 'doc' || !Array.isArray(doc.content)) {
+    return typeof doc === 'string' ? doc : '';
+  }
+  return doc.content.map(node => blockNodeToText(node)).join('\n\n');
 }
 
 server.setRequestHandler(ListPromptsRequestSchema, async () => {
@@ -272,57 +429,24 @@ server.setRequestHandler(GetPromptRequestSchema, async (request) => {
           role: 'user',
           content: {
             type: 'text',
-            text: `When working with Jira through this MCP server, you MUST ALWAYS follow these formatting rules:
+            text: `This MCP server automatically converts Markdown to Atlassian Document Format (ADF).
 
-CRITICAL: CLICKABLE ISSUE LINKS
-================================
-To create clickable links to Jira issues, ALWAYS use this exact format:
-- [ISSUE-KEY|FULL-URL] Description text
+Use standard Markdown:
 
-CORRECT Examples:
-- [PROJ-123|https://your-domain.atlassian.net/browse/PROJ-123] Implement authentication
-- [PROJ-124|https://your-domain.atlassian.net/browse/PROJ-124] Add unit tests
+Headings: # H1, ## H2, ### H3, #### H4, ##### H5, ###### H6
+Bold: **bold text**
+Italic: *italic text*
+Strikethrough: ~~deleted text~~
+Inline code: \`code\`
+Links: [text](https://example.com)
+Bullet lists: - item
+Numbered lists: 1. item
+Blockquotes: > text
+Code blocks: \`\`\`language ... \`\`\`
+Horizontal rule: ---
 
-WRONG (these will NOT be clickable):
-- PROJ-123 Implement authentication (plain text)
-- * PROJ-123 Implement authentication (plain bullet)
-- [PROJ-123](https://...) (markdown format)
-
-JIRA FORMATTING REFERENCE:
-==========================
-1. Headers:
-   h1. Main Title
-   h2. Section Title
-   h3. Subsection
-
-2. Lists:
-   * Bullet point
-   * Another bullet
-
-   # Numbered item
-   # Another number
-
-3. Code Blocks:
-   \`\`\`
-   Error message or code here
-   Multiple lines supported
-   \`\`\`
-
-4. Bold Text:
-   *important text*
-
-5. Horizontal Line:
-   ----
-
-IMPORTANT RULES:
-================
-1. NEVER reference Jira issues as plain text like "PROJ-123"
-2. ALWAYS use the format: - [KEY|URL] description
-3. ALWAYS include the full URL: https://domain.atlassian.net/browse/KEY
-4. The dash and space before the bracket are REQUIRED: "- ["
-5. Use the pipe character | to separate key from URL
-
-When creating or updating Jira issues, descriptions, or comments, automatically apply this formatting without being asked.`,
+When referencing Jira issues, always use clickable links:
+[PROJ-123](https://your-domain.atlassian.net/browse/PROJ-123)`,
           },
         },
       ],
@@ -337,22 +461,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
     tools: [
       {
         name: 'jira_create_issue',
-        description: `Create a new Jira issue with proper ADF formatting.
-
-⚠️ CRITICAL - ALWAYS Use Jira Formatting:
-When writing descriptions, ALWAYS format Jira issue references as clickable links:
-- [PROJECT-123|https://your-domain.atlassian.net/browse/PROJECT-123] Description
-
-NEVER use plain text like "PROJECT-123" - it won't be clickable!
-
-Supported formatting:
-- h1. h2. h3. for headers
-- * for bullet lists
-- \`\`\` for code blocks
-- *text* for bold
-- ---- for horizontal rule
-
-See the 'jira-formatting-guide' prompt for complete reference.`,
+        description: 'Create a new Jira issue. Description supports standard Markdown (headings, **bold**, [links](url), lists, code blocks). Automatically converted to ADF.',
         inputSchema: {
           type: 'object',
           properties: {
@@ -362,7 +471,7 @@ See the 'jira-formatting-guide' prompt for complete reference.`,
             },
             description: {
               type: 'string',
-              description: 'Issue description - use format: - [KEY|URL] text for clickable links',
+              description: 'Issue description in Markdown. Use [KEY](url) for clickable issue links.',
             },
             issueType: {
               type: 'string',
@@ -381,7 +490,11 @@ See the 'jira-formatting-guide' prompt for complete reference.`,
             },
             storyPoints: {
               type: 'number',
-              description: 'Story points estimate',
+              description: 'Story points estimate (0-1000)',
+            },
+            projectKey: {
+              type: 'string',
+              description: 'Project key (defaults to configured JIRA_PROJECT_KEY)',
             },
           },
           required: ['summary', 'description'],
@@ -413,7 +526,7 @@ See the 'jira-formatting-guide' prompt for complete reference.`,
             },
             maxResults: {
               type: 'number',
-              description: 'Maximum number of results',
+              description: 'Maximum number of results (1-100)',
               default: 50,
             },
           },
@@ -422,45 +535,7 @@ See the 'jira-formatting-guide' prompt for complete reference.`,
       },
       {
         name: 'jira_update_issue',
-        description: `Update a Jira issue.
-
-IMPORTANT - Description Formatting Guide:
-
-The description field supports a special markup format that gets converted to Atlassian Document Format (ADF):
-
-1. HEADINGS:
-   h1. Heading 1
-   h2. Heading 2
-   h3. Heading 3
-   h4. Heading 4
-   h5. Heading 5
-
-2. LISTS:
-   * Bullet item (use asterisk + space)
-   # Numbered item (use hash + space)
-
-3. LINKS TO JIRA ISSUES (CREATES CLICKABLE LINKS):
-   - [ISSUE-KEY|URL] Description text
-   Example: - [PROJ-61|https://your-domain.atlassian.net/browse/PROJ-61] API rate limiting
-
-   This format is CRITICAL for creating active hyperlinks to Jira issues!
-   DO NOT use plain text like "PROJ-61" - it will not be clickable.
-   DO NOT use markdown format [text](url) - it will not work.
-   ALWAYS use the pipe format: [KEY|URL]
-
-4. TEXT FORMATTING:
-   *bold text* (asterisk before and after)
-
-5. HORIZONTAL RULE:
-   ---- (four dashes)
-
-Example with links:
-h2. Task List
-h4. Security Tasks
-- [PROJ-61|https://your-domain.atlassian.net/browse/PROJ-61] Implement rate limiting
-- [PROJ-63|https://your-domain.atlassian.net/browse/PROJ-63] Configure CORS
-
-This will create proper clickable links in Jira UI.`,
+        description: 'Update a Jira issue. Description supports standard Markdown (headings, **bold**, [links](url), lists, code blocks). Automatically converted to ADF.',
         inputSchema: {
           type: 'object',
           properties: {
@@ -474,7 +549,7 @@ This will create proper clickable links in Jira UI.`,
             },
             description: {
               type: 'string',
-              description: 'New description - see tool description for formatting guide with clickable links',
+              description: 'New description in Markdown. Use [KEY](url) for clickable issue links.',
             },
             status: {
               type: 'string',
@@ -486,13 +561,7 @@ This will create proper clickable links in Jira UI.`,
       },
       {
         name: 'jira_add_comment',
-        description: `Add a comment to a Jira issue.
-
-IMPORTANT - Comment Formatting:
-To create CLICKABLE LINKS to other Jira issues, use this format:
-- [PROJ-123|https://your-domain.atlassian.net/browse/PROJ-123] Task description
-
-See jira_update_issue tool description for complete formatting guide.`,
+        description: 'Add a comment to a Jira issue. Supports standard Markdown, automatically converted to ADF.',
         inputSchema: {
           type: 'object',
           properties: {
@@ -502,7 +571,7 @@ See jira_update_issue tool description for complete formatting guide.`,
             },
             comment: {
               type: 'string',
-              description: 'Comment text - use format: - [KEY|URL] text for clickable links',
+              description: 'Comment text in Markdown.',
             },
           },
           required: ['issueKey', 'comment'],
@@ -561,13 +630,7 @@ See jira_update_issue tool description for complete formatting guide.`,
       },
       {
         name: 'jira_create_subtask',
-        description: `Create a subtask under a parent issue.
-
-IMPORTANT - Description Formatting:
-To create CLICKABLE LINKS to other Jira issues, use this format:
-- [PROJ-123|https://your-domain.atlassian.net/browse/PROJ-123] Task description
-
-See jira_update_issue tool description for complete formatting guide.`,
+        description: 'Create a subtask under a parent issue. Description supports standard Markdown, automatically converted to ADF.',
         inputSchema: {
           type: 'object',
           properties: {
@@ -581,15 +644,215 @@ See jira_update_issue tool description for complete formatting guide.`,
             },
             description: {
               type: 'string',
-              description: 'Subtask description - use format: - [KEY|URL] text for clickable links',
+              description: 'Subtask description in Markdown. Use [KEY](url) for clickable issue links.',
             },
             priority: {
               type: 'string',
               description: 'Priority (Highest, High, Medium, Low, Lowest)',
               default: 'Medium',
             },
+            projectKey: {
+              type: 'string',
+              description: 'Project key (defaults to configured JIRA_PROJECT_KEY)',
+            },
           },
           required: ['parentKey', 'summary', 'description'],
+        },
+      },
+      {
+        name: 'jira_assign_issue',
+        description: 'Assign or unassign a user to a Jira issue. Pass null accountId to unassign.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            issueKey: {
+              type: 'string',
+              description: 'Issue key (e.g., TTC-123)',
+            },
+            accountId: {
+              type: ['string', 'null'],
+              description: 'Atlassian account ID of the assignee, or null to unassign',
+            },
+          },
+          required: ['issueKey'],
+        },
+      },
+      {
+        name: 'jira_list_transitions',
+        description: 'Get available status transitions for a Jira issue.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            issueKey: {
+              type: 'string',
+              description: 'Issue key (e.g., TTC-123)',
+            },
+          },
+          required: ['issueKey'],
+        },
+      },
+      {
+        name: 'jira_add_worklog',
+        description: 'Add a worklog entry (time tracking) to a Jira issue.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            issueKey: {
+              type: 'string',
+              description: 'Issue key (e.g., TTC-123)',
+            },
+            timeSpent: {
+              type: 'string',
+              description: 'Time spent in Jira format (e.g., "2h 30m", "1d", "45m")',
+            },
+            comment: {
+              type: 'string',
+              description: 'Worklog comment in Markdown.',
+            },
+            started: {
+              type: 'string',
+              description: 'Start date/time in ISO 8601 format (e.g., "2024-01-15T09:00:00.000+0000"). Defaults to now.',
+            },
+          },
+          required: ['issueKey', 'timeSpent'],
+        },
+      },
+      {
+        name: 'jira_get_comments',
+        description: 'Get comments from a Jira issue.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            issueKey: {
+              type: 'string',
+              description: 'Issue key (e.g., TTC-123)',
+            },
+            maxResults: {
+              type: 'number',
+              description: 'Maximum number of comments (1-100)',
+              default: 50,
+            },
+            orderBy: {
+              type: 'string',
+              description: 'Order by created date: "created" (oldest first) or "-created" (newest first)',
+              default: '-created',
+            },
+          },
+          required: ['issueKey'],
+        },
+      },
+      {
+        name: 'jira_get_worklogs',
+        description: 'Get worklog entries from a Jira issue.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            issueKey: {
+              type: 'string',
+              description: 'Issue key (e.g., TTC-123)',
+            },
+          },
+          required: ['issueKey'],
+        },
+      },
+      {
+        name: 'jira_list_projects',
+        description: 'List all accessible Jira projects.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            maxResults: {
+              type: 'number',
+              description: 'Maximum number of results (1-100)',
+              default: 50,
+            },
+            query: {
+              type: 'string',
+              description: 'Filter projects by name (partial match)',
+            },
+          },
+        },
+      },
+      {
+        name: 'jira_get_project_components',
+        description: 'Get components of a Jira project.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            projectKey: {
+              type: 'string',
+              description: 'Project key (defaults to configured JIRA_PROJECT_KEY)',
+            },
+          },
+        },
+      },
+      {
+        name: 'jira_get_project_versions',
+        description: 'Get versions (releases) of a Jira project.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            projectKey: {
+              type: 'string',
+              description: 'Project key (defaults to configured JIRA_PROJECT_KEY)',
+            },
+          },
+        },
+      },
+      {
+        name: 'jira_get_fields',
+        description: 'Get all available Jira fields. Useful for finding custom field IDs.',
+        inputSchema: {
+          type: 'object',
+          properties: {},
+        },
+      },
+      {
+        name: 'jira_get_issue_types',
+        description: 'Get all available issue types for a project.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            projectKey: {
+              type: 'string',
+              description: 'Project key (defaults to configured JIRA_PROJECT_KEY)',
+            },
+          },
+        },
+      },
+      {
+        name: 'jira_get_priorities',
+        description: 'Get all available issue priorities.',
+        inputSchema: {
+          type: 'object',
+          properties: {},
+        },
+      },
+      {
+        name: 'jira_get_link_types',
+        description: 'Get all available issue link types.',
+        inputSchema: {
+          type: 'object',
+          properties: {},
+        },
+      },
+      {
+        name: 'jira_search_users',
+        description: 'Search for Jira users by name or email. Returns accountId needed for jira_assign_issue.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            query: {
+              type: 'string',
+              description: 'Search query (matches display name and email prefix)',
+            },
+            maxResults: {
+              type: 'number',
+              description: 'Maximum number of results (1-100)',
+              default: 10,
+            },
+          },
+          required: ['query'],
         },
       },
     ],
@@ -603,20 +866,25 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     switch (name) {
       case 'jira_create_issue': {
         const { summary, description, issueType = 'Task', priority = 'Medium', labels = [], storyPoints } = args;
+        const projectKey = args.projectKey ? validateProjectKey(args.projectKey) : JIRA_PROJECT_KEY;
+
+        validateSafeParam(issueType, 'issueType');
+        validateSafeParam(priority, 'priority');
+        const validatedLabels = validateLabels(labels);
 
         const issueData = {
           fields: {
-            project: { key: JIRA_PROJECT_KEY },
+            project: { key: projectKey },
             summary: sanitizeString(summary, 500, 'summary'),
             description: createADFDocument(description),
             issuetype: { name: issueType },
             priority: { name: priority },
-            labels,
+            labels: validatedLabels,
           },
         };
 
-        if (storyPoints) {
-          issueData.fields[STORY_POINTS_FIELD] = storyPoints;
+        if (storyPoints !== undefined && storyPoints !== null) {
+          issueData.fields[STORY_POINTS_FIELD] = validateStoryPoints(storyPoints);
         }
 
         const response = await jiraApi.post('/issue', issueData);
@@ -633,19 +901,22 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const { issueKey } = args;
         validateIssueKey(issueKey);
         const response = await jiraApi.get(`/issue/${issueKey}`);
+        const f = response.data.fields;
 
         return createSuccessResponse({
           key: response.data.key,
-          summary: response.data.fields.summary,
-          description: response.data.fields.description,
-          status: response.data.fields.status.name,
-          assignee: response.data.fields.assignee?.displayName,
-          reporter: response.data.fields.reporter?.displayName,
-          priority: response.data.fields.priority?.name,
-          issueType: response.data.fields.issuetype?.name,
-          parent: response.data.fields.parent?.key,
-          created: response.data.fields.created,
-          updated: response.data.fields.updated,
+          summary: f.summary,
+          description: adfToText(f.description),
+          status: f.status?.name,
+          assignee: f.assignee ? { displayName: f.assignee.displayName, accountId: f.assignee.accountId } : null,
+          reporter: f.reporter?.displayName,
+          priority: f.priority?.name,
+          issueType: f.issuetype?.name,
+          labels: f.labels || [],
+          storyPoints: f[STORY_POINTS_FIELD],
+          parent: f.parent?.key,
+          created: f.created,
+          updated: f.updated,
           url: createIssueUrl(response.data.key),
         });
       }
@@ -653,12 +924,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case 'jira_search_issues': {
         const { jql, maxResults = 50 } = args;
         validateJQL(jql);
-        const response = await jiraApi.get('/search/jql', {
-          params: {
-            jql,
-            maxResults,
-            fields: 'summary,status,assignee,priority,created,updated,issuetype,parent',
-          },
+        const validatedMaxResults = validateMaxResults(maxResults);
+
+        const response = await jiraApi.post('/search', {
+          jql,
+          maxResults: validatedMaxResults,
+          fields: ['summary', 'status', 'assignee', 'priority', 'created', 'updated', 'issuetype', 'parent', 'labels'],
         });
 
         return createSuccessResponse({
@@ -666,10 +937,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           issues: response.data.issues.map(issue => ({
             key: issue.key,
             summary: issue.fields.summary,
-            status: issue.fields.status.name,
-            assignee: issue.fields.assignee?.displayName,
+            status: issue.fields.status?.name,
+            assignee: issue.fields.assignee ? { displayName: issue.fields.assignee.displayName, accountId: issue.fields.assignee.accountId } : null,
             priority: issue.fields.priority?.name,
             issueType: issue.fields.issuetype?.name,
+            labels: issue.fields.labels || [],
             parent: issue.fields.parent?.key,
             url: createIssueUrl(issue.key),
           })),
@@ -681,15 +953,22 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         validateIssueKey(issueKey);
 
         const updateData = { fields: {} };
+        let hasFieldUpdates = false;
 
         if (summary) {
           updateData.fields.summary = sanitizeString(summary, 500, 'summary');
+          hasFieldUpdates = true;
         }
         if (description) {
           updateData.fields.description = createADFDocument(description);
+          hasFieldUpdates = true;
         }
 
-        await jiraApi.put(`/issue/${issueKey}`, updateData);
+        if (hasFieldUpdates) {
+          await jiraApi.put(`/issue/${issueKey}`, updateData);
+        }
+
+        const warnings = [];
 
         if (status) {
           const transitions = await jiraApi.get(`/issue/${issueKey}/transitions`);
@@ -699,14 +978,30 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             await jiraApi.post(`/issue/${issueKey}/transitions`, {
               transition: { id: transition.id },
             });
+          } else {
+            const available = transitions.data.transitions.map(t => t.name).join(', ');
+            warnings.push(`Transition "${status}" not found. Available transitions: ${available}`);
           }
         }
 
-        return createSuccessResponse({
-          success: true,
-          message: `Issue ${issueKey} updated successfully`,
+        if (!hasFieldUpdates && !status) {
+          return createSuccessResponse({
+            success: false,
+            message: `No updates provided for ${issueKey}`,
+          });
+        }
+
+        const result = {
+          success: warnings.length === 0,
+          message: `Issue ${issueKey} updated${warnings.length > 0 ? ' with warnings' : ' successfully'}`,
           url: createIssueUrl(issueKey),
-        });
+        };
+
+        if (warnings.length > 0) {
+          result.warnings = warnings;
+        }
+
+        return createSuccessResponse(result);
       }
 
       case 'jira_add_comment': {
@@ -727,6 +1022,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const { inwardIssue, outwardIssue, linkType = 'Relates' } = args;
         validateIssueKey(inwardIssue);
         validateIssueKey(outwardIssue);
+        validateSafeParam(linkType, 'linkType');
 
         try {
           await jiraApi.post('/issueLink', {
@@ -754,6 +1050,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case 'jira_get_project_info': {
         const { projectKey = JIRA_PROJECT_KEY } = args;
+        validateProjectKey(projectKey);
         const response = await jiraApi.get(`/project/${projectKey}`);
 
         return createSuccessResponse({
@@ -779,10 +1076,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case 'jira_create_subtask': {
         const { parentKey, summary, description, priority = 'Medium' } = args;
         validateIssueKey(parentKey);
+        validateSafeParam(priority, 'priority');
+        const projectKey = args.projectKey ? validateProjectKey(args.projectKey) : JIRA_PROJECT_KEY;
 
         const issueData = {
           fields: {
-            project: { key: JIRA_PROJECT_KEY },
+            project: { key: projectKey },
             summary: sanitizeString(summary, 500, 'summary'),
             description: createADFDocument(description),
             issuetype: { name: 'Subtask' },
@@ -799,6 +1098,243 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           id: response.data.id,
           parent: parentKey,
           url: createIssueUrl(response.data.key),
+        });
+      }
+
+      case 'jira_assign_issue': {
+        const { issueKey, accountId } = args;
+        validateIssueKey(issueKey);
+
+        await jiraApi.put(`/issue/${issueKey}/assignee`, {
+          accountId: accountId !== undefined ? accountId : null,
+        });
+
+        return createSuccessResponse({
+          success: true,
+          message: accountId
+            ? `Issue ${issueKey} assigned to ${accountId}`
+            : `Issue ${issueKey} unassigned`,
+          url: createIssueUrl(issueKey),
+        });
+      }
+
+      case 'jira_list_transitions': {
+        const { issueKey } = args;
+        validateIssueKey(issueKey);
+
+        const response = await jiraApi.get(`/issue/${issueKey}/transitions`);
+
+        return createSuccessResponse({
+          issueKey,
+          transitions: response.data.transitions.map(t => ({
+            id: t.id,
+            name: t.name,
+            to: {
+              id: t.to.id,
+              name: t.to.name,
+              category: t.to.statusCategory?.name,
+            },
+          })),
+        });
+      }
+
+      case 'jira_add_worklog': {
+        const { issueKey, timeSpent, comment, started } = args;
+        validateIssueKey(issueKey);
+        sanitizeString(timeSpent, 50, 'timeSpent');
+
+        const worklogData = { timeSpent };
+        if (comment) {
+          worklogData.comment = createADFDocument(comment);
+        }
+        if (started) {
+          worklogData.started = started;
+        }
+
+        const response = await jiraApi.post(`/issue/${issueKey}/worklog`, worklogData);
+
+        return createSuccessResponse({
+          success: true,
+          id: response.data.id,
+          issueKey,
+          timeSpent: response.data.timeSpent,
+          author: response.data.author?.displayName,
+        });
+      }
+
+      case 'jira_get_comments': {
+        const { issueKey, maxResults = 50, orderBy = '-created' } = args;
+        validateIssueKey(issueKey);
+        const validatedMaxResults = validateMaxResults(maxResults);
+
+        const response = await jiraApi.get(`/issue/${issueKey}/comment`, {
+          params: { maxResults: validatedMaxResults, orderBy },
+        });
+
+        return createSuccessResponse({
+          issueKey,
+          total: response.data.total,
+          comments: response.data.comments.map(c => ({
+            id: c.id,
+            author: c.author?.displayName,
+            body: adfToText(c.body),
+            created: c.created,
+            updated: c.updated,
+          })),
+        });
+      }
+
+      case 'jira_get_worklogs': {
+        const { issueKey } = args;
+        validateIssueKey(issueKey);
+
+        const response = await jiraApi.get(`/issue/${issueKey}/worklog`);
+
+        return createSuccessResponse({
+          issueKey,
+          total: response.data.total,
+          worklogs: response.data.worklogs.map(w => ({
+            id: w.id,
+            author: w.author?.displayName,
+            timeSpent: w.timeSpent,
+            timeSpentSeconds: w.timeSpentSeconds,
+            started: w.started,
+            comment: adfToText(w.comment),
+          })),
+        });
+      }
+
+      case 'jira_list_projects': {
+        const { maxResults = 50, query } = args;
+        const validatedMaxResults = validateMaxResults(maxResults);
+
+        const params = { maxResults: validatedMaxResults };
+        if (query) {
+          params.query = sanitizeString(query, 200, 'query');
+        }
+
+        const response = await jiraApi.get('/project/search', { params });
+
+        return createSuccessResponse({
+          total: response.data.total,
+          projects: response.data.values.map(p => ({
+            key: p.key,
+            name: p.name,
+            projectTypeKey: p.projectTypeKey,
+            style: p.style,
+            lead: p.lead?.displayName,
+          })),
+        });
+      }
+
+      case 'jira_get_project_components': {
+        const projectKey = args.projectKey ? validateProjectKey(args.projectKey) : JIRA_PROJECT_KEY;
+
+        const response = await jiraApi.get(`/project/${projectKey}/components`);
+
+        return createSuccessResponse({
+          projectKey,
+          components: response.data.map(c => ({
+            id: c.id,
+            name: c.name,
+            description: c.description,
+            lead: c.lead?.displayName,
+            assigneeType: c.assigneeType,
+          })),
+        });
+      }
+
+      case 'jira_get_project_versions': {
+        const projectKey = args.projectKey ? validateProjectKey(args.projectKey) : JIRA_PROJECT_KEY;
+
+        const response = await jiraApi.get(`/project/${projectKey}/versions`);
+
+        return createSuccessResponse({
+          projectKey,
+          versions: response.data.map(v => ({
+            id: v.id,
+            name: v.name,
+            description: v.description,
+            released: v.released,
+            archived: v.archived,
+            releaseDate: v.releaseDate,
+            startDate: v.startDate,
+          })),
+        });
+      }
+
+      case 'jira_get_fields': {
+        const response = await jiraApi.get('/field');
+
+        return createSuccessResponse({
+          fields: response.data.map(f => ({
+            id: f.id,
+            name: f.name,
+            custom: f.custom,
+            schema: f.schema,
+          })),
+        });
+      }
+
+      case 'jira_get_issue_types': {
+        const projectKey = args.projectKey ? validateProjectKey(args.projectKey) : JIRA_PROJECT_KEY;
+
+        const response = await jiraApi.get(`/issue/createmeta/${projectKey}/issuetypes`);
+
+        return createSuccessResponse({
+          projectKey,
+          issueTypes: response.data.issueTypes.map(t => ({
+            id: t.id,
+            name: t.name,
+            subtask: t.subtask,
+            description: t.description,
+          })),
+        });
+      }
+
+      case 'jira_get_priorities': {
+        const response = await jiraApi.get('/priority');
+
+        return createSuccessResponse({
+          priorities: response.data.map(p => ({
+            id: p.id,
+            name: p.name,
+            description: p.description,
+            iconUrl: p.iconUrl,
+          })),
+        });
+      }
+
+      case 'jira_get_link_types': {
+        const response = await jiraApi.get('/issueLinkType');
+
+        return createSuccessResponse({
+          linkTypes: response.data.issueLinkTypes.map(lt => ({
+            id: lt.id,
+            name: lt.name,
+            inward: lt.inward,
+            outward: lt.outward,
+          })),
+        });
+      }
+
+      case 'jira_search_users': {
+        const { query, maxResults = 10 } = args;
+        sanitizeString(query, 200, 'query');
+        const validatedMaxResults = validateMaxResults(maxResults);
+
+        const response = await jiraApi.get('/user/search', {
+          params: { query, maxResults: validatedMaxResults },
+        });
+
+        return createSuccessResponse({
+          users: response.data.map(u => ({
+            accountId: u.accountId,
+            displayName: u.displayName,
+            emailAddress: u.emailAddress,
+            active: u.active,
+            accountType: u.accountType,
+          })),
         });
       }
 
