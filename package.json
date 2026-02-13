@@ -1,7 +1,7 @@
 {
   "name": "@mcpio/jira",
-  "version": "2.1.1",
-  "description": "Model Context Protocol (MCP) server for Jira API integration with enhanced ADF formatting support and security hardening",
+  "version": "2.2.0",
+  "description": "Model Context Protocol (MCP) server for Jira Cloud API v3 with automatic Markdown-to-ADF conversion",
   "author": {
     "name": "Volodymyr Press",
     "email": "volodymyr.press.gpt@gmail.com"

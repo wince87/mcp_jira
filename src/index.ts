@@ -801,10 +801,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         validateJQL(jql);
         const validatedMaxResults = validateMaxResults(maxResults);
 
-        const response = await jiraApi.post('/search', {
-          jql,
-          maxResults: validatedMaxResults,
-          fields: ['summary', 'status', 'assignee', 'priority', 'created', 'updated', 'issuetype', 'parent', 'labels'],
+        const response = await jiraApi.get('/search/jql', {
+          params: {
+            jql,
+            maxResults: validatedMaxResults,
+            fields: 'summary,status,assignee,priority,created,updated,issuetype,parent,labels',
+          },
         });
 
         return createSuccessResponse({
@@ -1169,10 +1171,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'jira_get_priorities': {
-        const response = await jiraApi.get('/priority');
+        const response = await jiraApi.get('/priority/search');
 
         return createSuccessResponse({
-          priorities: response.data.map((p: any) => ({
+          priorities: response.data.values.map((p: any) => ({
             id: p.id,
             name: p.name,
             description: p.description,
