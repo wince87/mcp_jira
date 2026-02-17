@@ -9,9 +9,22 @@ import {
   GetPromptRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 import axios, { type AxiosInstance, type AxiosError } from 'axios';
-import * as dotenv from 'dotenv';
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
 
-dotenv.config();
+try {
+  const envPath = resolve(process.cwd(), '.env');
+  const envContent = readFileSync(envPath, 'utf-8');
+  for (const line of envContent.split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const eqIndex = trimmed.indexOf('=');
+    if (eqIndex === -1) continue;
+    const key = trimmed.slice(0, eqIndex).trim();
+    const value = trimmed.slice(eqIndex + 1).trim().replace(/^(['"])(.*)\1$/, '$2');
+    if (!process.env[key]) process.env[key] = value;
+  }
+} catch {}
 
 interface ADFMark {
   type: string;
