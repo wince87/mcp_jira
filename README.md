@@ -1,4 +1,4 @@
-# Jira MCP Server v2.3
+# Jira MCP Server v2.3.1
 
 Model Context Protocol (MCP) server for Jira API integration with automatic Markdown-to-ADF conversion.
 
@@ -122,17 +122,17 @@ Automatically converted to Atlassian Document Format (ADF).
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `JIRA_HOST` | Yes | Jira instance URL (HTTPS) |
-| `JIRA_EMAIL` | Yes | Your email address |
+| `JIRA_HOST` | Yes | Jira instance URL (HTTPS). Alias: `JIRA_URL` |
+| `JIRA_EMAIL` | Yes | Your Atlassian account email |
 | `JIRA_API_TOKEN` | Yes | API token from Atlassian |
-| `JIRA_PROJECT_KEY` | No | Default project key (defaults to "PROJ") |
-| `JIRA_STORY_POINTS_FIELD` | No | Custom field ID for story points (defaults to "customfield_10016") |
+| `JIRA_PROJECT_KEY` | No | Default project key used when not specified in tool calls |
+| `JIRA_STORY_POINTS_FIELD` | No | Custom field ID for story points (defaults to `customfield_10016`) |
 
 ## Development
 
 ```bash
-npm run build   # Compile TypeScript
-npm start       # Run compiled server
+npm run build
+npm start
 ```
 
 ## License
