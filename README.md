@@ -1,4 +1,4 @@
-# Jira MCP Server v2.0
+# Jira MCP Server v2.3
 
 Model Context Protocol (MCP) server for Jira API integration with automatic Markdown-to-ADF conversion.
 
@@ -8,11 +8,14 @@ Model Context Protocol (MCP) server for Jira API integration with automatic Mark
 
 ## Features
 
-- 23 Jira API tools via MCP protocol
+- 32 Jira API tools via MCP protocol
 - Automatic Markdown to ADF conversion (write Markdown, get proper Jira formatting)
 - ADF to Markdown conversion when reading issues and comments
+- Sprint and board management via Jira Agile API
+- File attachment support
 - Input validation, HTTPS enforcement, Jira error details in responses
 - TypeScript source with full type definitions
+- Zero runtime dependencies beyond MCP SDK and axios
 
 ## Installation
 
@@ -62,14 +65,25 @@ Automatically converted to Atlassian Document Format (ADF).
 - `jira_search_issues` - Search with JQL
 - `jira_update_issue` - Update issue fields and status
 - `jira_delete_issue` - Delete issue
+- `jira_clone_issue` - Clone an existing issue
 - `jira_create_subtask` - Create subtask
+- `jira_bulk_create_issues` - Create multiple issues at once
 - `jira_assign_issue` - Assign/unassign user
 - `jira_add_comment` - Add comment
+- `jira_get_comments` - Get issue comments
 - `jira_link_issues` - Link two issues
 - `jira_list_transitions` - Get available status transitions
-- `jira_get_comments` - Get issue comments
+- `jira_get_changelog` - Get issue change history
 - `jira_add_worklog` - Add time tracking entry
 - `jira_get_worklogs` - Get worklog entries
+- `jira_get_attachments` - List attachments on an issue
+- `jira_add_attachment` - Attach a local file to an issue
+
+### Sprint & Board Management
+- `jira_list_boards` - List all Scrum/Kanban boards
+- `jira_list_sprints` - List sprints for a board
+- `jira_get_sprint` - Get sprint details with all issues
+- `jira_move_to_sprint` - Move issues to a sprint
 
 ### Project Management
 - `jira_list_projects` - List all projects
@@ -83,6 +97,7 @@ Automatically converted to Atlassian Document Format (ADF).
 - `jira_get_priorities` - Get available priorities
 - `jira_get_link_types` - Get issue link types
 - `jira_search_users` - Search users by name/email
+- `jira_get_user_issues` - Get all issues assigned to a user
 
 ## Environment Variables
 
