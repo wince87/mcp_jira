@@ -76,8 +76,8 @@ function validateProjectKey(key: unknown): string {
   if (!key || typeof key !== 'string') {
     throw new Error('Invalid project key: must be a string');
   }
-  if (!/^[A-Z][A-Z0-9_]{1,9}$/.test(key)) {
-    throw new Error(`Invalid project key format: ${key}. Expected 2-10 uppercase alphanumeric characters`);
+  if (!/^[A-Z][A-Z0-9_]{0,9}$/.test(key)) {
+    throw new Error(`Invalid project key format: ${key}. Expected 1-10 uppercase alphanumeric characters`);
   }
   return key;
 }
@@ -103,16 +103,11 @@ function sanitizeString(str: unknown, maxLength: number = 1000, fieldName: strin
 }
 
 function validateSafeParam(str: unknown, fieldName: string, maxLength: number = 100): string {
-  if (!str || typeof str !== 'string') {
-    throw new Error(`Invalid ${fieldName}: must be a non-empty string`);
-  }
-  if (str.length > maxLength) {
-    throw new Error(`${fieldName} exceeds maximum length of ${maxLength} characters`);
-  }
-  if (/[\/\\]/.test(str)) {
+  const value = sanitizeString(str, maxLength, fieldName);
+  if (/[\/\\]/.test(value)) {
     throw new Error(`Invalid ${fieldName}: contains unsafe characters`);
   }
-  return str.trim();
+  return value;
 }
 
 function validateMaxResults(maxResults: unknown): number {
@@ -258,33 +253,19 @@ function parseInlineContent(text: string): ADFNode[] {
     parts.push({ type: 'text', text: text.substring(lastIndex) });
   }
 
-  if (parts.length > 0) return parts;
-  return text ? [{ type: 'text', text }] : [];
+  return parts;
 }
 
-function addBulletItem(nodes: ADFNode[], content: ADFNode[]): void {
+function addListItem(nodes: ADFNode[], content: ADFNode[], listType: 'bulletList' | 'orderedList'): void {
   const listItem: ADFNode = {
     type: 'listItem',
     content: [{ type: 'paragraph', content }]
   };
   const lastNode = nodes[nodes.length - 1];
-  if (lastNode && lastNode.type === 'bulletList') {
+  if (lastNode && lastNode.type === listType) {
     lastNode.content!.push(listItem);
   } else {
-    nodes.push({ type: 'bulletList', content: [listItem] });
-  }
-}
-
-function addOrderedItem(nodes: ADFNode[], content: ADFNode[]): void {
-  const listItem: ADFNode = {
-    type: 'listItem',
-    content: [{ type: 'paragraph', content }]
-  };
-  const lastNode = nodes[nodes.length - 1];
-  if (lastNode && lastNode.type === 'orderedList') {
-    lastNode.content!.push(listItem);
-  } else {
-    nodes.push({ type: 'orderedList', content: [listItem] });
+    nodes.push({ type: listType, content: [listItem] });
   }
 }
 
@@ -321,9 +302,9 @@ function createADFDocument(content: unknown): ADFDocument {
         content: parseInlineContent(mdHeading[2])
       });
     } else if (line.startsWith('* ') || line.startsWith('- ')) {
-      addBulletItem(nodes, parseInlineContent(line.substring(2)));
+      addListItem(nodes, parseInlineContent(line.substring(2)), 'bulletList');
     } else if (/^\d+\.\s+/.test(line)) {
-      addOrderedItem(nodes, parseInlineContent(line.replace(/^\d+\.\s+/, '')));
+      addListItem(nodes, parseInlineContent(line.replace(/^\d+\.\s+/, '')), 'orderedList');
     } else if (line.startsWith('> ')) {
       const text = line.substring(2);
       const lastNode = nodes[nodes.length - 1];
@@ -746,492 +727,381 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
   };
 });
 
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  const { name, arguments: args } = request.params;
-  const a = args as Record<string, any>;
+type ToolHandler = (a: Record<string, any>) => Promise<ToolResponse>;
+
+async function handleCreateIssue(a: Record<string, any>): Promise<ToolResponse> {
+  const { summary, description, issueType = 'Task', priority = 'Medium', labels = [], storyPoints } = a;
+  const projectKey = a.projectKey ? validateProjectKey(a.projectKey) : JIRA_PROJECT_KEY;
+
+  validateSafeParam(issueType, 'issueType');
+  validateSafeParam(priority, 'priority');
+  const validatedLabels = validateLabels(labels);
+
+  const issueData: Record<string, any> = {
+    fields: {
+      project: { key: projectKey },
+      summary: sanitizeString(summary, 500, 'summary'),
+      description: createADFDocument(description),
+      issuetype: { name: issueType },
+      priority: { name: priority },
+      labels: validatedLabels,
+    },
+  };
+
+  if (storyPoints !== undefined && storyPoints !== null) {
+    issueData.fields[STORY_POINTS_FIELD] = validateStoryPoints(storyPoints);
+  }
+
+  const response = await jiraApi.post('/issue', issueData);
+
+  return createSuccessResponse({
+    success: true,
+    key: response.data.key,
+    id: response.data.id,
+    url: createIssueUrl(response.data.key),
+  });
+}
+
+async function handleGetIssue(a: Record<string, any>): Promise<ToolResponse> {
+  validateIssueKey(a.issueKey);
+  const response = await jiraApi.get(`/issue/${a.issueKey}`);
+  const f = response.data.fields;
+
+  return createSuccessResponse({
+    key: response.data.key,
+    summary: f.summary,
+    description: adfToText(f.description),
+    status: f.status?.name,
+    assignee: f.assignee ? { displayName: f.assignee.displayName, accountId: f.assignee.accountId } : null,
+    reporter: f.reporter?.displayName,
+    priority: f.priority?.name,
+    issueType: f.issuetype?.name,
+    labels: f.labels || [],
+    storyPoints: f[STORY_POINTS_FIELD],
+    parent: f.parent?.key,
+    created: f.created,
+    updated: f.updated,
+    url: createIssueUrl(response.data.key),
+  });
+}
+
+async function handleSearchIssues(a: Record<string, any>): Promise<ToolResponse> {
+  const { jql, maxResults = 50 } = a;
+  validateJQL(jql);
+  const validatedMaxResults = validateMaxResults(maxResults);
+
+  const response = await jiraApi.get('/search/jql', {
+    params: {
+      jql,
+      maxResults: validatedMaxResults,
+      fields: 'summary,status,assignee,priority,created,updated,issuetype,parent,labels',
+    },
+  });
+
+  return createSuccessResponse({
+    total: response.data.total,
+    issues: response.data.issues.map((issue: any) => ({
+      key: issue.key,
+      summary: issue.fields.summary,
+      status: issue.fields.status?.name,
+      assignee: issue.fields.assignee ? { displayName: issue.fields.assignee.displayName, accountId: issue.fields.assignee.accountId } : null,
+      priority: issue.fields.priority?.name,
+      issueType: issue.fields.issuetype?.name,
+      labels: issue.fields.labels || [],
+      parent: issue.fields.parent?.key,
+      url: createIssueUrl(issue.key),
+    })),
+  });
+}
+
+async function handleUpdateIssue(a: Record<string, any>): Promise<ToolResponse> {
+  const { issueKey, summary, description, status } = a;
+  validateIssueKey(issueKey);
+
+  const updateData: Record<string, any> = { fields: {} };
+  let hasFieldUpdates = false;
+
+  if (summary) {
+    updateData.fields.summary = sanitizeString(summary, 500, 'summary');
+    hasFieldUpdates = true;
+  }
+  if (description) {
+    updateData.fields.description = createADFDocument(description);
+    hasFieldUpdates = true;
+  }
+
+  if (hasFieldUpdates) {
+    await jiraApi.put(`/issue/${issueKey}`, updateData);
+  }
+
+  const warnings: string[] = [];
+
+  if (status) {
+    const transitions = await jiraApi.get(`/issue/${issueKey}/transitions`);
+    const transition = transitions.data.transitions.find((t: any) => t.name === status);
+
+    if (transition) {
+      await jiraApi.post(`/issue/${issueKey}/transitions`, {
+        transition: { id: transition.id },
+      });
+    } else {
+      const available = transitions.data.transitions.map((t: any) => t.name).join(', ');
+      warnings.push(`Transition "${status}" not found. Available transitions: ${available}`);
+    }
+  }
+
+  if (!hasFieldUpdates && !status) {
+    return createSuccessResponse({ success: false, message: `No updates provided for ${issueKey}` });
+  }
+
+  const result: Record<string, unknown> = {
+    success: warnings.length === 0,
+    message: `Issue ${issueKey} updated${warnings.length > 0 ? ' with warnings' : ' successfully'}`,
+    url: createIssueUrl(issueKey),
+  };
+
+  if (warnings.length > 0) {
+    result.warnings = warnings;
+  }
+
+  return createSuccessResponse(result);
+}
+
+async function handleAddComment(a: Record<string, any>): Promise<ToolResponse> {
+  validateIssueKey(a.issueKey);
+  await jiraApi.post(`/issue/${a.issueKey}/comment`, { body: createADFDocument(a.comment) });
+  return createSuccessResponse({ success: true, message: `Comment added to ${a.issueKey}` });
+}
+
+async function handleLinkIssues(a: Record<string, any>): Promise<ToolResponse> {
+  const { inwardIssue, outwardIssue, linkType = 'Relates' } = a;
+  validateIssueKey(inwardIssue);
+  validateIssueKey(outwardIssue);
+  validateSafeParam(linkType, 'linkType');
 
   try {
-    switch (name) {
-      case 'jira_create_issue': {
-        const { summary, description, issueType = 'Task', priority = 'Medium', labels = [], storyPoints } = a;
-        const projectKey = a.projectKey ? validateProjectKey(a.projectKey) : JIRA_PROJECT_KEY;
-
-        validateSafeParam(issueType, 'issueType');
-        validateSafeParam(priority, 'priority');
-        const validatedLabels = validateLabels(labels);
-
-        const issueData: Record<string, any> = {
-          fields: {
-            project: { key: projectKey },
-            summary: sanitizeString(summary, 500, 'summary'),
-            description: createADFDocument(description),
-            issuetype: { name: issueType },
-            priority: { name: priority },
-            labels: validatedLabels,
-          },
-        };
-
-        if (storyPoints !== undefined && storyPoints !== null) {
-          issueData.fields[STORY_POINTS_FIELD] = validateStoryPoints(storyPoints);
-        }
-
-        const response = await jiraApi.post('/issue', issueData);
-
-        return createSuccessResponse({
-          success: true,
-          key: response.data.key,
-          id: response.data.id,
-          url: createIssueUrl(response.data.key),
-        });
-      }
-
-      case 'jira_get_issue': {
-        const { issueKey } = a;
-        validateIssueKey(issueKey);
-        const response = await jiraApi.get(`/issue/${issueKey}`);
-        const f = response.data.fields;
-
-        return createSuccessResponse({
-          key: response.data.key,
-          summary: f.summary,
-          description: adfToText(f.description),
-          status: f.status?.name,
-          assignee: f.assignee ? { displayName: f.assignee.displayName, accountId: f.assignee.accountId } : null,
-          reporter: f.reporter?.displayName,
-          priority: f.priority?.name,
-          issueType: f.issuetype?.name,
-          labels: f.labels || [],
-          storyPoints: f[STORY_POINTS_FIELD],
-          parent: f.parent?.key,
-          created: f.created,
-          updated: f.updated,
-          url: createIssueUrl(response.data.key),
-        });
-      }
-
-      case 'jira_search_issues': {
-        const { jql, maxResults = 50 } = a;
-        validateJQL(jql);
-        const validatedMaxResults = validateMaxResults(maxResults);
-
-        const response = await jiraApi.get('/search/jql', {
-          params: {
-            jql,
-            maxResults: validatedMaxResults,
-            fields: 'summary,status,assignee,priority,created,updated,issuetype,parent,labels',
-          },
-        });
-
-        return createSuccessResponse({
-          total: response.data.total,
-          issues: response.data.issues.map((issue: any) => ({
-            key: issue.key,
-            summary: issue.fields.summary,
-            status: issue.fields.status?.name,
-            assignee: issue.fields.assignee ? { displayName: issue.fields.assignee.displayName, accountId: issue.fields.assignee.accountId } : null,
-            priority: issue.fields.priority?.name,
-            issueType: issue.fields.issuetype?.name,
-            labels: issue.fields.labels || [],
-            parent: issue.fields.parent?.key,
-            url: createIssueUrl(issue.key),
-          })),
-        });
-      }
-
-      case 'jira_update_issue': {
-        const { issueKey, summary, description, status } = a;
-        validateIssueKey(issueKey);
-
-        const updateData: Record<string, any> = { fields: {} };
-        let hasFieldUpdates = false;
-
-        if (summary) {
-          updateData.fields.summary = sanitizeString(summary, 500, 'summary');
-          hasFieldUpdates = true;
-        }
-        if (description) {
-          updateData.fields.description = createADFDocument(description);
-          hasFieldUpdates = true;
-        }
-
-        if (hasFieldUpdates) {
-          await jiraApi.put(`/issue/${issueKey}`, updateData);
-        }
-
-        const warnings: string[] = [];
-
-        if (status) {
-          const transitions = await jiraApi.get(`/issue/${issueKey}/transitions`);
-          const transition = transitions.data.transitions.find((t: any) => t.name === status);
-
-          if (transition) {
-            await jiraApi.post(`/issue/${issueKey}/transitions`, {
-              transition: { id: transition.id },
-            });
-          } else {
-            const available = transitions.data.transitions.map((t: any) => t.name).join(', ');
-            warnings.push(`Transition "${status}" not found. Available transitions: ${available}`);
-          }
-        }
-
-        if (!hasFieldUpdates && !status) {
-          return createSuccessResponse({
-            success: false,
-            message: `No updates provided for ${issueKey}`,
-          });
-        }
-
-        const result: Record<string, unknown> = {
-          success: warnings.length === 0,
-          message: `Issue ${issueKey} updated${warnings.length > 0 ? ' with warnings' : ' successfully'}`,
-          url: createIssueUrl(issueKey),
-        };
-
-        if (warnings.length > 0) {
-          result.warnings = warnings;
-        }
-
-        return createSuccessResponse(result);
-      }
-
-      case 'jira_add_comment': {
-        const { issueKey, comment } = a;
-        validateIssueKey(issueKey);
-
-        await jiraApi.post(`/issue/${issueKey}/comment`, {
-          body: createADFDocument(comment),
-        });
-
-        return createSuccessResponse({
-          success: true,
-          message: `Comment added to ${issueKey}`,
-        });
-      }
-
-      case 'jira_link_issues': {
-        const { inwardIssue, outwardIssue, linkType = 'Relates' } = a;
-        validateIssueKey(inwardIssue);
-        validateIssueKey(outwardIssue);
-        validateSafeParam(linkType, 'linkType');
-
-        try {
-          await jiraApi.post('/issueLink', {
-            type: { name: linkType },
-            inwardIssue: { key: inwardIssue },
-            outwardIssue: { key: outwardIssue },
-          });
-
-          return createSuccessResponse({
-            success: true,
-            message: `Linked ${inwardIssue} to ${outwardIssue} with type "${linkType}"`,
-          });
-        } catch (linkError) {
-          const axiosErr = linkError as AxiosError<{ errorMessages?: string[] }>;
-          if (axiosErr.response?.status === 400 &&
-              axiosErr.response?.data?.errorMessages?.includes('link already exists')) {
-            return createSuccessResponse({
-              success: true,
-              message: `Link between ${inwardIssue} and ${outwardIssue} already exists`,
-              alreadyLinked: true,
-            });
-          }
-          throw linkError;
-        }
-      }
-
-      case 'jira_get_project_info': {
-        const { projectKey = JIRA_PROJECT_KEY } = a;
-        validateProjectKey(projectKey);
-        const response = await jiraApi.get(`/project/${projectKey}`);
-
-        return createSuccessResponse({
-          key: response.data.key,
-          name: response.data.name,
-          description: response.data.description,
-          lead: response.data.lead?.displayName,
-          url: response.data.url,
-        });
-      }
-
-      case 'jira_delete_issue': {
-        const { issueKey } = a;
-        validateIssueKey(issueKey);
-        await jiraApi.delete(`/issue/${issueKey}`);
-
-        return createSuccessResponse({
-          success: true,
-          message: `Issue ${issueKey} deleted successfully`,
-        });
-      }
-
-      case 'jira_create_subtask': {
-        const { parentKey, summary, description, priority = 'Medium' } = a;
-        validateIssueKey(parentKey);
-        validateSafeParam(priority, 'priority');
-        const projectKey = a.projectKey ? validateProjectKey(a.projectKey) : JIRA_PROJECT_KEY;
-
-        const issueData = {
-          fields: {
-            project: { key: projectKey },
-            summary: sanitizeString(summary, 500, 'summary'),
-            description: createADFDocument(description),
-            issuetype: { name: 'Subtask' },
-            priority: { name: priority },
-            parent: { key: parentKey },
-          },
-        };
-
-        const response = await jiraApi.post('/issue', issueData);
-
-        return createSuccessResponse({
-          success: true,
-          key: response.data.key,
-          id: response.data.id,
-          parent: parentKey,
-          url: createIssueUrl(response.data.key),
-        });
-      }
-
-      case 'jira_assign_issue': {
-        const { issueKey, accountId } = a;
-        validateIssueKey(issueKey);
-
-        await jiraApi.put(`/issue/${issueKey}/assignee`, {
-          accountId: accountId !== undefined ? accountId : null,
-        });
-
-        return createSuccessResponse({
-          success: true,
-          message: accountId
-            ? `Issue ${issueKey} assigned to ${accountId}`
-            : `Issue ${issueKey} unassigned`,
-          url: createIssueUrl(issueKey),
-        });
-      }
-
-      case 'jira_list_transitions': {
-        const { issueKey } = a;
-        validateIssueKey(issueKey);
-
-        const response = await jiraApi.get(`/issue/${issueKey}/transitions`);
-
-        return createSuccessResponse({
-          issueKey,
-          transitions: response.data.transitions.map((t: any) => ({
-            id: t.id,
-            name: t.name,
-            to: {
-              id: t.to.id,
-              name: t.to.name,
-              category: t.to.statusCategory?.name,
-            },
-          })),
-        });
-      }
-
-      case 'jira_add_worklog': {
-        const { issueKey, timeSpent, comment, started } = a;
-        validateIssueKey(issueKey);
-        sanitizeString(timeSpent, 50, 'timeSpent');
-
-        const worklogData: Record<string, any> = { timeSpent };
-        if (comment) {
-          worklogData.comment = createADFDocument(comment);
-        }
-        if (started) {
-          worklogData.started = started;
-        }
-
-        const response = await jiraApi.post(`/issue/${issueKey}/worklog`, worklogData);
-
-        return createSuccessResponse({
-          success: true,
-          id: response.data.id,
-          issueKey,
-          timeSpent: response.data.timeSpent,
-          author: response.data.author?.displayName,
-        });
-      }
-
-      case 'jira_get_comments': {
-        const { issueKey, maxResults = 50, orderBy = '-created' } = a;
-        validateIssueKey(issueKey);
-        const validatedMaxResults = validateMaxResults(maxResults);
-
-        const response = await jiraApi.get(`/issue/${issueKey}/comment`, {
-          params: { maxResults: validatedMaxResults, orderBy },
-        });
-
-        return createSuccessResponse({
-          issueKey,
-          total: response.data.total,
-          comments: response.data.comments.map((c: any) => ({
-            id: c.id,
-            author: c.author?.displayName,
-            body: adfToText(c.body),
-            created: c.created,
-            updated: c.updated,
-          })),
-        });
-      }
-
-      case 'jira_get_worklogs': {
-        const { issueKey } = a;
-        validateIssueKey(issueKey);
-
-        const response = await jiraApi.get(`/issue/${issueKey}/worklog`);
-
-        return createSuccessResponse({
-          issueKey,
-          total: response.data.total,
-          worklogs: response.data.worklogs.map((w: any) => ({
-            id: w.id,
-            author: w.author?.displayName,
-            timeSpent: w.timeSpent,
-            timeSpentSeconds: w.timeSpentSeconds,
-            started: w.started,
-            comment: adfToText(w.comment),
-          })),
-        });
-      }
-
-      case 'jira_list_projects': {
-        const { maxResults = 50, query } = a;
-        const validatedMaxResults = validateMaxResults(maxResults);
-
-        const params: Record<string, any> = { maxResults: validatedMaxResults };
-        if (query) {
-          params.query = sanitizeString(query, 200, 'query');
-        }
-
-        const response = await jiraApi.get('/project/search', { params });
-
-        return createSuccessResponse({
-          total: response.data.total,
-          projects: response.data.values.map((p: any) => ({
-            key: p.key,
-            name: p.name,
-            projectTypeKey: p.projectTypeKey,
-            style: p.style,
-            lead: p.lead?.displayName,
-          })),
-        });
-      }
-
-      case 'jira_get_project_components': {
-        const projectKey = a?.projectKey ? validateProjectKey(a.projectKey) : JIRA_PROJECT_KEY;
-
-        const response = await jiraApi.get(`/project/${projectKey}/components`);
-
-        return createSuccessResponse({
-          projectKey,
-          components: response.data.map((c: any) => ({
-            id: c.id,
-            name: c.name,
-            description: c.description,
-            lead: c.lead?.displayName,
-            assigneeType: c.assigneeType,
-          })),
-        });
-      }
-
-      case 'jira_get_project_versions': {
-        const projectKey = a?.projectKey ? validateProjectKey(a.projectKey) : JIRA_PROJECT_KEY;
-
-        const response = await jiraApi.get(`/project/${projectKey}/versions`);
-
-        return createSuccessResponse({
-          projectKey,
-          versions: response.data.map((v: any) => ({
-            id: v.id,
-            name: v.name,
-            description: v.description,
-            released: v.released,
-            archived: v.archived,
-            releaseDate: v.releaseDate,
-            startDate: v.startDate,
-          })),
-        });
-      }
-
-      case 'jira_get_fields': {
-        const response = await jiraApi.get('/field');
-
-        return createSuccessResponse({
-          fields: response.data.map((f: any) => ({
-            id: f.id,
-            name: f.name,
-            custom: f.custom,
-            schema: f.schema,
-          })),
-        });
-      }
-
-      case 'jira_get_issue_types': {
-        const projectKey = a?.projectKey ? validateProjectKey(a.projectKey) : JIRA_PROJECT_KEY;
-
-        const response = await jiraApi.get(`/issue/createmeta/${projectKey}/issuetypes`);
-
-        return createSuccessResponse({
-          projectKey,
-          issueTypes: response.data.issueTypes.map((t: any) => ({
-            id: t.id,
-            name: t.name,
-            subtask: t.subtask,
-            description: t.description,
-          })),
-        });
-      }
-
-      case 'jira_get_priorities': {
-        const response = await jiraApi.get('/priority/search');
-
-        return createSuccessResponse({
-          priorities: response.data.values.map((p: any) => ({
-            id: p.id,
-            name: p.name,
-            description: p.description,
-            iconUrl: p.iconUrl,
-          })),
-        });
-      }
-
-      case 'jira_get_link_types': {
-        const response = await jiraApi.get('/issueLinkType');
-
-        return createSuccessResponse({
-          linkTypes: response.data.issueLinkTypes.map((lt: any) => ({
-            id: lt.id,
-            name: lt.name,
-            inward: lt.inward,
-            outward: lt.outward,
-          })),
-        });
-      }
-
-      case 'jira_search_users': {
-        const { query, maxResults = 10 } = a;
-        sanitizeString(query, 200, 'query');
-        const validatedMaxResults = validateMaxResults(maxResults);
-
-        const response = await jiraApi.get('/user/search', {
-          params: { query, maxResults: validatedMaxResults },
-        });
-
-        return createSuccessResponse({
-          users: response.data.map((u: any) => ({
-            accountId: u.accountId,
-            displayName: u.displayName,
-            emailAddress: u.emailAddress,
-            active: u.active,
-            accountType: u.accountType,
-          })),
-        });
-      }
-
-      default:
-        throw new Error(`Unknown tool: ${name}`);
+    await jiraApi.post('/issueLink', {
+      type: { name: linkType },
+      inwardIssue: { key: inwardIssue },
+      outwardIssue: { key: outwardIssue },
+    });
+    return createSuccessResponse({ success: true, message: `Linked ${inwardIssue} to ${outwardIssue} with type "${linkType}"` });
+  } catch (linkError) {
+    const axiosErr = linkError as AxiosError<{ errorMessages?: string[] }>;
+    if (axiosErr.response?.status === 400 && axiosErr.response?.data?.errorMessages?.includes('link already exists')) {
+      return createSuccessResponse({ success: true, message: `Link between ${inwardIssue} and ${outwardIssue} already exists`, alreadyLinked: true });
     }
+    throw linkError;
+  }
+}
+
+async function handleGetProjectInfo(a: Record<string, any>): Promise<ToolResponse> {
+  const projectKey = a.projectKey ?? JIRA_PROJECT_KEY;
+  validateProjectKey(projectKey);
+  const response = await jiraApi.get(`/project/${projectKey}`);
+  return createSuccessResponse({
+    key: response.data.key,
+    name: response.data.name,
+    description: response.data.description,
+    lead: response.data.lead?.displayName,
+    url: response.data.url,
+  });
+}
+
+async function handleDeleteIssue(a: Record<string, any>): Promise<ToolResponse> {
+  validateIssueKey(a.issueKey);
+  await jiraApi.delete(`/issue/${a.issueKey}`);
+  return createSuccessResponse({ success: true, message: `Issue ${a.issueKey} deleted successfully` });
+}
+
+async function handleCreateSubtask(a: Record<string, any>): Promise<ToolResponse> {
+  const { parentKey, summary, description, priority = 'Medium' } = a;
+  validateIssueKey(parentKey);
+  validateSafeParam(priority, 'priority');
+  const projectKey = a.projectKey ? validateProjectKey(a.projectKey) : JIRA_PROJECT_KEY;
+
+  const response = await jiraApi.post('/issue', {
+    fields: {
+      project: { key: projectKey },
+      summary: sanitizeString(summary, 500, 'summary'),
+      description: createADFDocument(description),
+      issuetype: { name: 'Subtask' },
+      priority: { name: priority },
+      parent: { key: parentKey },
+    },
+  });
+
+  return createSuccessResponse({ success: true, key: response.data.key, id: response.data.id, parent: parentKey, url: createIssueUrl(response.data.key) });
+}
+
+async function handleAssignIssue(a: Record<string, any>): Promise<ToolResponse> {
+  validateIssueKey(a.issueKey);
+  await jiraApi.put(`/issue/${a.issueKey}/assignee`, { accountId: a.accountId !== undefined ? a.accountId : null });
+  return createSuccessResponse({
+    success: true,
+    message: a.accountId ? `Issue ${a.issueKey} assigned to ${a.accountId}` : `Issue ${a.issueKey} unassigned`,
+    url: createIssueUrl(a.issueKey),
+  });
+}
+
+async function handleListTransitions(a: Record<string, any>): Promise<ToolResponse> {
+  validateIssueKey(a.issueKey);
+  const response = await jiraApi.get(`/issue/${a.issueKey}/transitions`);
+  return createSuccessResponse({
+    issueKey: a.issueKey,
+    transitions: response.data.transitions.map((t: any) => ({
+      id: t.id,
+      name: t.name,
+      to: { id: t.to.id, name: t.to.name, category: t.to.statusCategory?.name },
+    })),
+  });
+}
+
+async function handleAddWorklog(a: Record<string, any>): Promise<ToolResponse> {
+  const { issueKey, timeSpent, comment, started } = a;
+  validateIssueKey(issueKey);
+  sanitizeString(timeSpent, 50, 'timeSpent');
+
+  const worklogData: Record<string, any> = { timeSpent };
+  if (comment) worklogData.comment = createADFDocument(comment);
+  if (started) worklogData.started = started;
+
+  const response = await jiraApi.post(`/issue/${issueKey}/worklog`, worklogData);
+  return createSuccessResponse({ success: true, id: response.data.id, issueKey, timeSpent: response.data.timeSpent, author: response.data.author?.displayName });
+}
+
+async function handleGetComments(a: Record<string, any>): Promise<ToolResponse> {
+  const { issueKey, maxResults = 50, orderBy = '-created' } = a;
+  validateIssueKey(issueKey);
+  const validatedMaxResults = validateMaxResults(maxResults);
+
+  const response = await jiraApi.get(`/issue/${issueKey}/comment`, { params: { maxResults: validatedMaxResults, orderBy } });
+  return createSuccessResponse({
+    issueKey,
+    total: response.data.total,
+    comments: response.data.comments.map((c: any) => ({
+      id: c.id,
+      author: c.author?.displayName,
+      body: adfToText(c.body),
+      created: c.created,
+      updated: c.updated,
+    })),
+  });
+}
+
+async function handleGetWorklogs(a: Record<string, any>): Promise<ToolResponse> {
+  validateIssueKey(a.issueKey);
+  const response = await jiraApi.get(`/issue/${a.issueKey}/worklog`);
+  return createSuccessResponse({
+    issueKey: a.issueKey,
+    total: response.data.total,
+    worklogs: response.data.worklogs.map((w: any) => ({
+      id: w.id,
+      author: w.author?.displayName,
+      timeSpent: w.timeSpent,
+      timeSpentSeconds: w.timeSpentSeconds,
+      started: w.started,
+      comment: adfToText(w.comment),
+    })),
+  });
+}
+
+async function handleListProjects(a: Record<string, any>): Promise<ToolResponse> {
+  const { maxResults = 50, query } = a;
+  const validatedMaxResults = validateMaxResults(maxResults);
+  const params: Record<string, any> = { maxResults: validatedMaxResults };
+  if (query) params.query = sanitizeString(query, 200, 'query');
+
+  const response = await jiraApi.get('/project/search', { params });
+  return createSuccessResponse({
+    total: response.data.total,
+    projects: response.data.values.map((p: any) => ({ key: p.key, name: p.name, projectTypeKey: p.projectTypeKey, style: p.style, lead: p.lead?.displayName })),
+  });
+}
+
+async function handleGetProjectComponents(a: Record<string, any>): Promise<ToolResponse> {
+  const projectKey = a?.projectKey ? validateProjectKey(a.projectKey) : JIRA_PROJECT_KEY;
+  const response = await jiraApi.get(`/project/${projectKey}/components`);
+  return createSuccessResponse({
+    projectKey,
+    components: response.data.map((c: any) => ({ id: c.id, name: c.name, description: c.description, lead: c.lead?.displayName, assigneeType: c.assigneeType })),
+  });
+}
+
+async function handleGetProjectVersions(a: Record<string, any>): Promise<ToolResponse> {
+  const projectKey = a?.projectKey ? validateProjectKey(a.projectKey) : JIRA_PROJECT_KEY;
+  const response = await jiraApi.get(`/project/${projectKey}/versions`);
+  return createSuccessResponse({
+    projectKey,
+    versions: response.data.map((v: any) => ({ id: v.id, name: v.name, description: v.description, released: v.released, archived: v.archived, releaseDate: v.releaseDate, startDate: v.startDate })),
+  });
+}
+
+async function handleGetFields(_a: Record<string, any>): Promise<ToolResponse> {
+  const response = await jiraApi.get('/field');
+  return createSuccessResponse({ fields: response.data.map((f: any) => ({ id: f.id, name: f.name, custom: f.custom, schema: f.schema })) });
+}
+
+async function handleGetIssueTypes(a: Record<string, any>): Promise<ToolResponse> {
+  const projectKey = a?.projectKey ? validateProjectKey(a.projectKey) : JIRA_PROJECT_KEY;
+  const response = await jiraApi.get(`/issue/createmeta/${projectKey}/issuetypes`);
+  return createSuccessResponse({
+    projectKey,
+    issueTypes: response.data.issueTypes.map((t: any) => ({ id: t.id, name: t.name, subtask: t.subtask, description: t.description })),
+  });
+}
+
+async function handleGetPriorities(_a: Record<string, any>): Promise<ToolResponse> {
+  const response = await jiraApi.get('/priority/search');
+  return createSuccessResponse({ priorities: response.data.values.map((p: any) => ({ id: p.id, name: p.name, description: p.description, iconUrl: p.iconUrl })) });
+}
+
+async function handleGetLinkTypes(_a: Record<string, any>): Promise<ToolResponse> {
+  const response = await jiraApi.get('/issueLinkType');
+  return createSuccessResponse({ linkTypes: response.data.issueLinkTypes.map((lt: any) => ({ id: lt.id, name: lt.name, inward: lt.inward, outward: lt.outward })) });
+}
+
+async function handleSearchUsers(a: Record<string, any>): Promise<ToolResponse> {
+  const { query, maxResults = 10 } = a;
+  sanitizeString(query, 200, 'query');
+  const validatedMaxResults = validateMaxResults(maxResults);
+  const response = await jiraApi.get('/user/search', { params: { query, maxResults: validatedMaxResults } });
+  return createSuccessResponse({
+    users: response.data.map((u: any) => ({ accountId: u.accountId, displayName: u.displayName, emailAddress: u.emailAddress, active: u.active, accountType: u.accountType })),
+  });
+}
+
+const toolHandlers: Record<string, ToolHandler> = {
+  jira_create_issue: handleCreateIssue,
+  jira_get_issue: handleGetIssue,
+  jira_search_issues: handleSearchIssues,
+  jira_update_issue: handleUpdateIssue,
+  jira_add_comment: handleAddComment,
+  jira_link_issues: handleLinkIssues,
+  jira_get_project_info: handleGetProjectInfo,
+  jira_delete_issue: handleDeleteIssue,
+  jira_create_subtask: handleCreateSubtask,
+  jira_assign_issue: handleAssignIssue,
+  jira_list_transitions: handleListTransitions,
+  jira_add_worklog: handleAddWorklog,
+  jira_get_comments: handleGetComments,
+  jira_get_worklogs: handleGetWorklogs,
+  jira_list_projects: handleListProjects,
+  jira_get_project_components: handleGetProjectComponents,
+  jira_get_project_versions: handleGetProjectVersions,
+  jira_get_fields: handleGetFields,
+  jira_get_issue_types: handleGetIssueTypes,
+  jira_get_priorities: handleGetPriorities,
+  jira_get_link_types: handleGetLinkTypes,
+  jira_search_users: handleSearchUsers,
+};
+
+server.setRequestHandler(CallToolRequestSchema, async (request) => {
+  const { name, arguments: args } = request.params;
+  const handler = toolHandlers[name];
+  if (!handler) throw new Error(`Unknown tool: ${name}`);
+  try {
+    return await handler(args as Record<string, any>);
   } catch (error) {
     return handleError(error);
   }
