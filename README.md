@@ -25,7 +25,32 @@ npm install @mcpio/jira
 
 ## Setup
 
-1. Create a `.env` file:
+Get your API token: https://id.atlassian.com/manage-profile/security/api-tokens
+
+### Option 1: MCP client config (recommended)
+
+Add to your MCP client configuration (Claude Desktop, VS Code, Cursor, etc.):
+
+```json
+{
+  "mcpServers": {
+    "jira": {
+      "command": "npx",
+      "args": ["-y", "@mcpio/jira"],
+      "env": {
+        "JIRA_HOST": "https://your-domain.atlassian.net",
+        "JIRA_EMAIL": "your-email@example.com",
+        "JIRA_API_TOKEN": "your-api-token",
+        "JIRA_PROJECT_KEY": "YOUR-PROJECT-KEY"
+      }
+    }
+  }
+}
+```
+
+### Option 2: .env file
+
+Create a `.env` file in the directory where you run the server:
 
 ```bash
 JIRA_HOST=https://your-domain.atlassian.net
@@ -34,9 +59,7 @@ JIRA_API_TOKEN=your-api-token
 JIRA_PROJECT_KEY=YOUR-PROJECT-KEY
 ```
 
-2. Get your API token: https://id.atlassian.com/manage-profile/security/api-tokens
-
-3. Run:
+Then run:
 
 ```bash
 mcpio-jira
