@@ -17,12 +17,6 @@ Model Context Protocol (MCP) server for Jira API integration with automatic Mark
 - TypeScript source with full type definitions
 - Zero runtime dependencies beyond MCP SDK and axios
 
-## Installation
-
-```bash
-npm install @mcpio/jira
-```
-
 ## Setup
 
 Get your API token: https://id.atlassian.com/manage-profile/security/api-tokens
@@ -41,7 +35,8 @@ Add to your MCP client configuration (Claude Desktop, VS Code, Cursor, etc.):
         "JIRA_HOST": "https://your-domain.atlassian.net",
         "JIRA_EMAIL": "your-email@example.com",
         "JIRA_API_TOKEN": "your-api-token",
-        "JIRA_PROJECT_KEY": "YOUR-PROJECT-KEY"
+        "JIRA_PROJECT_KEY": "YOUR-PROJECT-KEY",
+        "JIRA_STORY_POINTS_FIELD": "customfield_10016"
       }
     }
   }
@@ -57,12 +52,13 @@ JIRA_HOST=https://your-domain.atlassian.net
 JIRA_EMAIL=your-email@example.com
 JIRA_API_TOKEN=your-api-token
 JIRA_PROJECT_KEY=YOUR-PROJECT-KEY
+JIRA_STORY_POINTS_FIELD=customfield_10016
 ```
 
 Then run:
 
 ```bash
-mcpio-jira
+npx @mcpio/jira
 ```
 
 ## Formatting
