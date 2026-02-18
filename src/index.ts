@@ -8,9 +8,9 @@ import {
   ListPromptsRequestSchema,
   GetPromptRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
-import axios, { type AxiosInstance, type AxiosError } from 'axios';
+import axios, { type AxiosInstance, type AxiosError, type CreateAxiosDefaults } from 'axios';
 import { readFileSync } from 'fs';
-import { resolve } from 'path';
+import { resolve, basename } from 'path';
 
 try {
   const envPath = resolve(process.cwd(), '.env');
@@ -139,6 +139,8 @@ function validateLabels(labels: unknown): string[] {
   });
 }
 
+const SERVER_VERSION = '2.3.0';
+
 const JIRA_URL: string = getRequiredEnv('JIRA_HOST', process.env.JIRA_URL ?? null);
 const JIRA_EMAIL: string = getRequiredEnv('JIRA_EMAIL');
 const JIRA_API_TOKEN: string = getRequiredEnv('JIRA_API_TOKEN');
@@ -160,6 +162,10 @@ function createSuccessResponse(data: unknown): ToolResponse {
 
 function createIssueUrl(issueKey: string): string {
   return `${JIRA_URL}/browse/${issueKey}`;
+}
+
+function resolveProjectKey(a: Record<string, any>): string {
+  return a?.projectKey ? validateProjectKey(a.projectKey) : JIRA_PROJECT_KEY;
 }
 
 function handleError(error: unknown): ToolResponse {
@@ -194,22 +200,30 @@ function handleError(error: unknown): ToolResponse {
   };
 }
 
-const jiraApi: AxiosInstance = axios.create({
-  baseURL: `${JIRA_URL}/rest/api/3`,
+const axiosAuthConfig: CreateAxiosDefaults = {
   auth: {
     username: JIRA_EMAIL,
     password: JIRA_API_TOKEN,
   },
-  headers: {
-    'Content-Type': 'application/json',
-  },
   timeout: 30000,
+};
+
+const jiraApi: AxiosInstance = axios.create({
+  baseURL: `${JIRA_URL}/rest/api/3`,
+  headers: { 'Content-Type': 'application/json' },
+  ...axiosAuthConfig,
+});
+
+const agileApi: AxiosInstance = axios.create({
+  baseURL: `${JIRA_URL}/rest/agile/1.0`,
+  headers: { 'Content-Type': 'application/json' },
+  ...axiosAuthConfig,
 });
 
 const server = new Server(
   {
     name: 'jira-mcp-server',
-    version: '2.0.0',
+    version: SERVER_VERSION,
   },
   {
     capabilities: {
@@ -723,6 +737,143 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           required: ['query'],
         },
       },
+      {
+        name: 'jira_get_changelog',
+        description: 'Get the change history of a Jira issue (who changed what and when).',
+        inputSchema: {
+          type: 'object' as const,
+          properties: {
+            issueKey: { type: 'string', description: 'Issue key (e.g., PROJ-123)' },
+            maxResults: { type: 'number', description: 'Maximum number of changelog entries (1-100)', default: 50 },
+          },
+          required: ['issueKey'],
+        },
+      },
+      {
+        name: 'jira_get_user_issues',
+        description: 'Get all issues assigned to a specific user.',
+        inputSchema: {
+          type: 'object' as const,
+          properties: {
+            accountId: { type: 'string', description: 'Atlassian account ID of the user' },
+            projectKey: { type: 'string', description: 'Filter by project key (defaults to configured JIRA_PROJECT_KEY)' },
+            maxResults: { type: 'number', description: 'Maximum number of results (1-100)', default: 50 },
+            status: { type: 'string', description: 'Filter by status (e.g., "In Progress")' },
+          },
+          required: ['accountId'],
+        },
+      },
+      {
+        name: 'jira_bulk_create_issues',
+        description: 'Create multiple Jira issues at once. Descriptions support Markdown, automatically converted to ADF.',
+        inputSchema: {
+          type: 'object' as const,
+          properties: {
+            issues: {
+              type: 'array',
+              description: 'Array of issues to create',
+              items: {
+                type: 'object',
+                properties: {
+                  summary: { type: 'string', description: 'Issue summary/title' },
+                  description: { type: 'string', description: 'Issue description in Markdown' },
+                  issueType: { type: 'string', description: 'Issue type (Story, Task, Bug, etc.)', default: 'Task' },
+                  priority: { type: 'string', description: 'Priority (Highest, High, Medium, Low, Lowest)', default: 'Medium' },
+                  labels: { type: 'array', items: { type: 'string' } },
+                  storyPoints: { type: 'number' },
+                },
+                required: ['summary'],
+              },
+            },
+            projectKey: { type: 'string', description: 'Project key (defaults to configured JIRA_PROJECT_KEY)' },
+          },
+          required: ['issues'],
+        },
+      },
+      {
+        name: 'jira_clone_issue',
+        description: 'Clone an existing Jira issue with a new summary.',
+        inputSchema: {
+          type: 'object' as const,
+          properties: {
+            issueKey: { type: 'string', description: 'Issue key to clone (e.g., PROJ-123)' },
+            summary: { type: 'string', description: 'Summary for the cloned issue (defaults to "Clone of <original>")' },
+            projectKey: { type: 'string', description: 'Target project key (defaults to same project as source)' },
+          },
+          required: ['issueKey'],
+        },
+      },
+      {
+        name: 'jira_list_boards',
+        description: 'List all Scrum/Kanban boards.',
+        inputSchema: {
+          type: 'object' as const,
+          properties: {
+            projectKey: { type: 'string', description: 'Filter by project key' },
+            maxResults: { type: 'number', description: 'Maximum number of results (1-100)', default: 50 },
+          },
+        },
+      },
+      {
+        name: 'jira_list_sprints',
+        description: 'List sprints for a board.',
+        inputSchema: {
+          type: 'object' as const,
+          properties: {
+            boardId: { type: 'number', description: 'Board ID (use jira_list_boards to find it)' },
+            state: { type: 'string', description: 'Filter by state: active, future, closed', default: 'active' },
+            maxResults: { type: 'number', description: 'Maximum number of results (1-100)', default: 50 },
+          },
+          required: ['boardId'],
+        },
+      },
+      {
+        name: 'jira_get_sprint',
+        description: 'Get details of a sprint including all issues in it.',
+        inputSchema: {
+          type: 'object' as const,
+          properties: {
+            sprintId: { type: 'number', description: 'Sprint ID (use jira_list_sprints to find it)' },
+            maxResults: { type: 'number', description: 'Maximum number of issues (1-100)', default: 50 },
+          },
+          required: ['sprintId'],
+        },
+      },
+      {
+        name: 'jira_move_to_sprint',
+        description: 'Move one or more issues to a sprint.',
+        inputSchema: {
+          type: 'object' as const,
+          properties: {
+            sprintId: { type: 'number', description: 'Sprint ID (use jira_list_sprints to find it)' },
+            issueKeys: { type: 'array', items: { type: 'string' }, description: 'Array of issue keys to move (e.g., ["PROJ-1", "PROJ-2"])' },
+          },
+          required: ['sprintId', 'issueKeys'],
+        },
+      },
+      {
+        name: 'jira_get_attachments',
+        description: 'Get list of attachments on a Jira issue.',
+        inputSchema: {
+          type: 'object' as const,
+          properties: {
+            issueKey: { type: 'string', description: 'Issue key (e.g., PROJ-123)' },
+          },
+          required: ['issueKey'],
+        },
+      },
+      {
+        name: 'jira_add_attachment',
+        description: 'Attach a local file to a Jira issue.',
+        inputSchema: {
+          type: 'object' as const,
+          properties: {
+            issueKey: { type: 'string', description: 'Issue key (e.g., PROJ-123)' },
+            filePath: { type: 'string', description: 'Absolute path to the file to attach' },
+          },
+          required: ['issueKey', 'filePath'],
+        },
+      },
     ],
   };
 });
@@ -731,7 +882,7 @@ type ToolHandler = (a: Record<string, any>) => Promise<ToolResponse>;
 
 async function handleCreateIssue(a: Record<string, any>): Promise<ToolResponse> {
   const { summary, description, issueType = 'Task', priority = 'Medium', labels = [], storyPoints } = a;
-  const projectKey = a.projectKey ? validateProjectKey(a.projectKey) : JIRA_PROJECT_KEY;
+  const projectKey = resolveProjectKey(a);
 
   validateSafeParam(issueType, 'issueType');
   validateSafeParam(priority, 'priority');
@@ -918,7 +1069,7 @@ async function handleCreateSubtask(a: Record<string, any>): Promise<ToolResponse
   const { parentKey, summary, description, priority = 'Medium' } = a;
   validateIssueKey(parentKey);
   validateSafeParam(priority, 'priority');
-  const projectKey = a.projectKey ? validateProjectKey(a.projectKey) : JIRA_PROJECT_KEY;
+  const projectKey = resolveProjectKey(a);
 
   const response = await jiraApi.post('/issue', {
     fields: {
@@ -1020,7 +1171,7 @@ async function handleListProjects(a: Record<string, any>): Promise<ToolResponse>
 }
 
 async function handleGetProjectComponents(a: Record<string, any>): Promise<ToolResponse> {
-  const projectKey = a?.projectKey ? validateProjectKey(a.projectKey) : JIRA_PROJECT_KEY;
+  const projectKey = resolveProjectKey(a);
   const response = await jiraApi.get(`/project/${projectKey}/components`);
   return createSuccessResponse({
     projectKey,
@@ -1029,7 +1180,7 @@ async function handleGetProjectComponents(a: Record<string, any>): Promise<ToolR
 }
 
 async function handleGetProjectVersions(a: Record<string, any>): Promise<ToolResponse> {
-  const projectKey = a?.projectKey ? validateProjectKey(a.projectKey) : JIRA_PROJECT_KEY;
+  const projectKey = resolveProjectKey(a);
   const response = await jiraApi.get(`/project/${projectKey}/versions`);
   return createSuccessResponse({
     projectKey,
@@ -1043,7 +1194,7 @@ async function handleGetFields(_a: Record<string, any>): Promise<ToolResponse> {
 }
 
 async function handleGetIssueTypes(a: Record<string, any>): Promise<ToolResponse> {
-  const projectKey = a?.projectKey ? validateProjectKey(a.projectKey) : JIRA_PROJECT_KEY;
+  const projectKey = resolveProjectKey(a);
   const response = await jiraApi.get(`/issue/createmeta/${projectKey}/issuetypes`);
   return createSuccessResponse({
     projectKey,
@@ -1071,6 +1222,282 @@ async function handleSearchUsers(a: Record<string, any>): Promise<ToolResponse> 
   });
 }
 
+async function handleGetChangelog(a: Record<string, any>): Promise<ToolResponse> {
+  const { issueKey, maxResults = 50 } = a;
+  validateIssueKey(issueKey);
+  const validatedMaxResults = validateMaxResults(maxResults);
+
+  const response = await jiraApi.get(`/issue/${issueKey}/changelog`, {
+    params: { maxResults: validatedMaxResults },
+  });
+
+  return createSuccessResponse({
+    issueKey,
+    total: response.data.total,
+    histories: response.data.values.map((h: any) => ({
+      id: h.id,
+      author: h.author?.displayName,
+      created: h.created,
+      items: h.items.map((item: any) => ({
+        field: item.field,
+        from: item.fromString,
+        to: item.toString,
+      })),
+    })),
+  });
+}
+
+async function handleGetUserIssues(a: Record<string, any>): Promise<ToolResponse> {
+  const { accountId, maxResults = 50, status } = a;
+  sanitizeString(accountId, 100, 'accountId');
+  const validatedMaxResults = validateMaxResults(maxResults);
+  const projectKey = resolveProjectKey(a);
+
+  const escapedStatus = status ? sanitizeString(status, 100, 'status').replace(/"/g, '\\"') : null;
+  let jql = `project = ${projectKey} AND assignee = "${accountId.replace(/"/g, '\\"')}"`;
+  if (escapedStatus) jql += ` AND status = "${escapedStatus}"`;
+  jql += ' ORDER BY updated DESC';
+
+  const response = await jiraApi.get('/search/jql', {
+    params: {
+      jql,
+      maxResults: validatedMaxResults,
+      fields: 'summary,status,priority,created,updated,issuetype,labels',
+    },
+  });
+
+  return createSuccessResponse({
+    total: response.data.total,
+    issues: response.data.issues.map((issue: any) => ({
+      key: issue.key,
+      summary: issue.fields.summary,
+      status: issue.fields.status?.name,
+      priority: issue.fields.priority?.name,
+      issueType: issue.fields.issuetype?.name,
+      labels: issue.fields.labels || [],
+      updated: issue.fields.updated,
+      url: createIssueUrl(issue.key),
+    })),
+  });
+}
+
+async function handleBulkCreateIssues(a: Record<string, any>): Promise<ToolResponse> {
+  const { issues } = a;
+  const projectKey = resolveProjectKey(a);
+
+  if (!Array.isArray(issues) || issues.length === 0) {
+    throw new Error('issues must be a non-empty array');
+  }
+  if (issues.length > 50) {
+    throw new Error('Maximum 50 issues per bulk create');
+  }
+
+  const issueList = issues.map((issue: any) => ({
+    fields: {
+      project: { key: projectKey },
+      summary: sanitizeString(issue.summary, 500, 'summary'),
+      description: createADFDocument(issue.description),
+      issuetype: { name: issue.issueType || 'Task' },
+      priority: { name: issue.priority || 'Medium' },
+      labels: Array.isArray(issue.labels) ? validateLabels(issue.labels) : [],
+      ...(issue.storyPoints !== undefined && issue.storyPoints !== null
+        ? { [STORY_POINTS_FIELD]: validateStoryPoints(issue.storyPoints) }
+        : {}),
+    },
+  }));
+
+  const response = await jiraApi.post('/issue/bulk', { issueUpdates: issueList });
+
+  return createSuccessResponse({
+    created: response.data.issues.map((issue: any) => ({
+      key: issue.key,
+      id: issue.id,
+      url: createIssueUrl(issue.key),
+    })),
+    errors: response.data.errors || [],
+  });
+}
+
+async function handleCloneIssue(a: Record<string, any>): Promise<ToolResponse> {
+  const { issueKey } = a;
+  validateIssueKey(issueKey);
+
+  const source = await jiraApi.get(`/issue/${issueKey}`);
+  const f = source.data.fields;
+  const projectKey = a.projectKey ? validateProjectKey(a.projectKey) : f.project?.key ?? JIRA_PROJECT_KEY;
+  const summary = a.summary ? sanitizeString(a.summary, 500, 'summary') : `Clone of ${f.summary}`;
+
+  const issueData: Record<string, any> = {
+    fields: {
+      project: { key: projectKey },
+      summary,
+      description: f.description ?? createADFDocument(''),
+      issuetype: { name: f.issuetype?.name ?? 'Task' },
+      priority: { name: f.priority?.name ?? 'Medium' },
+      labels: f.labels || [],
+    },
+  };
+
+  if (f[STORY_POINTS_FIELD] !== undefined && f[STORY_POINTS_FIELD] !== null) {
+    issueData.fields[STORY_POINTS_FIELD] = f[STORY_POINTS_FIELD];
+  }
+
+  const response = await jiraApi.post('/issue', issueData);
+
+  return createSuccessResponse({
+    success: true,
+    key: response.data.key,
+    id: response.data.id,
+    clonedFrom: issueKey,
+    url: createIssueUrl(response.data.key),
+  });
+}
+
+async function handleListBoards(a: Record<string, any>): Promise<ToolResponse> {
+  const { maxResults = 50 } = a;
+  const validatedMaxResults = validateMaxResults(maxResults);
+  const params: Record<string, any> = { maxResults: validatedMaxResults };
+  if (a.projectKey) params.projectKeyOrId = validateProjectKey(a.projectKey);
+
+  const response = await agileApi.get('/board', { params });
+
+  return createSuccessResponse({
+    total: response.data.total,
+    boards: response.data.values.map((b: any) => ({
+      id: b.id,
+      name: b.name,
+      type: b.type,
+      projectKey: b.location?.projectKey,
+      projectName: b.location?.projectName,
+    })),
+  });
+}
+
+async function handleListSprints(a: Record<string, any>): Promise<ToolResponse> {
+  const { boardId, state = 'active', maxResults = 50 } = a;
+  if (typeof boardId !== 'number') throw new Error('boardId must be a number');
+  if (!['active', 'future', 'closed'].includes(state)) throw new Error('state must be one of: active, future, closed');
+  const validatedMaxResults = validateMaxResults(maxResults);
+
+  const response = await agileApi.get(`/board/${boardId}/sprint`, {
+    params: { state, maxResults: validatedMaxResults },
+  });
+
+  return createSuccessResponse({
+    total: response.data.total,
+    sprints: response.data.values.map((s: any) => ({
+      id: s.id,
+      name: s.name,
+      state: s.state,
+      startDate: s.startDate,
+      endDate: s.endDate,
+      goal: s.goal,
+    })),
+  });
+}
+
+async function handleGetSprint(a: Record<string, any>): Promise<ToolResponse> {
+  const { sprintId, maxResults = 50 } = a;
+  if (typeof sprintId !== 'number') throw new Error('sprintId must be a number');
+  const validatedMaxResults = validateMaxResults(maxResults);
+
+  const [sprintRes, issuesRes] = await Promise.all([
+    agileApi.get(`/sprint/${sprintId}`),
+    agileApi.get(`/sprint/${sprintId}/issue`, {
+      params: {
+        maxResults: validatedMaxResults,
+        fields: 'summary,status,assignee,priority,issuetype,labels',
+      },
+    }),
+  ]);
+
+  return createSuccessResponse({
+    id: sprintRes.data.id,
+    name: sprintRes.data.name,
+    state: sprintRes.data.state,
+    startDate: sprintRes.data.startDate,
+    endDate: sprintRes.data.endDate,
+    goal: sprintRes.data.goal,
+    total: issuesRes.data.total,
+    issues: issuesRes.data.issues.map((issue: any) => ({
+      key: issue.key,
+      summary: issue.fields.summary,
+      status: issue.fields.status?.name,
+      assignee: issue.fields.assignee?.displayName ?? null,
+      priority: issue.fields.priority?.name,
+      issueType: issue.fields.issuetype?.name,
+      labels: issue.fields.labels || [],
+      url: createIssueUrl(issue.key),
+    })),
+  });
+}
+
+async function handleMoveToSprint(a: Record<string, any>): Promise<ToolResponse> {
+  const { sprintId, issueKeys } = a;
+  if (typeof sprintId !== 'number') throw new Error('sprintId must be a number');
+  if (!Array.isArray(issueKeys) || issueKeys.length === 0) throw new Error('issueKeys must be a non-empty array');
+
+  const validatedKeys = issueKeys.map((k: unknown) => validateIssueKey(k));
+
+  await agileApi.post(`/sprint/${sprintId}/issue`, { issues: validatedKeys });
+
+  return createSuccessResponse({
+    success: true,
+    sprintId,
+    moved: validatedKeys,
+  });
+}
+
+async function handleGetAttachments(a: Record<string, any>): Promise<ToolResponse> {
+  validateIssueKey(a.issueKey);
+  const response = await jiraApi.get(`/issue/${a.issueKey}`, {
+    params: { fields: 'attachment' },
+  });
+
+  const attachments = response.data.fields.attachment || [];
+
+  return createSuccessResponse({
+    issueKey: a.issueKey,
+    total: attachments.length,
+    attachments: attachments.map((att: any) => ({
+      id: att.id,
+      filename: att.filename,
+      size: att.size,
+      mimeType: att.mimeType,
+      created: att.created,
+      author: att.author?.displayName,
+      url: att.content,
+    })),
+  });
+}
+
+async function handleAddAttachment(a: Record<string, any>): Promise<ToolResponse> {
+  validateIssueKey(a.issueKey);
+  const filePath = sanitizeString(a.filePath, 500, 'filePath');
+  const absolutePath = resolve(filePath);
+  if (!absolutePath.startsWith('/')) throw new Error('filePath must be an absolute path');
+  const fileName = basename(absolutePath);
+
+  const fileBuffer = readFileSync(absolutePath);
+  const form = new FormData();
+  form.append('file', new Blob([fileBuffer]), fileName);
+
+  const response = await jiraApi.post(`/issue/${a.issueKey}/attachments`, form, {
+    headers: { 'X-Atlassian-Token': 'no-check' },
+  });
+
+  return createSuccessResponse({
+    success: true,
+    attachments: response.data.map((att: any) => ({
+      id: att.id,
+      filename: att.filename,
+      size: att.size,
+      mimeType: att.mimeType,
+      url: att.content,
+    })),
+  });
+}
+
 const toolHandlers: Record<string, ToolHandler> = {
   jira_create_issue: handleCreateIssue,
   jira_get_issue: handleGetIssue,
@@ -1094,6 +1521,16 @@ const toolHandlers: Record<string, ToolHandler> = {
   jira_get_priorities: handleGetPriorities,
   jira_get_link_types: handleGetLinkTypes,
   jira_search_users: handleSearchUsers,
+  jira_get_changelog: handleGetChangelog,
+  jira_get_user_issues: handleGetUserIssues,
+  jira_bulk_create_issues: handleBulkCreateIssues,
+  jira_clone_issue: handleCloneIssue,
+  jira_list_boards: handleListBoards,
+  jira_list_sprints: handleListSprints,
+  jira_get_sprint: handleGetSprint,
+  jira_move_to_sprint: handleMoveToSprint,
+  jira_get_attachments: handleGetAttachments,
+  jira_add_attachment: handleAddAttachment,
 };
 
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
