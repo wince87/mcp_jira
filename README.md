@@ -125,7 +125,7 @@ Automatically converted to Atlassian Document Format (ADF).
 | `JIRA_HOST` | Yes | Jira instance URL (HTTPS). Alias: `JIRA_URL` |
 | `JIRA_EMAIL` | Yes | Your Atlassian account email |
 | `JIRA_API_TOKEN` | Yes | API token from Atlassian |
-| `JIRA_PROJECT_KEY` | No | Default project key used when not specified in tool calls |
+| `JIRA_PROJECT_KEY` | No | Default project key used when not specified in tool calls (e.g. `MYPROJECT`) |
 | `JIRA_STORY_POINTS_FIELD` | No | Custom field ID for story points (defaults to `customfield_10016`) |
 
 ## Development
