@@ -139,7 +139,7 @@ function validateLabels(labels: unknown): string[] {
   });
 }
 
-const SERVER_VERSION = '2.3.3';
+const SERVER_VERSION = '2.3.4';
 
 const JIRA_URL: string = getRequiredEnv('JIRA_HOST', process.env.JIRA_URL ?? null);
 const JIRA_EMAIL: string = getRequiredEnv('JIRA_EMAIL');
@@ -333,6 +333,34 @@ function createADFDocument(content: unknown): ADFDocument {
           content: [{ type: 'paragraph', content: parseInlineContent(text) }]
         });
       }
+    } else if (line.startsWith('|') && line.endsWith('|')) {
+      const parseTableRow = (row: string, cellType: string): ADFNode => ({
+        type: 'tableRow',
+        content: row.slice(1, -1).split('|').map(cell => ({
+          type: cellType,
+          content: [{ type: 'paragraph', content: parseInlineContent(cell.trim()) }],
+        })),
+      });
+
+      const isHeader = i + 1 < lines.length && /^\|[\s:]*-+[\s:]*(\|[\s:]*-+[\s:]*)*\|$/.test(lines[i + 1].trim());
+      const tableRows: ADFNode[] = [];
+
+      if (isHeader) {
+        tableRows.push(parseTableRow(line, 'tableHeader'));
+        i += 2;
+      }
+
+      while (i < lines.length && lines[i].trim().startsWith('|') && lines[i].trim().endsWith('|')) {
+        tableRows.push(parseTableRow(lines[i].trim(), 'tableCell'));
+        i++;
+      }
+
+      if (!isHeader && tableRows.length === 0) {
+        tableRows.push(parseTableRow(line, 'tableCell'));
+      }
+
+      i--;
+      nodes.push({ type: 'table', attrs: { layout: 'default' }, content: tableRows });
     } else if (line === '----' || line === '---') {
       nodes.push({ type: 'rule' });
     } else if (line === '```' || line.startsWith('```')) {
