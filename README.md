@@ -1,4 +1,4 @@
-# Jira MCP Server v2.3.4
+# Jira MCP Server v2.3.5
 
 Model Context Protocol (MCP) server for Jira API integration with automatic Markdown-to-ADF conversion.
 
@@ -8,7 +8,7 @@ Model Context Protocol (MCP) server for Jira API integration with automatic Mark
 
 ## Features
 
-- 32 Jira API tools via MCP protocol
+- 34 Jira API tools via MCP protocol
 - Automatic Markdown to ADF conversion (write Markdown, get proper Jira formatting)
 - ADF to Markdown conversion when reading issues and comments
 - Sprint and board management via Jira Agile API
@@ -72,6 +72,9 @@ All description and comment fields accept standard Markdown:
 - bullet item
 1. numbered item
 > blockquote
+| Header 1 | Header 2 |
+|----------|----------|
+| cell 1   | cell 2   |
 ```
 
 Automatically converted to Atlassian Document Format (ADF).
@@ -89,6 +92,8 @@ Automatically converted to Atlassian Document Format (ADF).
 - `jira_bulk_create_issues` - Create multiple issues at once
 - `jira_assign_issue` - Assign/unassign user
 - `jira_add_comment` - Add comment
+- `jira_update_comment` - Update existing comment
+- `jira_delete_comment` - Delete comment
 - `jira_get_comments` - Get issue comments
 - `jira_link_issues` - Link two issues
 - `jira_list_transitions` - Get available status transitions

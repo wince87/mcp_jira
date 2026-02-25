@@ -139,7 +139,7 @@ function validateLabels(labels: unknown): string[] {
   });
 }
 
-const SERVER_VERSION = '2.3.4';
+const SERVER_VERSION = '2.3.5';
 
 const JIRA_URL: string = getRequiredEnv('JIRA_HOST', process.env.JIRA_URL ?? null);
 const JIRA_EMAIL: string = getRequiredEnv('JIRA_EMAIL');
@@ -585,6 +585,31 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             comment: { type: 'string', description: 'Comment text in Markdown.' },
           },
           required: ['issueKey', 'comment'],
+        },
+      },
+      {
+        name: 'jira_update_comment',
+        description: 'Update an existing comment on a Jira issue. Supports standard Markdown, automatically converted to ADF.',
+        inputSchema: {
+          type: 'object' as const,
+          properties: {
+            issueKey: { type: 'string', description: 'Issue key (e.g., PROJ-123)' },
+            commentId: { type: 'string', description: 'Comment ID (use jira_get_comments to find it)' },
+            comment: { type: 'string', description: 'Updated comment text in Markdown.' },
+          },
+          required: ['issueKey', 'commentId', 'comment'],
+        },
+      },
+      {
+        name: 'jira_delete_comment',
+        description: 'Delete a comment from a Jira issue.',
+        inputSchema: {
+          type: 'object' as const,
+          properties: {
+            issueKey: { type: 'string', description: 'Issue key (e.g., PROJ-123)' },
+            commentId: { type: 'string', description: 'Comment ID (use jira_get_comments to find it)' },
+          },
+          required: ['issueKey', 'commentId'],
         },
       },
       {
@@ -1052,6 +1077,20 @@ async function handleAddComment(a: Record<string, any>): Promise<ToolResponse> {
   return createSuccessResponse({ success: true, message: `Comment added to ${a.issueKey}` });
 }
 
+async function handleUpdateComment(a: Record<string, any>): Promise<ToolResponse> {
+  validateIssueKey(a.issueKey);
+  validateSafeParam(a.commentId, 'commentId', 50);
+  await jiraApi.put(`/issue/${a.issueKey}/comment/${a.commentId}`, { body: createADFDocument(a.comment) });
+  return createSuccessResponse({ success: true, message: `Comment ${a.commentId} updated on ${a.issueKey}` });
+}
+
+async function handleDeleteComment(a: Record<string, any>): Promise<ToolResponse> {
+  validateIssueKey(a.issueKey);
+  validateSafeParam(a.commentId, 'commentId', 50);
+  await jiraApi.delete(`/issue/${a.issueKey}/comment/${a.commentId}`);
+  return createSuccessResponse({ success: true, message: `Comment ${a.commentId} deleted from ${a.issueKey}` });
+}
+
 async function handleLinkIssues(a: Record<string, any>): Promise<ToolResponse> {
   const { inwardIssue, outwardIssue, linkType = 'Relates' } = a;
   validateIssueKey(inwardIssue);
@@ -1075,8 +1114,7 @@ async function handleLinkIssues(a: Record<string, any>): Promise<ToolResponse> {
 }
 
 async function handleGetProjectInfo(a: Record<string, any>): Promise<ToolResponse> {
-  const projectKey = a.projectKey ?? JIRA_PROJECT_KEY;
-  validateProjectKey(projectKey);
+  const projectKey = resolveProjectKey(a);
   const response = await jiraApi.get(`/project/${projectKey}`);
   return createSuccessResponse({
     key: response.data.key,
@@ -1154,7 +1192,8 @@ async function handleGetComments(a: Record<string, any>): Promise<ToolResponse> 
   validateIssueKey(issueKey);
   const validatedMaxResults = validateMaxResults(maxResults);
 
-  const response = await jiraApi.get(`/issue/${issueKey}/comment`, { params: { maxResults: validatedMaxResults, orderBy } });
+  const validatedOrderBy = orderBy === 'created' ? 'created' : '-created';
+  const response = await jiraApi.get(`/issue/${issueKey}/comment`, { params: { maxResults: validatedMaxResults, orderBy: validatedOrderBy } });
   return createSuccessResponse({
     issueKey,
     total: response.data.total,
@@ -1320,19 +1359,25 @@ async function handleBulkCreateIssues(a: Record<string, any>): Promise<ToolRespo
     throw new Error('Maximum 50 issues per bulk create');
   }
 
-  const issueList = issues.map((issue: any) => ({
-    fields: {
-      project: { key: projectKey },
-      summary: sanitizeString(issue.summary, 500, 'summary'),
-      description: createADFDocument(issue.description),
-      issuetype: { name: issue.issueType || 'Task' },
-      priority: { name: issue.priority || 'Medium' },
-      labels: Array.isArray(issue.labels) ? validateLabels(issue.labels) : [],
-      ...(issue.storyPoints !== undefined && issue.storyPoints !== null
-        ? { [STORY_POINTS_FIELD]: validateStoryPoints(issue.storyPoints) }
-        : {}),
-    },
-  }));
+  const issueList = issues.map((issue: any) => {
+    const issueType = issue.issueType || 'Task';
+    const priority = issue.priority || 'Medium';
+    validateSafeParam(issueType, 'issueType');
+    validateSafeParam(priority, 'priority');
+    return {
+      fields: {
+        project: { key: projectKey },
+        summary: sanitizeString(issue.summary, 500, 'summary'),
+        description: createADFDocument(issue.description),
+        issuetype: { name: issueType },
+        priority: { name: priority },
+        labels: Array.isArray(issue.labels) ? validateLabels(issue.labels) : [],
+        ...(issue.storyPoints !== undefined && issue.storyPoints !== null
+          ? { [STORY_POINTS_FIELD]: validateStoryPoints(issue.storyPoints) }
+          : {}),
+      },
+    };
+  });
 
   const response = await jiraApi.post('/issue/bulk', { issueUpdates: issueList });
 
@@ -1532,6 +1577,8 @@ const toolHandlers: Record<string, ToolHandler> = {
   jira_search_issues: handleSearchIssues,
   jira_update_issue: handleUpdateIssue,
   jira_add_comment: handleAddComment,
+  jira_update_comment: handleUpdateComment,
+  jira_delete_comment: handleDeleteComment,
   jira_link_issues: handleLinkIssues,
   jira_get_project_info: handleGetProjectInfo,
   jira_delete_issue: handleDeleteIssue,
