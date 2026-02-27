@@ -551,11 +551,12 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: 'jira_search_issues',
-        description: 'Search for Jira issues using JQL',
+        description: 'Search for Jira issues using JQL. Uses token-based pagination — pass nextPageToken from previous response to get next page.',
         inputSchema: {
           type: 'object' as const,
           properties: {
             jql: { type: 'string', description: 'JQL query string' },
+            nextPageToken: { type: 'string', description: 'Pagination token from previous search response' },
             maxResults: { type: 'number', description: 'Maximum number of results (1-100)', default: 50 },
           },
           required: ['jql'],
@@ -990,21 +991,25 @@ async function handleGetIssue(a: Record<string, any>): Promise<ToolResponse> {
 }
 
 async function handleSearchIssues(a: Record<string, any>): Promise<ToolResponse> {
-  const { jql, maxResults = 50 } = a;
+  const { jql, maxResults = 50, nextPageToken } = a;
   validateJQL(jql);
   const validatedMaxResults = validateMaxResults(maxResults);
 
-  const response = await jiraApi.get('/search/jql', {
-    params: {
-      jql,
-      maxResults: validatedMaxResults,
-      fields: 'summary,status,assignee,priority,created,updated,issuetype,parent,labels',
-    },
-  });
+  const params: Record<string, any> = {
+    jql,
+    maxResults: validatedMaxResults,
+    fields: 'summary,status,assignee,priority,created,updated,issuetype,parent,labels',
+  };
+  if (nextPageToken) params.nextPageToken = nextPageToken;
 
+  const response = await jiraApi.get('/search/jql', { params });
+
+  const issues = response.data.issues ?? [];
   return createSuccessResponse({
-    total: response.data.total,
-    issues: response.data.issues.map((issue: any) => ({
+    total: issues.length,
+    isLast: response.data.isLast ?? true,
+    nextPageToken: response.data.nextPageToken ?? null,
+    issues: issues.map((issue: any) => ({
       key: issue.key,
       summary: issue.fields.summary,
       status: issue.fields.status?.name,
@@ -1265,7 +1270,7 @@ async function handleGetIssueTypes(a: Record<string, any>): Promise<ToolResponse
   const response = await jiraApi.get(`/issue/createmeta/${projectKey}/issuetypes`);
   return createSuccessResponse({
     projectKey,
-    issueTypes: response.data.issueTypes.map((t: any) => ({ id: t.id, name: t.name, subtask: t.subtask, description: t.description })),
+    issueTypes: response.data.values.map((t: any) => ({ id: t.id, name: t.name, subtask: t.subtask, description: t.description })),
   });
 }
 
@@ -1333,9 +1338,12 @@ async function handleGetUserIssues(a: Record<string, any>): Promise<ToolResponse
     },
   });
 
+  const userIssues = response.data.issues ?? [];
   return createSuccessResponse({
-    total: response.data.total,
-    issues: response.data.issues.map((issue: any) => ({
+    total: userIssues.length,
+    isLast: response.data.isLast ?? true,
+    nextPageToken: response.data.nextPageToken ?? null,
+    issues: userIssues.map((issue: any) => ({
       key: issue.key,
       summary: issue.fields.summary,
       status: issue.fields.status?.name,
