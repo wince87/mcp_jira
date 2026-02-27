@@ -133,6 +133,17 @@ Automatically converted to Atlassian Document Format (ADF).
 | `JIRA_PROJECT_KEY` | No | Default project key used when not specified in tool calls (e.g. `MYPROJECT`) |
 | `JIRA_STORY_POINTS_FIELD` | No | Custom field ID for story points (defaults to `customfield_10016`) |
 
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for full version history.
+
+### Recent
+
+- **2.3.6** — Fix API mismatches: `search/jql` pagination, `createmeta` response parsing
+- **2.3.5** — Add `jira_update_comment`, `jira_delete_comment`, security fixes
+- **2.3.4** — Markdown table ↔ ADF conversion
+- **2.3.0** — 10 new tools: sprints, boards, attachments, bulk create, changelog
+
 ## Development
 
 ```bash
