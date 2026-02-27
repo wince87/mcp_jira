@@ -139,7 +139,7 @@ function validateLabels(labels: unknown): string[] {
   });
 }
 
-const SERVER_VERSION = '2.3.6';
+const SERVER_VERSION = '2.3.7';
 
 const JIRA_URL: string = getRequiredEnv('JIRA_HOST', process.env.JIRA_URL ?? null);
 const JIRA_EMAIL: string = getRequiredEnv('JIRA_EMAIL');
