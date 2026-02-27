@@ -1,4 +1,4 @@
-# Jira MCP Server v2.3.5
+# Jira MCP Server v2.3.6
 
 Model Context Protocol (MCP) server for Jira API integration with automatic Markdown-to-ADF conversion.
 
