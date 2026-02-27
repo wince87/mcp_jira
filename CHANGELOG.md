@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.3.7] - 2026-02-27
+
+### Added
+- Changelog section in README for npm package page visibility
+
 ## [2.3.6] - 2026-02-27
 
 ### Fixed

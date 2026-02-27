@@ -1,4 +1,4 @@
-# Jira MCP Server v2.3.6
+# Jira MCP Server v2.3.7
 
 Model Context Protocol (MCP) server for Jira API integration with automatic Markdown-to-ADF conversion.
 
@@ -139,6 +139,7 @@ See [CHANGELOG.md](CHANGELOG.md) for full version history.
 
 ### Recent
 
+- **2.3.7** — Add Changelog section to README for npm visibility
 - **2.3.6** — Fix API mismatches: `search/jql` pagination, `createmeta` response parsing
 - **2.3.5** — Add `jira_update_comment`, `jira_delete_comment`, security fixes
 - **2.3.4** — Markdown table ↔ ADF conversion
