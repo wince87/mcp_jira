@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.3.10] - 2026-04-08
+
+### Security
+- Pin `axios` to exact version `1.14.0` (was `^1.14.0`) to mitigate the `axios@1.14.1` supply-chain compromise. Attacker took over maintainer's npm account and published a malicious `1.14.1` that pulled in `plain-crypto-js` with a hidden `postinstall` payload. Although `1.14.1` has been removed from the registry, pinning prevents any accidental install if it reappears under the same version.
+
 ## [2.3.9] - 2026-04-08
 
 ### Changed

@@ -1,4 +1,4 @@
-# Jira MCP Server v2.3.9
+# Jira MCP Server v2.3.10
 
 Model Context Protocol (MCP) server for Jira API integration with automatic Markdown-to-ADF conversion.
 
@@ -139,6 +139,7 @@ See [CHANGELOG.md](CHANGELOG.md) for full version history.
 
 ### Recent
 
+- **2.3.10** — Security: pin `axios` to exact `1.14.0` (mitigates axios@1.14.1 supply-chain compromise)
 - **2.3.9** — Update author contact email
 - **2.3.8** — Security: fix path traversal in attachments, JQL injection; upgrade MCP SDK (3 CVEs); full TypeScript strict typing
 - **2.3.7** — Add Changelog section to README for npm visibility
