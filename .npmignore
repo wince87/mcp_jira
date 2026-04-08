@@ -31,6 +31,8 @@ docs/
 src/
 tsconfig.json
 .claude/
+CLAUDE.md
+.github/
 
 # Git files
 .git/
