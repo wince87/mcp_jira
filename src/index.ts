@@ -12,20 +12,6 @@ import axios, { type AxiosInstance, type AxiosError, type CreateAxiosDefaults } 
 import { readFileSync } from 'fs';
 import { resolve, basename } from 'path';
 
-try {
-  const envPath = resolve(process.cwd(), '.env');
-  const envContent = readFileSync(envPath, 'utf-8');
-  for (const line of envContent.split('\n')) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith('#')) continue;
-    const eqIndex = trimmed.indexOf('=');
-    if (eqIndex === -1) continue;
-    const key = trimmed.slice(0, eqIndex).trim();
-    const value = trimmed.slice(eqIndex + 1).trim().replace(/^(['"])(.*)\1$/, '$2');
-    if (!process.env[key]) process.env[key] = value;
-  }
-} catch {}
-
 interface ADFMark {
   type: string;
   attrs?: Record<string, unknown>;
@@ -231,7 +217,7 @@ function getRequiredEnv(name: string, fallback: string | null = null): string {
   if (fallback !== null && fallback !== undefined && fallback !== '') {
     return fallback;
   }
-  throw new Error(`Required environment variable ${name} is not set. Please check your .env file.`);
+  throw new Error(`Required environment variable ${name} is not set. Set it via your MCP client config or shell environment.`);
 }
 
 function validateIssueKey(key: unknown): string {
@@ -342,7 +328,7 @@ function validateAttachmentPath(filePath: string): string {
   return absolutePath;
 }
 
-const SERVER_VERSION = '2.3.11';
+const SERVER_VERSION = '2.4.0';
 
 const JIRA_URL: string = getRequiredEnv('JIRA_HOST', process.env.JIRA_URL ?? null);
 const JIRA_EMAIL: string = getRequiredEnv('JIRA_EMAIL');
@@ -703,7 +689,7 @@ Bold: **bold text**
 Italic: *italic text*
 Strikethrough: ~~deleted text~~
 Inline code: \`code\`
-Links: [text](https://example.com)
+Links: [text](url)
 Bullet lists: - item
 Numbered lists: 1. item
 Blockquotes: > text
@@ -711,7 +697,7 @@ Code blocks: \`\`\`language ... \`\`\`
 Horizontal rule: ---
 
 When referencing Jira issues, always use clickable links:
-[PROJ-123](https://your-domain.atlassian.net/browse/PROJ-123)`,
+[PROJ-123](<browse-url>)`,
           },
         },
       ],

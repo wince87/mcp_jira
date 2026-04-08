@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.4.0] - 2026-04-08
+
+### Breaking
+- **Removed automatic `.env` file loading.** The server now reads configuration only from `process.env`. Users who passed credentials via MCP client config (`env: {...}` in Claude Desktop / Cursor / VS Code / Claude Code config) are unaffected. Users who relied on a local `.env` file when running `npx @mcpio/jira` directly should source it via shell first: `set -a; source .env; set +a; npx @mcpio/jira`.
+
+### Security
+- Removed `readFileSync('.env')` from startup to reduce Socket supply-chain capability surface
+- Removed example URL strings from `jira-formatting-guide` MCP prompt (Socket "URL strings" alert)
+
+### Removed
+- `.env.example` file (no longer relevant)
+
 ## [2.3.11] - 2026-04-08
 
 ### Security

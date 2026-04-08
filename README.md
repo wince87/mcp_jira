@@ -1,4 +1,4 @@
-# Jira MCP Server v2.3.11
+# Jira MCP Server v2.4.0
 
 Model Context Protocol (MCP) server for Jira API integration with automatic Markdown-to-ADF conversion.
 
@@ -43,23 +43,27 @@ Add to your MCP client configuration (Claude Desktop, VS Code, Cursor, etc.):
 }
 ```
 
-### Option 2: .env file
+### Option 2: Shell environment variables
 
-Create a `.env` file in the directory where you run the server:
-
-```bash
-JIRA_HOST=https://your-domain.atlassian.net
-JIRA_EMAIL=your-email@example.com
-JIRA_API_TOKEN=your-api-token
-JIRA_PROJECT_KEY=YOUR-PROJECT-KEY
-JIRA_STORY_POINTS_FIELD=customfield_10016
-```
-
-Then run:
+Export variables in your shell and run directly:
 
 ```bash
+export JIRA_HOST=https://your-domain.atlassian.net
+export JIRA_EMAIL=your-email@example.com
+export JIRA_API_TOKEN=your-api-token
+export JIRA_PROJECT_KEY=YOUR-PROJECT-KEY
+export JIRA_STORY_POINTS_FIELD=customfield_10016
 npx @mcpio/jira
 ```
+
+If you keep credentials in a `.env` file, source it in your shell before running:
+
+```bash
+set -a; source .env; set +a
+npx @mcpio/jira
+```
+
+> **Note (v2.4.0+):** The server no longer reads `.env` files automatically. This reduces filesystem capability surface for supply-chain audits. Use shell `export` or MCP client config (Option 1) instead.
 
 ## Formatting
 
@@ -139,6 +143,7 @@ See [CHANGELOG.md](CHANGELOG.md) for full version history.
 
 ### Recent
 
+- **2.4.0** — **Breaking**: removed automatic `.env` file loading (`process.env` only). Removed URL literals from prompt. Added `socket.yml` to scope supply-chain alerts to direct code only.
 - **2.3.11** — Pin `@modelcontextprotocol/sdk`; GitHub Actions publish workflow with npm provenance
 - **2.3.10** — Security: pin `axios` to exact `1.14.0` (mitigates axios@1.14.1 supply-chain compromise)
 - **2.3.9** — Update author contact email

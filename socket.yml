@@ -1,0 +1,22 @@
+version: 2
+
+projectIgnorePaths:
+  - dist/**
+  - node_modules/**
+
+issueRules:
+  usesEval: false
+  shellAccess: false
+  networkAccess: false
+  filesystemAccess: false
+  envVars: false
+  potentialTyposquat: false
+  hasNativeCode: false
+  bidi: true
+  obfuscatedFile: true
+  installScripts: true
+  malware: true
+  telemetry: true
+  troll: true
+  unresolvedRequire: true
+  didYouMean: false

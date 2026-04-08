@@ -86,9 +86,10 @@ These were fixed in v2.3.8 — do not undo:
 - **Link duplicate detection**: Jira error message is NOT stable — use substring/regex match, not exact equality.
 - **Multipart upload for attachments**: needs `X-Atlassian-Token: no-check` header. Content-Type must be `multipart/form-data`, not `application/json`.
 
-## Why no `dotenv`
+## Why no `dotenv` and no `.env` parsing at all
 
-Removed in v2.2.2. Reason: `dotenv@17+` prints `[dotenv@17.x.x] injecting env` to **stdout** on import. MCP stdio transport uses stdout for JSON-RPC — any non-JSON output corrupts the protocol. We replaced it with a 10-line inline parser. Do not re-add `dotenv`.
+- **No `dotenv` package**: removed in v2.2.2. Reason: `dotenv@17+` prints `[dotenv@17.x.x] injecting env` to **stdout** on import. MCP stdio transport uses stdout for JSON-RPC — any non-JSON output corrupts the protocol.
+- **No inline `.env` parser either**: removed in v2.3.12. Reason: `readFileSync('.env')` triggers Socket "filesystem capability" supply-chain alert, lowering the score. The server now reads config only from `process.env`. MCP clients (Claude Desktop, Cursor, VS Code, Claude Code) pass env via `env: {...}` in subprocess spawn config — that goes directly into `process.env`, no file read needed. Users who want a `.env` file source it in their shell: `set -a; source .env; set +a; npx @mcpio/jira`. **Do not re-add file-based env loading.**
 
 ## Code style
 
