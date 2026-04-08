@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.3.9] - 2026-04-08
+
+### Changed
+- Update author contact email to `vladimpress@gmail.com`
+
 ## [2.3.8] - 2026-02-27
 
 ### Security
