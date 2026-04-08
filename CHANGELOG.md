@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.3.11] - 2026-04-08
+
+### Security
+- Pin `@modelcontextprotocol/sdk` to exact version `1.29.0` (was `^1.29.0`) to prevent accidental install of compromised upstream versions
+- Add GitHub Actions publish workflow with **npm provenance** (sigstore OIDC attestation). Releases pushed as `v*` tags now auto-publish with cryptographic proof that the tarball was built from the tagged commit in this repo
+
 ## [2.3.10] - 2026-04-08
 
 ### Security
