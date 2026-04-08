@@ -51,6 +51,178 @@ interface ToolResponse {
   isError?: boolean;
 }
 
+interface JiraUser {
+  accountId?: string;
+  displayName?: string;
+  emailAddress?: string;
+  active?: boolean;
+  accountType?: string;
+}
+
+interface JiraStatusCategory {
+  name?: string;
+}
+
+interface JiraStatus {
+  name?: string;
+  statusCategory?: JiraStatusCategory;
+}
+
+interface JiraAttachment {
+  id?: string;
+  filename?: string;
+  size?: number;
+  mimeType?: string;
+  created?: string;
+  author?: JiraUser;
+  content?: string;
+}
+
+interface JiraIssueFields {
+  summary?: string;
+  status?: JiraStatus;
+  assignee?: JiraUser | null;
+  reporter?: JiraUser;
+  priority?: { name?: string };
+  issuetype?: { name?: string; subtask?: boolean };
+  parent?: { key?: string };
+  project?: { key?: string };
+  labels?: string[];
+  created?: string;
+  updated?: string;
+  description?: unknown;
+  attachment?: JiraAttachment[];
+  [key: string]: unknown;
+}
+
+interface JiraIssue {
+  id?: string;
+  key: string;
+  fields: JiraIssueFields;
+}
+
+interface JiraComment {
+  id?: string;
+  author?: JiraUser;
+  body?: unknown;
+  created?: string;
+  updated?: string;
+}
+
+interface JiraWorklog {
+  id?: string;
+  author?: JiraUser;
+  timeSpent?: string;
+  timeSpentSeconds?: number;
+  started?: string;
+  comment?: unknown;
+}
+
+interface JiraTransition {
+  id: string;
+  name: string;
+  to: { id?: string; name?: string; statusCategory?: JiraStatusCategory };
+}
+
+interface JiraChangelogItem {
+  field?: string;
+  fromString?: string;
+  toString?: string;
+}
+
+interface JiraChangelogHistory {
+  id?: string;
+  author?: JiraUser;
+  created?: string;
+  items?: JiraChangelogItem[];
+}
+
+interface JiraProject {
+  id?: string;
+  key?: string;
+  name?: string;
+  description?: string;
+  lead?: JiraUser;
+  url?: string;
+  projectTypeKey?: string;
+  style?: string;
+}
+
+interface JiraIssueType {
+  id?: string;
+  name?: string;
+  subtask?: boolean;
+  description?: string;
+}
+
+interface JiraPriority {
+  id?: string;
+  name?: string;
+  description?: string;
+  iconUrl?: string;
+}
+
+interface JiraLinkType {
+  id?: string;
+  name?: string;
+  inward?: string;
+  outward?: string;
+}
+
+interface JiraField {
+  id?: string;
+  name?: string;
+  custom?: boolean;
+  schema?: { type?: string; custom?: string };
+}
+
+interface JiraComponent {
+  id?: string;
+  name?: string;
+  description?: string;
+  lead?: JiraUser;
+  assigneeType?: string;
+}
+
+interface JiraVersion {
+  id?: string;
+  name?: string;
+  description?: string;
+  released?: boolean;
+  archived?: boolean;
+  releaseDate?: string;
+  startDate?: string;
+}
+
+interface JiraBoard {
+  id?: number;
+  name?: string;
+  type?: string;
+  location?: { projectKey?: string; projectName?: string };
+}
+
+interface JiraSprint {
+  id?: number;
+  name?: string;
+  state?: string;
+  startDate?: string;
+  endDate?: string;
+  goal?: string;
+}
+
+interface BulkIssueInput {
+  summary?: unknown;
+  description?: unknown;
+  issueType?: unknown;
+  priority?: unknown;
+  labels?: unknown;
+  storyPoints?: unknown;
+}
+
+interface JiraIssuePayload {
+  fields: Record<string, unknown>;
+}
+
 function getRequiredEnv(name: string, fallback: string | null = null): string {
   const value = process.env[name];
   if (value !== undefined && value !== '') {
@@ -139,7 +311,38 @@ function validateLabels(labels: unknown): string[] {
   });
 }
 
-const SERVER_VERSION = '2.3.7';
+function validateAccountId(id: unknown): string {
+  if (!id || typeof id !== 'string') {
+    throw new Error('Invalid accountId: must be a string');
+  }
+  if (!/^[a-zA-Z0-9:._-]{1,128}$/.test(id)) {
+    throw new Error('Invalid accountId: must be 1-128 alphanumeric characters (with :._-)');
+  }
+  return id;
+}
+
+function validateISO8601(value: unknown, fieldName: string = 'datetime'): string {
+  if (typeof value !== 'string') {
+    throw new Error(`Invalid ${fieldName}: must be a string`);
+  }
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}[+-]\d{4}$/.test(value)) {
+    throw new Error(`Invalid ${fieldName}: must be ISO 8601 with timezone offset (e.g., "2024-01-15T09:00:00.000+0000")`);
+  }
+  return value;
+}
+
+const ALLOWED_ATTACHMENT_BASES: string[] = [process.cwd(), process.env.HOME ?? ''].filter((b): b is string => b.length > 0);
+
+function validateAttachmentPath(filePath: string): string {
+  const absolutePath = resolve(filePath);
+  const withinAllowed = ALLOWED_ATTACHMENT_BASES.some(base => absolutePath === base || absolutePath.startsWith(base + '/'));
+  if (!withinAllowed) {
+    throw new Error('filePath must be within the current working directory or user home directory');
+  }
+  return absolutePath;
+}
+
+const SERVER_VERSION = '2.3.8';
 
 const JIRA_URL: string = getRequiredEnv('JIRA_HOST', process.env.JIRA_URL ?? null);
 const JIRA_EMAIL: string = getRequiredEnv('JIRA_EMAIL');
@@ -164,7 +367,7 @@ function createIssueUrl(issueKey: string): string {
   return `${JIRA_URL}/browse/${issueKey}`;
 }
 
-function resolveProjectKey(a: Record<string, any>): string {
+function resolveProjectKey(a: Record<string, unknown>): string {
   return a?.projectKey ? validateProjectKey(a.projectKey) : JIRA_PROJECT_KEY;
 }
 
@@ -932,9 +1135,10 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
   };
 });
 
-type ToolHandler = (a: Record<string, any>) => Promise<ToolResponse>;
+type ToolArgs = Record<string, unknown>;
+type ToolHandler = (a: ToolArgs) => Promise<ToolResponse>;
 
-async function handleCreateIssue(a: Record<string, any>): Promise<ToolResponse> {
+async function handleCreateIssue(a: ToolArgs): Promise<ToolResponse> {
   const { summary, description, issueType = 'Task', priority = 'Medium', labels = [], storyPoints } = a;
   const projectKey = resolveProjectKey(a);
 
@@ -942,7 +1146,7 @@ async function handleCreateIssue(a: Record<string, any>): Promise<ToolResponse> 
   validateSafeParam(priority, 'priority');
   const validatedLabels = validateLabels(labels);
 
-  const issueData: Record<string, any> = {
+  const issueData: JiraIssuePayload = {
     fields: {
       project: { key: projectKey },
       summary: sanitizeString(summary, 500, 'summary'),
@@ -967,7 +1171,7 @@ async function handleCreateIssue(a: Record<string, any>): Promise<ToolResponse> 
   });
 }
 
-async function handleGetIssue(a: Record<string, any>): Promise<ToolResponse> {
+async function handleGetIssue(a: ToolArgs): Promise<ToolResponse> {
   validateIssueKey(a.issueKey);
   const response = await jiraApi.get(`/issue/${a.issueKey}`);
   const f = response.data.fields;
@@ -990,12 +1194,12 @@ async function handleGetIssue(a: Record<string, any>): Promise<ToolResponse> {
   });
 }
 
-async function handleSearchIssues(a: Record<string, any>): Promise<ToolResponse> {
-  const { jql, maxResults = 50, nextPageToken } = a;
-  validateJQL(jql);
+async function handleSearchIssues(a: ToolArgs): Promise<ToolResponse> {
+  const { maxResults = 50, nextPageToken } = a;
+  const jql = validateJQL(a.jql);
   const validatedMaxResults = validateMaxResults(maxResults);
 
-  const params: Record<string, any> = {
+  const params: Record<string, unknown> = {
     jql,
     maxResults: validatedMaxResults,
     fields: 'summary,status,assignee,priority,created,updated,issuetype,parent,labels',
@@ -1004,12 +1208,12 @@ async function handleSearchIssues(a: Record<string, any>): Promise<ToolResponse>
 
   const response = await jiraApi.get('/search/jql', { params });
 
-  const issues = response.data.issues ?? [];
+  const issues: JiraIssue[] = response.data.issues ?? [];
   return createSuccessResponse({
-    total: issues.length,
+    count: issues.length,
     isLast: response.data.isLast ?? true,
     nextPageToken: response.data.nextPageToken ?? null,
-    issues: issues.map((issue: any) => ({
+    issues: issues.map(issue => ({
       key: issue.key,
       summary: issue.fields.summary,
       status: issue.fields.status?.name,
@@ -1023,11 +1227,11 @@ async function handleSearchIssues(a: Record<string, any>): Promise<ToolResponse>
   });
 }
 
-async function handleUpdateIssue(a: Record<string, any>): Promise<ToolResponse> {
-  const { issueKey, summary, description, status } = a;
-  validateIssueKey(issueKey);
+async function handleUpdateIssue(a: ToolArgs): Promise<ToolResponse> {
+  const { summary, description, status } = a;
+  const issueKey = validateIssueKey(a.issueKey);
 
-  const updateData: Record<string, any> = { fields: {} };
+  const updateData: JiraIssuePayload = { fields: {} };
   let hasFieldUpdates = false;
 
   if (summary) {
@@ -1047,14 +1251,15 @@ async function handleUpdateIssue(a: Record<string, any>): Promise<ToolResponse> 
 
   if (status) {
     const transitions = await jiraApi.get(`/issue/${issueKey}/transitions`);
-    const transition = transitions.data.transitions.find((t: any) => t.name === status);
+    const transitionList: JiraTransition[] = transitions.data.transitions ?? [];
+    const transition = transitionList.find(t => t.name === status);
 
     if (transition) {
       await jiraApi.post(`/issue/${issueKey}/transitions`, {
         transition: { id: transition.id },
       });
     } else {
-      const available = transitions.data.transitions.map((t: any) => t.name).join(', ');
+      const available = transitionList.map(t => t.name).join(', ');
       warnings.push(`Transition "${status}" not found. Available transitions: ${available}`);
     }
   }
@@ -1076,49 +1281,52 @@ async function handleUpdateIssue(a: Record<string, any>): Promise<ToolResponse> 
   return createSuccessResponse(result);
 }
 
-async function handleAddComment(a: Record<string, any>): Promise<ToolResponse> {
+async function handleAddComment(a: ToolArgs): Promise<ToolResponse> {
   validateIssueKey(a.issueKey);
   await jiraApi.post(`/issue/${a.issueKey}/comment`, { body: createADFDocument(a.comment) });
   return createSuccessResponse({ success: true, message: `Comment added to ${a.issueKey}` });
 }
 
-async function handleUpdateComment(a: Record<string, any>): Promise<ToolResponse> {
+async function handleUpdateComment(a: ToolArgs): Promise<ToolResponse> {
   validateIssueKey(a.issueKey);
   validateSafeParam(a.commentId, 'commentId', 50);
   await jiraApi.put(`/issue/${a.issueKey}/comment/${a.commentId}`, { body: createADFDocument(a.comment) });
   return createSuccessResponse({ success: true, message: `Comment ${a.commentId} updated on ${a.issueKey}` });
 }
 
-async function handleDeleteComment(a: Record<string, any>): Promise<ToolResponse> {
+async function handleDeleteComment(a: ToolArgs): Promise<ToolResponse> {
   validateIssueKey(a.issueKey);
   validateSafeParam(a.commentId, 'commentId', 50);
   await jiraApi.delete(`/issue/${a.issueKey}/comment/${a.commentId}`);
   return createSuccessResponse({ success: true, message: `Comment ${a.commentId} deleted from ${a.issueKey}` });
 }
 
-async function handleLinkIssues(a: Record<string, any>): Promise<ToolResponse> {
-  const { inwardIssue, outwardIssue, linkType = 'Relates' } = a;
-  validateIssueKey(inwardIssue);
-  validateIssueKey(outwardIssue);
-  validateSafeParam(linkType, 'linkType');
+async function handleLinkIssues(a: ToolArgs): Promise<ToolResponse> {
+  const { linkType = 'Relates' } = a;
+  const inwardIssue = validateIssueKey(a.inwardIssue);
+  const outwardIssue = validateIssueKey(a.outwardIssue);
+  const validatedLinkType = validateSafeParam(linkType, 'linkType');
 
   try {
     await jiraApi.post('/issueLink', {
-      type: { name: linkType },
+      type: { name: validatedLinkType },
       inwardIssue: { key: inwardIssue },
       outwardIssue: { key: outwardIssue },
     });
-    return createSuccessResponse({ success: true, message: `Linked ${inwardIssue} to ${outwardIssue} with type "${linkType}"` });
+    return createSuccessResponse({ success: true, message: `Linked ${inwardIssue} to ${outwardIssue} with type "${validatedLinkType}"` });
   } catch (linkError) {
     const axiosErr = linkError as AxiosError<{ errorMessages?: string[] }>;
-    if (axiosErr.response?.status === 400 && axiosErr.response?.data?.errorMessages?.includes('link already exists')) {
+    const errorMessages = axiosErr.response?.data?.errorMessages ?? [];
+    const isDuplicate = axiosErr.response?.status === 400 &&
+      errorMessages.some(m => /link.*(already|exist)/i.test(m));
+    if (isDuplicate) {
       return createSuccessResponse({ success: true, message: `Link between ${inwardIssue} and ${outwardIssue} already exists`, alreadyLinked: true });
     }
     throw linkError;
   }
 }
 
-async function handleGetProjectInfo(a: Record<string, any>): Promise<ToolResponse> {
+async function handleGetProjectInfo(a: ToolArgs): Promise<ToolResponse> {
   const projectKey = resolveProjectKey(a);
   const response = await jiraApi.get(`/project/${projectKey}`);
   return createSuccessResponse({
@@ -1130,13 +1338,13 @@ async function handleGetProjectInfo(a: Record<string, any>): Promise<ToolRespons
   });
 }
 
-async function handleDeleteIssue(a: Record<string, any>): Promise<ToolResponse> {
+async function handleDeleteIssue(a: ToolArgs): Promise<ToolResponse> {
   validateIssueKey(a.issueKey);
   await jiraApi.delete(`/issue/${a.issueKey}`);
   return createSuccessResponse({ success: true, message: `Issue ${a.issueKey} deleted successfully` });
 }
 
-async function handleCreateSubtask(a: Record<string, any>): Promise<ToolResponse> {
+async function handleCreateSubtask(a: ToolArgs): Promise<ToolResponse> {
   const { parentKey, summary, description, priority = 'Medium' } = a;
   validateIssueKey(parentKey);
   validateSafeParam(priority, 'priority');
@@ -1156,53 +1364,56 @@ async function handleCreateSubtask(a: Record<string, any>): Promise<ToolResponse
   return createSuccessResponse({ success: true, key: response.data.key, id: response.data.id, parent: parentKey, url: createIssueUrl(response.data.key) });
 }
 
-async function handleAssignIssue(a: Record<string, any>): Promise<ToolResponse> {
-  validateIssueKey(a.issueKey);
-  await jiraApi.put(`/issue/${a.issueKey}/assignee`, { accountId: a.accountId !== undefined ? a.accountId : null });
+async function handleAssignIssue(a: ToolArgs): Promise<ToolResponse> {
+  const issueKey = validateIssueKey(a.issueKey);
+  const accountId = a.accountId === null || a.accountId === undefined ? null : validateAccountId(a.accountId);
+  await jiraApi.put(`/issue/${issueKey}/assignee`, { accountId });
   return createSuccessResponse({
     success: true,
-    message: a.accountId ? `Issue ${a.issueKey} assigned to ${a.accountId}` : `Issue ${a.issueKey} unassigned`,
-    url: createIssueUrl(a.issueKey),
+    message: accountId ? `Issue ${issueKey} assigned to ${accountId}` : `Issue ${issueKey} unassigned`,
+    url: createIssueUrl(issueKey),
   });
 }
 
-async function handleListTransitions(a: Record<string, any>): Promise<ToolResponse> {
-  validateIssueKey(a.issueKey);
-  const response = await jiraApi.get(`/issue/${a.issueKey}/transitions`);
+async function handleListTransitions(a: ToolArgs): Promise<ToolResponse> {
+  const issueKey = validateIssueKey(a.issueKey);
+  const response = await jiraApi.get(`/issue/${issueKey}/transitions`);
+  const transitions: JiraTransition[] = response.data.transitions ?? [];
   return createSuccessResponse({
-    issueKey: a.issueKey,
-    transitions: response.data.transitions.map((t: any) => ({
+    issueKey,
+    transitions: transitions.map(t => ({
       id: t.id,
       name: t.name,
-      to: { id: t.to.id, name: t.to.name, category: t.to.statusCategory?.name },
+      to: { id: t.to?.id, name: t.to?.name, category: t.to?.statusCategory?.name },
     })),
   });
 }
 
-async function handleAddWorklog(a: Record<string, any>): Promise<ToolResponse> {
-  const { issueKey, timeSpent, comment, started } = a;
-  validateIssueKey(issueKey);
-  sanitizeString(timeSpent, 50, 'timeSpent');
+async function handleAddWorklog(a: ToolArgs): Promise<ToolResponse> {
+  const { comment, started } = a;
+  const issueKey = validateIssueKey(a.issueKey);
+  const timeSpent = sanitizeString(a.timeSpent, 50, 'timeSpent');
 
-  const worklogData: Record<string, any> = { timeSpent };
+  const worklogData: Record<string, unknown> = { timeSpent };
   if (comment) worklogData.comment = createADFDocument(comment);
-  if (started) worklogData.started = started;
+  if (started !== undefined && started !== null) worklogData.started = validateISO8601(started, 'started');
 
   const response = await jiraApi.post(`/issue/${issueKey}/worklog`, worklogData);
   return createSuccessResponse({ success: true, id: response.data.id, issueKey, timeSpent: response.data.timeSpent, author: response.data.author?.displayName });
 }
 
-async function handleGetComments(a: Record<string, any>): Promise<ToolResponse> {
-  const { issueKey, maxResults = 50, orderBy = '-created' } = a;
-  validateIssueKey(issueKey);
+async function handleGetComments(a: ToolArgs): Promise<ToolResponse> {
+  const { maxResults = 50, orderBy = '-created' } = a;
+  const issueKey = validateIssueKey(a.issueKey);
   const validatedMaxResults = validateMaxResults(maxResults);
 
   const validatedOrderBy = orderBy === 'created' ? 'created' : '-created';
   const response = await jiraApi.get(`/issue/${issueKey}/comment`, { params: { maxResults: validatedMaxResults, orderBy: validatedOrderBy } });
+  const comments: JiraComment[] = response.data.comments ?? [];
   return createSuccessResponse({
     issueKey,
-    total: response.data.total,
-    comments: response.data.comments.map((c: any) => ({
+    total: response.data.total ?? comments.length,
+    comments: comments.map(c => ({
       id: c.id,
       author: c.author?.displayName,
       body: adfToText(c.body),
@@ -1212,13 +1423,14 @@ async function handleGetComments(a: Record<string, any>): Promise<ToolResponse> 
   });
 }
 
-async function handleGetWorklogs(a: Record<string, any>): Promise<ToolResponse> {
-  validateIssueKey(a.issueKey);
-  const response = await jiraApi.get(`/issue/${a.issueKey}/worklog`);
+async function handleGetWorklogs(a: ToolArgs): Promise<ToolResponse> {
+  const issueKey = validateIssueKey(a.issueKey);
+  const response = await jiraApi.get(`/issue/${issueKey}/worklog`);
+  const worklogs: JiraWorklog[] = response.data.worklogs ?? [];
   return createSuccessResponse({
-    issueKey: a.issueKey,
-    total: response.data.total,
-    worklogs: response.data.worklogs.map((w: any) => ({
+    issueKey,
+    total: response.data.total ?? worklogs.length,
+    worklogs: worklogs.map(w => ({
       id: w.id,
       author: w.author?.displayName,
       timeSpent: w.timeSpent,
@@ -1229,88 +1441,97 @@ async function handleGetWorklogs(a: Record<string, any>): Promise<ToolResponse> 
   });
 }
 
-async function handleListProjects(a: Record<string, any>): Promise<ToolResponse> {
+async function handleListProjects(a: ToolArgs): Promise<ToolResponse> {
   const { maxResults = 50, query } = a;
   const validatedMaxResults = validateMaxResults(maxResults);
-  const params: Record<string, any> = { maxResults: validatedMaxResults };
+  const params: Record<string, unknown> = { maxResults: validatedMaxResults };
   if (query) params.query = sanitizeString(query, 200, 'query');
 
   const response = await jiraApi.get('/project/search', { params });
+  const projects: JiraProject[] = response.data.values ?? [];
   return createSuccessResponse({
-    total: response.data.total,
-    projects: response.data.values.map((p: any) => ({ key: p.key, name: p.name, projectTypeKey: p.projectTypeKey, style: p.style, lead: p.lead?.displayName })),
+    total: response.data.total ?? projects.length,
+    projects: projects.map(p => ({ key: p.key, name: p.name, projectTypeKey: p.projectTypeKey, style: p.style, lead: p.lead?.displayName })),
   });
 }
 
-async function handleGetProjectComponents(a: Record<string, any>): Promise<ToolResponse> {
+async function handleGetProjectComponents(a: ToolArgs): Promise<ToolResponse> {
   const projectKey = resolveProjectKey(a);
   const response = await jiraApi.get(`/project/${projectKey}/components`);
+  const components: JiraComponent[] = response.data ?? [];
   return createSuccessResponse({
     projectKey,
-    components: response.data.map((c: any) => ({ id: c.id, name: c.name, description: c.description, lead: c.lead?.displayName, assigneeType: c.assigneeType })),
+    components: components.map(c => ({ id: c.id, name: c.name, description: c.description, lead: c.lead?.displayName, assigneeType: c.assigneeType })),
   });
 }
 
-async function handleGetProjectVersions(a: Record<string, any>): Promise<ToolResponse> {
+async function handleGetProjectVersions(a: ToolArgs): Promise<ToolResponse> {
   const projectKey = resolveProjectKey(a);
   const response = await jiraApi.get(`/project/${projectKey}/versions`);
+  const versions: JiraVersion[] = response.data ?? [];
   return createSuccessResponse({
     projectKey,
-    versions: response.data.map((v: any) => ({ id: v.id, name: v.name, description: v.description, released: v.released, archived: v.archived, releaseDate: v.releaseDate, startDate: v.startDate })),
+    versions: versions.map(v => ({ id: v.id, name: v.name, description: v.description, released: v.released, archived: v.archived, releaseDate: v.releaseDate, startDate: v.startDate })),
   });
 }
 
-async function handleGetFields(_a: Record<string, any>): Promise<ToolResponse> {
+async function handleGetFields(_a: ToolArgs): Promise<ToolResponse> {
   const response = await jiraApi.get('/field');
-  return createSuccessResponse({ fields: response.data.map((f: any) => ({ id: f.id, name: f.name, custom: f.custom, schema: f.schema })) });
+  const fields: JiraField[] = response.data ?? [];
+  return createSuccessResponse({ fields: fields.map(f => ({ id: f.id, name: f.name, custom: f.custom, schema: f.schema })) });
 }
 
-async function handleGetIssueTypes(a: Record<string, any>): Promise<ToolResponse> {
+async function handleGetIssueTypes(a: ToolArgs): Promise<ToolResponse> {
   const projectKey = resolveProjectKey(a);
   const response = await jiraApi.get(`/issue/createmeta/${projectKey}/issuetypes`);
+  const issueTypes: JiraIssueType[] = response.data.values ?? [];
   return createSuccessResponse({
     projectKey,
-    issueTypes: response.data.values.map((t: any) => ({ id: t.id, name: t.name, subtask: t.subtask, description: t.description })),
+    issueTypes: issueTypes.map(t => ({ id: t.id, name: t.name, subtask: t.subtask, description: t.description })),
   });
 }
 
-async function handleGetPriorities(_a: Record<string, any>): Promise<ToolResponse> {
+async function handleGetPriorities(_a: ToolArgs): Promise<ToolResponse> {
   const response = await jiraApi.get('/priority/search');
-  return createSuccessResponse({ priorities: response.data.values.map((p: any) => ({ id: p.id, name: p.name, description: p.description, iconUrl: p.iconUrl })) });
+  const priorities: JiraPriority[] = response.data.values ?? [];
+  return createSuccessResponse({ priorities: priorities.map(p => ({ id: p.id, name: p.name, description: p.description, iconUrl: p.iconUrl })) });
 }
 
-async function handleGetLinkTypes(_a: Record<string, any>): Promise<ToolResponse> {
+async function handleGetLinkTypes(_a: ToolArgs): Promise<ToolResponse> {
   const response = await jiraApi.get('/issueLinkType');
-  return createSuccessResponse({ linkTypes: response.data.issueLinkTypes.map((lt: any) => ({ id: lt.id, name: lt.name, inward: lt.inward, outward: lt.outward })) });
+  const linkTypes: JiraLinkType[] = response.data.issueLinkTypes ?? [];
+  return createSuccessResponse({ linkTypes: linkTypes.map(lt => ({ id: lt.id, name: lt.name, inward: lt.inward, outward: lt.outward })) });
 }
 
-async function handleSearchUsers(a: Record<string, any>): Promise<ToolResponse> {
-  const { query, maxResults = 10 } = a;
-  sanitizeString(query, 200, 'query');
+async function handleSearchUsers(a: ToolArgs): Promise<ToolResponse> {
+  const { maxResults = 10 } = a;
+  const query = sanitizeString(a.query, 200, 'query');
   const validatedMaxResults = validateMaxResults(maxResults);
   const response = await jiraApi.get('/user/search', { params: { query, maxResults: validatedMaxResults } });
+  const users: JiraUser[] = response.data ?? [];
   return createSuccessResponse({
-    users: response.data.map((u: any) => ({ accountId: u.accountId, displayName: u.displayName, emailAddress: u.emailAddress, active: u.active, accountType: u.accountType })),
+    users: users.map(u => ({ accountId: u.accountId, displayName: u.displayName, emailAddress: u.emailAddress, active: u.active, accountType: u.accountType })),
   });
 }
 
-async function handleGetChangelog(a: Record<string, any>): Promise<ToolResponse> {
-  const { issueKey, maxResults = 50 } = a;
-  validateIssueKey(issueKey);
+async function handleGetChangelog(a: ToolArgs): Promise<ToolResponse> {
+  const { maxResults = 50 } = a;
+  const issueKey = validateIssueKey(a.issueKey);
   const validatedMaxResults = validateMaxResults(maxResults);
 
   const response = await jiraApi.get(`/issue/${issueKey}/changelog`, {
     params: { maxResults: validatedMaxResults },
   });
 
+  const histories: JiraChangelogHistory[] = response.data.values ?? [];
   return createSuccessResponse({
     issueKey,
-    total: response.data.total,
-    histories: response.data.values.map((h: any) => ({
+    total: response.data.total ?? histories.length,
+    histories: histories.map(h => ({
       id: h.id,
       author: h.author?.displayName,
       created: h.created,
-      items: h.items.map((item: any) => ({
+      items: (h.items ?? []).map(item => ({
         field: item.field,
         from: item.fromString,
         to: item.toString,
@@ -1319,14 +1540,14 @@ async function handleGetChangelog(a: Record<string, any>): Promise<ToolResponse>
   });
 }
 
-async function handleGetUserIssues(a: Record<string, any>): Promise<ToolResponse> {
-  const { accountId, maxResults = 50, status } = a;
-  sanitizeString(accountId, 100, 'accountId');
+async function handleGetUserIssues(a: ToolArgs): Promise<ToolResponse> {
+  const { maxResults = 50, status } = a;
+  const accountId = validateAccountId(a.accountId);
   const validatedMaxResults = validateMaxResults(maxResults);
   const projectKey = resolveProjectKey(a);
 
   const escapedStatus = status ? sanitizeString(status, 100, 'status').replace(/"/g, '\\"') : null;
-  let jql = `project = ${projectKey} AND assignee = "${accountId.replace(/"/g, '\\"')}"`;
+  let jql = `project = "${projectKey}" AND assignee = "${accountId}"`;
   if (escapedStatus) jql += ` AND status = "${escapedStatus}"`;
   jql += ' ORDER BY updated DESC';
 
@@ -1338,12 +1559,12 @@ async function handleGetUserIssues(a: Record<string, any>): Promise<ToolResponse
     },
   });
 
-  const userIssues = response.data.issues ?? [];
+  const userIssues: JiraIssue[] = response.data.issues ?? [];
   return createSuccessResponse({
-    total: userIssues.length,
+    count: userIssues.length,
     isLast: response.data.isLast ?? true,
     nextPageToken: response.data.nextPageToken ?? null,
-    issues: userIssues.map((issue: any) => ({
+    issues: userIssues.map(issue => ({
       key: issue.key,
       summary: issue.fields.summary,
       status: issue.fields.status?.name,
@@ -1356,7 +1577,7 @@ async function handleGetUserIssues(a: Record<string, any>): Promise<ToolResponse
   });
 }
 
-async function handleBulkCreateIssues(a: Record<string, any>): Promise<ToolResponse> {
+async function handleBulkCreateIssues(a: ToolArgs): Promise<ToolResponse> {
   const { issues } = a;
   const projectKey = resolveProjectKey(a);
 
@@ -1367,30 +1588,28 @@ async function handleBulkCreateIssues(a: Record<string, any>): Promise<ToolRespo
     throw new Error('Maximum 50 issues per bulk create');
   }
 
-  const issueList = issues.map((issue: any) => {
-    const issueType = issue.issueType || 'Task';
-    const priority = issue.priority || 'Medium';
-    validateSafeParam(issueType, 'issueType');
-    validateSafeParam(priority, 'priority');
-    return {
-      fields: {
-        project: { key: projectKey },
-        summary: sanitizeString(issue.summary, 500, 'summary'),
-        description: createADFDocument(issue.description),
-        issuetype: { name: issueType },
-        priority: { name: priority },
-        labels: Array.isArray(issue.labels) ? validateLabels(issue.labels) : [],
-        ...(issue.storyPoints !== undefined && issue.storyPoints !== null
-          ? { [STORY_POINTS_FIELD]: validateStoryPoints(issue.storyPoints) }
-          : {}),
-      },
+  const issueList: JiraIssuePayload[] = (issues as BulkIssueInput[]).map(issue => {
+    const issueType = validateSafeParam(issue.issueType ?? 'Task', 'issueType');
+    const priority = validateSafeParam(issue.priority ?? 'Medium', 'priority');
+    const fields: Record<string, unknown> = {
+      project: { key: projectKey },
+      summary: sanitizeString(issue.summary, 500, 'summary'),
+      description: createADFDocument(issue.description),
+      issuetype: { name: issueType },
+      priority: { name: priority },
+      labels: Array.isArray(issue.labels) ? validateLabels(issue.labels) : [],
     };
+    if (issue.storyPoints !== undefined && issue.storyPoints !== null) {
+      fields[STORY_POINTS_FIELD] = validateStoryPoints(issue.storyPoints);
+    }
+    return { fields };
   });
 
   const response = await jiraApi.post('/issue/bulk', { issueUpdates: issueList });
 
+  const created: JiraIssue[] = response.data.issues ?? [];
   return createSuccessResponse({
-    created: response.data.issues.map((issue: any) => ({
+    created: created.map(issue => ({
       key: issue.key,
       id: issue.id,
       url: createIssueUrl(issue.key),
@@ -1399,16 +1618,15 @@ async function handleBulkCreateIssues(a: Record<string, any>): Promise<ToolRespo
   });
 }
 
-async function handleCloneIssue(a: Record<string, any>): Promise<ToolResponse> {
-  const { issueKey } = a;
-  validateIssueKey(issueKey);
+async function handleCloneIssue(a: ToolArgs): Promise<ToolResponse> {
+  const issueKey = validateIssueKey(a.issueKey);
 
   const source = await jiraApi.get(`/issue/${issueKey}`);
-  const f = source.data.fields;
+  const f: JiraIssueFields = source.data.fields;
   const projectKey = a.projectKey ? validateProjectKey(a.projectKey) : f.project?.key ?? JIRA_PROJECT_KEY;
   const summary = a.summary ? sanitizeString(a.summary, 500, 'summary') : `Clone of ${f.summary}`;
 
-  const issueData: Record<string, any> = {
+  const issueData: JiraIssuePayload = {
     fields: {
       project: { key: projectKey },
       summary,
@@ -1434,17 +1652,18 @@ async function handleCloneIssue(a: Record<string, any>): Promise<ToolResponse> {
   });
 }
 
-async function handleListBoards(a: Record<string, any>): Promise<ToolResponse> {
+async function handleListBoards(a: ToolArgs): Promise<ToolResponse> {
   const { maxResults = 50 } = a;
   const validatedMaxResults = validateMaxResults(maxResults);
-  const params: Record<string, any> = { maxResults: validatedMaxResults };
+  const params: Record<string, unknown> = { maxResults: validatedMaxResults };
   if (a.projectKey) params.projectKeyOrId = validateProjectKey(a.projectKey);
 
   const response = await agileApi.get('/board', { params });
 
+  const boards: JiraBoard[] = response.data.values ?? [];
   return createSuccessResponse({
-    total: response.data.total,
-    boards: response.data.values.map((b: any) => ({
+    total: response.data.total ?? boards.length,
+    boards: boards.map(b => ({
       id: b.id,
       name: b.name,
       type: b.type,
@@ -1454,19 +1673,22 @@ async function handleListBoards(a: Record<string, any>): Promise<ToolResponse> {
   });
 }
 
-async function handleListSprints(a: Record<string, any>): Promise<ToolResponse> {
+async function handleListSprints(a: ToolArgs): Promise<ToolResponse> {
   const { boardId, state = 'active', maxResults = 50 } = a;
   if (typeof boardId !== 'number') throw new Error('boardId must be a number');
-  if (!['active', 'future', 'closed'].includes(state)) throw new Error('state must be one of: active, future, closed');
+  if (typeof state !== 'string' || !['active', 'future', 'closed'].includes(state)) {
+    throw new Error('state must be one of: active, future, closed');
+  }
   const validatedMaxResults = validateMaxResults(maxResults);
 
   const response = await agileApi.get(`/board/${boardId}/sprint`, {
     params: { state, maxResults: validatedMaxResults },
   });
 
+  const sprints: JiraSprint[] = response.data.values ?? [];
   return createSuccessResponse({
-    total: response.data.total,
-    sprints: response.data.values.map((s: any) => ({
+    total: response.data.total ?? sprints.length,
+    sprints: sprints.map(s => ({
       id: s.id,
       name: s.name,
       state: s.state,
@@ -1477,7 +1699,7 @@ async function handleListSprints(a: Record<string, any>): Promise<ToolResponse> 
   });
 }
 
-async function handleGetSprint(a: Record<string, any>): Promise<ToolResponse> {
+async function handleGetSprint(a: ToolArgs): Promise<ToolResponse> {
   const { sprintId, maxResults = 50 } = a;
   if (typeof sprintId !== 'number') throw new Error('sprintId must be a number');
   const validatedMaxResults = validateMaxResults(maxResults);
@@ -1492,6 +1714,7 @@ async function handleGetSprint(a: Record<string, any>): Promise<ToolResponse> {
     }),
   ]);
 
+  const sprintIssues: JiraIssue[] = issuesRes.data.issues ?? [];
   return createSuccessResponse({
     id: sprintRes.data.id,
     name: sprintRes.data.name,
@@ -1499,8 +1722,8 @@ async function handleGetSprint(a: Record<string, any>): Promise<ToolResponse> {
     startDate: sprintRes.data.startDate,
     endDate: sprintRes.data.endDate,
     goal: sprintRes.data.goal,
-    total: issuesRes.data.total,
-    issues: issuesRes.data.issues.map((issue: any) => ({
+    total: issuesRes.data.total ?? sprintIssues.length,
+    issues: sprintIssues.map(issue => ({
       key: issue.key,
       summary: issue.fields.summary,
       status: issue.fields.status?.name,
@@ -1513,7 +1736,7 @@ async function handleGetSprint(a: Record<string, any>): Promise<ToolResponse> {
   });
 }
 
-async function handleMoveToSprint(a: Record<string, any>): Promise<ToolResponse> {
+async function handleMoveToSprint(a: ToolArgs): Promise<ToolResponse> {
   const { sprintId, issueKeys } = a;
   if (typeof sprintId !== 'number') throw new Error('sprintId must be a number');
   if (!Array.isArray(issueKeys) || issueKeys.length === 0) throw new Error('issueKeys must be a non-empty array');
@@ -1529,18 +1752,18 @@ async function handleMoveToSprint(a: Record<string, any>): Promise<ToolResponse>
   });
 }
 
-async function handleGetAttachments(a: Record<string, any>): Promise<ToolResponse> {
-  validateIssueKey(a.issueKey);
-  const response = await jiraApi.get(`/issue/${a.issueKey}`, {
+async function handleGetAttachments(a: ToolArgs): Promise<ToolResponse> {
+  const issueKey = validateIssueKey(a.issueKey);
+  const response = await jiraApi.get(`/issue/${issueKey}`, {
     params: { fields: 'attachment' },
   });
 
-  const attachments = response.data.fields.attachment || [];
+  const attachments: JiraAttachment[] = response.data.fields?.attachment ?? [];
 
   return createSuccessResponse({
-    issueKey: a.issueKey,
+    issueKey,
     total: attachments.length,
-    attachments: attachments.map((att: any) => ({
+    attachments: attachments.map(att => ({
       id: att.id,
       filename: att.filename,
       size: att.size,
@@ -1552,24 +1775,24 @@ async function handleGetAttachments(a: Record<string, any>): Promise<ToolRespons
   });
 }
 
-async function handleAddAttachment(a: Record<string, any>): Promise<ToolResponse> {
-  validateIssueKey(a.issueKey);
+async function handleAddAttachment(a: ToolArgs): Promise<ToolResponse> {
+  const issueKey = validateIssueKey(a.issueKey);
   const filePath = sanitizeString(a.filePath, 500, 'filePath');
-  const absolutePath = resolve(filePath);
-  if (!absolutePath.startsWith('/')) throw new Error('filePath must be an absolute path');
+  const absolutePath = validateAttachmentPath(filePath);
   const fileName = basename(absolutePath);
 
   const fileBuffer = readFileSync(absolutePath);
   const form = new FormData();
   form.append('file', new Blob([fileBuffer]), fileName);
 
-  const response = await jiraApi.post(`/issue/${a.issueKey}/attachments`, form, {
-    headers: { 'X-Atlassian-Token': 'no-check' },
+  const response = await jiraApi.post(`/issue/${issueKey}/attachments`, form, {
+    headers: { 'X-Atlassian-Token': 'no-check', 'Content-Type': 'multipart/form-data' },
   });
 
+  const attachments: JiraAttachment[] = response.data ?? [];
   return createSuccessResponse({
     success: true,
-    attachments: response.data.map((att: any) => ({
+    attachments: attachments.map(att => ({
       id: att.id,
       filename: att.filename,
       size: att.size,
@@ -1621,7 +1844,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const handler = toolHandlers[name];
   if (!handler) throw new Error(`Unknown tool: ${name}`);
   try {
-    return await handler(args as Record<string, any>);
+    return await handler((args ?? {}) as ToolArgs);
   } catch (error) {
     return handleError(error);
   }
