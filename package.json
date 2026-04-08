@@ -1,6 +1,6 @@
 {
   "name": "@mcpio/jira",
-  "version": "2.3.7",
+  "version": "2.3.8",
   "description": "Model Context Protocol (MCP) server for Jira Cloud API v3 with automatic Markdown-to-ADF conversion",
   "author": {
     "name": "Volodymyr Press",
@@ -29,8 +29,8 @@
     "automation"
   ],
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.20.2",
-    "axios": "^1.13.1"
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "axios": "^1.14.0"
   },
   "engines": {
     "node": ">=18.0.0"

@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.3.8] - 2026-02-27
+
+### Security
+- **Path traversal** in `jira_add_attachment`: restrict file paths to current working directory or user home (previous check `startsWith('/')` was a no-op on Unix)
+- **JQL injection** in `jira_get_user_issues`: `projectKey` now quoted in JQL; `accountId` validated against Atlassian format (`/^[a-zA-Z0-9:._-]{1,128}$/`)
+- **CVE fixes**: upgrade `@modelcontextprotocol/sdk` to `^1.29.0` — fixes ReDoS (GHSA-8r9q-7v3j-jr4g), cross-client data leak (GHSA-345p-7cg4-v4c7, CVSS 7.1), and DNS rebinding (GHSA-w48q-cv73-mx4w)
+- `jira_assign_issue`: `accountId` now validated with `validateAccountId`
+
+### Fixed
+- Null guards on `response.data.values` / `response.data.issues` across all list endpoints (prevents `TypeError` on empty/missing responses)
+- `jira_link_issues`: robust duplicate-link detection via regex instead of exact string match
+- `jira_add_worklog`: `started` field now validated as ISO 8601 with timezone offset
+- `jira_add_attachment`: explicit `multipart/form-data` Content-Type
+- `jira_search_issues` / `jira_get_user_issues`: renamed `total` → `count` (accurate naming — `/search/jql` no longer returns total)
+
+### Changed
+- Full TypeScript strict typing: eliminated all `any` from handlers and response mapping
+- Introduced typed interfaces for Jira API responses (`JiraIssue`, `JiraComment`, `JiraWorklog`, `JiraTransition`, `JiraChangelogHistory`, `JiraProject`, `JiraBoard`, `JiraSprint`, etc.)
+- `ToolHandler` type now uses `Record<string, unknown>` instead of `Record<string, any>`
+- Upgrade `axios` to `^1.14.0`
+
 ## [2.3.7] - 2026-02-27
 
 ### Added
