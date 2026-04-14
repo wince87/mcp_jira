@@ -46,6 +46,7 @@ interface JiraUser {
 }
 
 interface JiraStatusCategory {
+  key?: string;
   name?: string;
 }
 
@@ -328,7 +329,7 @@ function validateAttachmentPath(filePath: string): string {
   return absolutePath;
 }
 
-const SERVER_VERSION = '2.4.0';
+const SERVER_VERSION = '2.5.0';
 
 const JIRA_URL: string = getRequiredEnv('JIRA_HOST', process.env.JIRA_URL ?? null);
 const JIRA_EMAIL: string = getRequiredEnv('JIRA_EMAIL');
@@ -1117,6 +1118,102 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           required: ['issueKey', 'filePath'],
         },
       },
+      {
+        name: 'jira_list_epics',
+        description: 'List all epics in a project via JQL (issuetype = Epic).',
+        inputSchema: {
+          type: 'object' as const,
+          properties: {
+            projectKey: { type: 'string', description: 'Project key (defaults to JIRA_PROJECT_KEY)' },
+            status: { type: 'string', description: 'Filter by status name (e.g., "In Progress", "Done")' },
+            maxResults: { type: 'number', description: 'Maximum results (1-100)', default: 50 },
+            nextPageToken: { type: 'string', description: 'Pagination token from previous response' },
+          },
+        },
+      },
+      {
+        name: 'jira_get_epic',
+        description: 'Get epic details via Agile API (name, summary, color, done status).',
+        inputSchema: {
+          type: 'object' as const,
+          properties: {
+            epicKey: { type: 'string', description: 'Epic issue key (e.g., PROJ-100)' },
+          },
+          required: ['epicKey'],
+        },
+      },
+      {
+        name: 'jira_get_epic_issues',
+        description: 'Get all child issues linked to an epic.',
+        inputSchema: {
+          type: 'object' as const,
+          properties: {
+            epicKey: { type: 'string', description: 'Epic issue key' },
+            maxResults: { type: 'number', description: 'Maximum results (1-100)', default: 50 },
+          },
+          required: ['epicKey'],
+        },
+      },
+      {
+        name: 'jira_get_board_epics',
+        description: 'List epics on a Scrum/Kanban board, optionally filtered by done status.',
+        inputSchema: {
+          type: 'object' as const,
+          properties: {
+            boardId: { type: 'number', description: 'Board ID (from jira_list_boards)' },
+            done: { type: 'string', enum: ['true', 'false'], description: 'Filter: "true" for done epics, "false" for active, omit for all' },
+            maxResults: { type: 'number', description: 'Maximum results (1-100)', default: 50 },
+          },
+          required: ['boardId'],
+        },
+      },
+      {
+        name: 'jira_add_issues_to_epic',
+        description: 'Link one or more issues to an epic. Uses Agile API bulk move.',
+        inputSchema: {
+          type: 'object' as const,
+          properties: {
+            epicKey: { type: 'string', description: 'Target epic key' },
+            issueKeys: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Array of issue keys to attach to the epic',
+            },
+          },
+          required: ['epicKey', 'issueKeys'],
+        },
+      },
+      {
+        name: 'jira_remove_issue_from_epic',
+        description: 'Remove issues from their current epic (unlink).',
+        inputSchema: {
+          type: 'object' as const,
+          properties: {
+            issueKeys: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Array of issue keys to detach from their epic',
+            },
+          },
+          required: ['issueKeys'],
+        },
+      },
+      {
+        name: 'jira_create_epic',
+        description: 'Create a new epic. Convenience wrapper that sets issueType to Epic.',
+        inputSchema: {
+          type: 'object' as const,
+          properties: {
+            summary: { type: 'string', description: 'Epic summary' },
+            description: { type: 'string', description: 'Epic description (Markdown, converted to ADF)' },
+            epicName: { type: 'string', description: 'Short name for classic (company-managed) projects. Defaults to summary.' },
+            projectKey: { type: 'string', description: 'Project key (defaults to JIRA_PROJECT_KEY)' },
+            priority: { type: 'string', description: 'Priority name', default: 'Medium' },
+            labels: { type: 'array', items: { type: 'string' }, description: 'Labels' },
+          },
+          required: ['summary'],
+        },
+      },
     ],
   };
 });
@@ -1788,6 +1885,191 @@ async function handleAddAttachment(a: ToolArgs): Promise<ToolResponse> {
   });
 }
 
+async function handleListEpics(a: ToolArgs): Promise<ToolResponse> {
+  const { maxResults = 50, nextPageToken, status } = a;
+  const projectKey = resolveProjectKey(a);
+  const validatedMaxResults = validateMaxResults(maxResults);
+
+  let jql = `project = "${projectKey}" AND issuetype = Epic`;
+  if (status !== undefined && status !== null) {
+    const escapedStatus = sanitizeString(status, 100, 'status').replace(/"/g, '\\"');
+    jql += ` AND status = "${escapedStatus}"`;
+  }
+  jql += ' ORDER BY created DESC';
+
+  const params: Record<string, unknown> = {
+    jql,
+    maxResults: validatedMaxResults,
+    fields: 'summary,status,priority,created,updated,labels',
+  };
+  if (typeof nextPageToken === 'string' && nextPageToken) params.nextPageToken = nextPageToken;
+
+  const response = await jiraApi.get('/search/jql', { params });
+  const epics: JiraIssue[] = response.data.issues ?? [];
+
+  return createSuccessResponse({
+    count: epics.length,
+    isLast: response.data.isLast ?? true,
+    nextPageToken: response.data.nextPageToken ?? null,
+    epics: epics.map(issue => ({
+      key: issue.key,
+      summary: issue.fields.summary,
+      status: issue.fields.status?.name,
+      priority: issue.fields.priority?.name,
+      labels: issue.fields.labels || [],
+      created: issue.fields.created,
+      updated: issue.fields.updated,
+      url: createIssueUrl(issue.key),
+    })),
+  });
+}
+
+async function handleGetEpic(a: ToolArgs): Promise<ToolResponse> {
+  const epicKey = validateIssueKey(a.epicKey);
+  const response = await agileApi.get(`/epic/${epicKey}`);
+  const e = response.data;
+
+  return createSuccessResponse({
+    id: e.id,
+    key: e.key,
+    name: e.name,
+    summary: e.summary,
+    done: e.done,
+    color: e.color?.key,
+    url: createIssueUrl(e.key),
+  });
+}
+
+async function handleGetEpicIssues(a: ToolArgs): Promise<ToolResponse> {
+  const epicKey = validateIssueKey(a.epicKey);
+  const { maxResults = 50 } = a;
+  const validatedMaxResults = validateMaxResults(maxResults);
+
+  const response = await agileApi.get(`/epic/${epicKey}/issue`, {
+    params: {
+      maxResults: validatedMaxResults,
+      fields: 'summary,status,assignee,priority,issuetype,labels',
+    },
+  });
+
+  const issues: JiraIssue[] = response.data.issues ?? [];
+  const done = issues.filter(i => i.fields.status?.statusCategory?.key === 'done').length;
+
+  return createSuccessResponse({
+    epicKey,
+    total: response.data.total ?? issues.length,
+    done,
+    inProgress: issues.length - done,
+    issues: issues.map(issue => ({
+      key: issue.key,
+      summary: issue.fields.summary,
+      status: issue.fields.status?.name,
+      statusCategory: issue.fields.status?.statusCategory?.key,
+      assignee: issue.fields.assignee?.displayName ?? null,
+      priority: issue.fields.priority?.name,
+      issueType: issue.fields.issuetype?.name,
+      labels: issue.fields.labels || [],
+      url: createIssueUrl(issue.key),
+    })),
+  });
+}
+
+async function handleGetBoardEpics(a: ToolArgs): Promise<ToolResponse> {
+  const { boardId, done, maxResults = 50 } = a;
+  if (typeof boardId !== 'number') throw new Error('boardId must be a number');
+  const validatedMaxResults = validateMaxResults(maxResults);
+
+  const params: Record<string, unknown> = { maxResults: validatedMaxResults };
+  if (done !== undefined && done !== null) {
+    if (done !== 'true' && done !== 'false') throw new Error('done must be "true" or "false"');
+    params.done = done;
+  }
+
+  const response = await agileApi.get(`/board/${boardId}/epic`, { params });
+  interface AgileEpic { id: number; key: string; name: string; summary: string; done: boolean; color?: { key: string } }
+  const epics: AgileEpic[] = response.data.values ?? [];
+
+  return createSuccessResponse({
+    boardId,
+    total: response.data.total ?? epics.length,
+    isLast: response.data.isLast ?? true,
+    epics: epics.map(e => ({
+      id: e.id,
+      key: e.key,
+      name: e.name,
+      summary: e.summary,
+      done: e.done,
+      color: e.color?.key,
+      url: createIssueUrl(e.key),
+    })),
+  });
+}
+
+async function handleAddIssuesToEpic(a: ToolArgs): Promise<ToolResponse> {
+  const epicKey = validateIssueKey(a.epicKey);
+  const { issueKeys } = a;
+  if (!Array.isArray(issueKeys) || issueKeys.length === 0) {
+    throw new Error('issueKeys must be a non-empty array');
+  }
+  const validatedKeys = issueKeys.map(k => validateIssueKey(k));
+
+  await agileApi.post(`/epic/${epicKey}/issue`, { issues: validatedKeys });
+
+  return createSuccessResponse({
+    success: true,
+    epicKey,
+    added: validatedKeys,
+  });
+}
+
+async function handleRemoveIssueFromEpic(a: ToolArgs): Promise<ToolResponse> {
+  const { issueKeys } = a;
+  if (!Array.isArray(issueKeys) || issueKeys.length === 0) {
+    throw new Error('issueKeys must be a non-empty array');
+  }
+  const validatedKeys = issueKeys.map(k => validateIssueKey(k));
+
+  await agileApi.post('/epic/none/issue', { issues: validatedKeys });
+
+  return createSuccessResponse({
+    success: true,
+    removed: validatedKeys,
+  });
+}
+
+async function handleCreateEpic(a: ToolArgs): Promise<ToolResponse> {
+  const { summary, description, epicName, priority = 'Medium', labels = [] } = a;
+  const projectKey = resolveProjectKey(a);
+
+  validateSafeParam(priority, 'priority');
+  const validatedLabels = validateLabels(labels);
+  const validatedSummary = sanitizeString(summary, 500, 'summary');
+  const resolvedEpicName = epicName !== undefined && epicName !== null
+    ? sanitizeString(epicName, 255, 'epicName')
+    : validatedSummary.slice(0, 255);
+
+  const issueData: JiraIssuePayload = {
+    fields: {
+      project: { key: projectKey },
+      summary: validatedSummary,
+      description: createADFDocument(description),
+      issuetype: { name: 'Epic' },
+      priority: { name: priority },
+      labels: validatedLabels,
+      customfield_10011: resolvedEpicName,
+    },
+  };
+
+  const response = await jiraApi.post('/issue', issueData);
+
+  return createSuccessResponse({
+    success: true,
+    key: response.data.key,
+    id: response.data.id,
+    url: createIssueUrl(response.data.key),
+  });
+}
+
 const toolHandlers: Record<string, ToolHandler> = {
   jira_create_issue: handleCreateIssue,
   jira_get_issue: handleGetIssue,
@@ -1823,6 +2105,13 @@ const toolHandlers: Record<string, ToolHandler> = {
   jira_move_to_sprint: handleMoveToSprint,
   jira_get_attachments: handleGetAttachments,
   jira_add_attachment: handleAddAttachment,
+  jira_list_epics: handleListEpics,
+  jira_get_epic: handleGetEpic,
+  jira_get_epic_issues: handleGetEpicIssues,
+  jira_get_board_epics: handleGetBoardEpics,
+  jira_add_issues_to_epic: handleAddIssuesToEpic,
+  jira_remove_issue_from_epic: handleRemoveIssueFromEpic,
+  jira_create_epic: handleCreateEpic,
 };
 
 server.setRequestHandler(CallToolRequestSchema, async (request) => {

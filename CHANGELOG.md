@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.5.0] - 2026-04-08
+
+### Security
+- Bump `axios` to `1.15.0` (from `1.14.0`) to patch:
+  - GHSA-3p68-rc4w-qgx5 — SSRF via NO_PROXY hostname normalization bypass (critical)
+  - GHSA-fvcv-3m26-pcqx — unrestricted cloud metadata exfiltration via header injection (critical)
+
+### Added
+- 7 new Epic management tools:
+  - `jira_list_epics` — list epics in a project (JQL-based, supports status filter and pagination)
+  - `jira_get_epic` — fetch epic metadata via Agile API (name, summary, color, done status)
+  - `jira_get_epic_issues` — list all child issues of an epic with progress (done/inProgress counts)
+  - `jira_get_board_epics` — list epics on a Scrum/Kanban board, filterable by `done`
+  - `jira_add_issues_to_epic` — bulk-link issues to an epic via Agile API
+  - `jira_remove_issue_from_epic` — unlink issues from their current epic (POST to `/epic/none/issue`)
+  - `jira_create_epic` — create epic with Epic Name customfield for classic (company-managed) projects
+- `JiraStatusCategory.key` field in typings for done/in-progress detection
+
+### Notes
+- Tool count: 34 → 41
+- Epic Name field (`customfield_10011`) is set by `jira_create_epic` — required by classic projects, ignored by team-managed projects. If your Jira uses a different custom field ID, create epics via `jira_create_issue` with `issueType: 'Epic'` and set the right field separately.
+
 ## [2.4.0] - 2026-04-08
 
 ### Breaking

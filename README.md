@@ -1,4 +1,4 @@
-# Jira MCP Server v2.4.0
+# Jira MCP Server v2.5.0
 
 Model Context Protocol (MCP) server for Jira API integration with automatic Markdown-to-ADF conversion.
 
@@ -8,7 +8,7 @@ Model Context Protocol (MCP) server for Jira API integration with automatic Mark
 
 ## Features
 
-- 34 Jira API tools via MCP protocol
+- 41 Jira API tools via MCP protocol
 - Automatic Markdown to ADF conversion (write Markdown, get proper Jira formatting)
 - ADF to Markdown conversion when reading issues and comments
 - Sprint and board management via Jira Agile API
@@ -113,6 +113,15 @@ Automatically converted to Atlassian Document Format (ADF).
 - `jira_get_sprint` - Get sprint details with all issues
 - `jira_move_to_sprint` - Move issues to a sprint
 
+### Epic Management
+- `jira_list_epics` - List all epics in a project
+- `jira_get_epic` - Get epic details (name, color, done status)
+- `jira_get_epic_issues` - Get all child issues linked to an epic with progress
+- `jira_get_board_epics` - List epics on a board (filterable by done status)
+- `jira_add_issues_to_epic` - Link one or more issues to an epic
+- `jira_remove_issue_from_epic` - Unlink issues from their epic
+- `jira_create_epic` - Create a new epic (sets issueType=Epic, handles classic Epic Name field)
+
 ### Project Management
 - `jira_list_projects` - List all projects
 - `jira_get_project_info` - Get project details
@@ -143,6 +152,7 @@ See [CHANGELOG.md](CHANGELOG.md) for full version history.
 
 ### Recent
 
+- **2.5.0** — Added 7 Epic management tools: list, get, children, board epics, link/unlink, create
 - **2.4.0** — **Breaking**: removed automatic `.env` file loading (`process.env` only). Removed URL literals from prompt. Added `socket.yml` to scope supply-chain alerts to direct code only.
 - **2.3.11** — Pin `@modelcontextprotocol/sdk`; GitHub Actions publish workflow with npm provenance
 - **2.3.10** — Security: pin `axios` to exact `1.14.0` (mitigates axios@1.14.1 supply-chain compromise)
