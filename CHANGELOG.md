@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.6.1] - 2026-04-14
+
+### Added
+- 32 new MCP prompts (33 total) — every one of the 50 tools is now referenced in at least one workflow prompt. Grouped below:
+  - **Planning**: `jira-epic-breakdown`, `jira-subtask-breakdown`, `jira-sprint-planning`, `jira-version-planning`, `jira-clone-template`, `jira-bulk-create`, `jira-epic-reorg`
+  - **Triage & cleanup**: `jira-bug-triage`, `jira-backlog-grooming`, `jira-duplicate-detector`, `jira-estimation-helper`, `jira-issue-cleanup`, `jira-comment-maintenance`
+  - **Status & reporting**: `jira-standup-prep`, `jira-sprint-summary`, `jira-weekly-report`, `jira-release-notes`, `jira-epic-health`
+  - **Analysis**: `jira-dependency-map`, `jira-velocity-check`, `jira-workload-balance`, `jira-retro-data`, `jira-worklog-summary`
+  - **Lookup**: `jira-user-lookup`, `jira-changelog-audit`, `jira-field-discovery`, `jira-project-overview`
+  - **Operations**: `jira-bulk-transition`, `jira-attachment-review`, `jira-watcher-management`, `jira-saved-views`, `jira-worklog-entry`
+- Enhanced tool descriptions with explicit cross-refs (e.g., `jira_create_issue` hints to call `jira_get_issue_types` / `jira_get_priorities` first; `jira_assign_issue` explains how to resolve accountId via `jira_search_users` / `jira_get_myself`; `jira_add_worklog` clarifies ISO 8601 format)
+
+### Notes
+- 100% tool coverage by prompts verified by grep (every `jira_*` tool name appears in at least one prompt text)
+
+### Changed
+- Refactored prompt handlers: single `PROMPTS` map replaces hard-coded handler branches (easier to extend)
+
 ## [2.6.0] - 2026-04-14
 
 ### Added

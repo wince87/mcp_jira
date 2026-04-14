@@ -9,6 +9,7 @@ Model Context Protocol (MCP) server for Jira API integration with automatic Mark
 ## Features
 
 - 50 Jira API tools via MCP protocol
+- 33 pre-baked MCP prompts covering every tool (sprint planning, bug triage, epic health, standup, weekly reports, bulk ops, attachments, watchers, filters, reorg, etc.)
 - Automatic Markdown to ADF conversion (write Markdown, get proper Jira formatting)
 - ADF to Markdown conversion when reading issues and comments
 - Sprint and board management via Jira Agile API
@@ -82,6 +83,55 @@ All description and comment fields accept standard Markdown:
 ```
 
 Automatically converted to Atlassian Document Format (ADF).
+
+## MCP Prompts
+
+Pre-baked workflows your AI agent can invoke directly (via MCP `prompts/list` + `prompts/get`). Every one of the 50 tools is referenced in at least one prompt.
+
+**Formatting & lookup**
+- `jira-formatting-guide` - Markdown formatting rules for Jira (ADF)
+- `jira-user-lookup` - Resolve accountId by name/email
+- `jira-changelog-audit` - Audit history of an issue
+- `jira-field-discovery` - Find custom field IDs and enum values
+- `jira-project-overview` - Project snapshot for onboarding
+
+**Planning**
+- `jira-epic-breakdown` - Split an idea into an epic + stories + subtasks
+- `jira-subtask-breakdown` - Break one story into implementation subtasks
+- `jira-sprint-planning` - Pull next sprint from backlog by priority + capacity
+- `jira-version-planning` - Plan contents of a fixVersion (release)
+- `jira-clone-template` - Clone template issue with placeholder replacement
+- `jira-bulk-create` - Scaffold many issues from a structured list
+- `jira-epic-reorg` - Move issues between epics
+
+**Triage & cleanup**
+- `jira-bug-triage` - Triage open bugs (assign, prioritize, comment)
+- `jira-backlog-grooming` - Find stale/unclear/duplicate backlog items
+- `jira-duplicate-detector` - Find duplicates of a specific issue
+- `jira-estimation-helper` - Estimate story points from similar past issues
+- `jira-issue-cleanup` - Safely delete an issue with pre-flight audit
+- `jira-comment-maintenance` - Edit or remove existing comments
+
+**Status & reporting**
+- `jira-standup-prep` - Daily standup notes (Yesterday / Today / Blockers)
+- `jira-sprint-summary` - Status report for active sprint
+- `jira-weekly-report` - Cross-project status for management
+- `jira-release-notes` - User-facing notes from resolved issues in a version
+- `jira-epic-health` - Traffic-light health per active epic
+
+**Analysis**
+- `jira-dependency-map` - Trace blockers (direct + transitive) for an issue
+- `jira-velocity-check` - Team velocity over last N sprints
+- `jira-workload-balance` - Per-assignee workload snapshot
+- `jira-retro-data` - Sprint retro data (wins, misses, flow)
+- `jira-worklog-summary` - Time logged by user/team over a period
+
+**Operations**
+- `jira-bulk-transition` - Mass status transition with per-issue report
+- `jira-attachment-review` - List, download, add attachments on an issue
+- `jira-watcher-management` - Manage watchers on an issue
+- `jira-saved-views` - Find and run a saved Jira filter
+- `jira-worklog-entry` - Log time for a single issue
 
 ## Available Tools
 
@@ -167,6 +217,7 @@ See [CHANGELOG.md](CHANGELOG.md) for full version history.
 
 ### Recent
 
+- **2.6.1** — Added 32 pre-baked MCP prompts (total 33) — every one of the 50 tools is now referenced in at least one workflow prompt. Enhanced cross-refs in tool descriptions (jira_create_issue, jira_update_issue, jira_assign_issue, jira_link_issues, jira_add_worklog).
 - **2.6.0** — Added 9 tools: watchers (add/remove/list), current user (myself), saved filters (list/get/run), bulk transition, attachment download
 - **2.5.0** — Added 7 Epic management tools: list, get, children, board epics, link/unlink, create
 - **2.4.0** — **Breaking**: removed automatic `.env` file loading (`process.env` only). Removed URL literals from prompt. Added `socket.yml` to scope supply-chain alerts to direct code only.
