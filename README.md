@@ -1,4 +1,4 @@
-# Jira MCP Server v2.5.0
+# Jira MCP Server v2.6.0
 
 Model Context Protocol (MCP) server for Jira API integration with automatic Markdown-to-ADF conversion.
 
@@ -8,7 +8,7 @@ Model Context Protocol (MCP) server for Jira API integration with automatic Mark
 
 ## Features
 
-- 41 Jira API tools via MCP protocol
+- 50 Jira API tools via MCP protocol
 - Automatic Markdown to ADF conversion (write Markdown, get proper Jira formatting)
 - ADF to Markdown conversion when reading issues and comments
 - Sprint and board management via Jira Agile API
@@ -136,6 +136,21 @@ Automatically converted to Atlassian Document Format (ADF).
 - `jira_search_users` - Search users by name/email
 - `jira_get_user_issues` - Get all issues assigned to a user
 
+### Watchers & Notifications
+- `jira_get_myself` - Get the authenticated user (accountId, timezone, email)
+- `jira_add_watcher` - Subscribe a user to an issue
+- `jira_remove_watcher` - Unsubscribe a user from an issue
+- `jira_get_watchers` - List all watchers on an issue
+
+### Saved Filters
+- `jira_list_filters` - Search saved filters by name or owner
+- `jira_get_filter` - Get a filter (JQL, description, owner)
+- `jira_search_by_filter` - Execute a saved filter and return matching issues
+
+### Bulk Operations & Downloads
+- `jira_bulk_transition_issues` - Apply the same status transition to multiple issues
+- `jira_download_attachment` - Download an attachment to a local file
+
 ## Environment Variables
 
 | Variable | Required | Description |
@@ -152,6 +167,7 @@ See [CHANGELOG.md](CHANGELOG.md) for full version history.
 
 ### Recent
 
+- **2.6.0** — Added 9 tools: watchers (add/remove/list), current user (myself), saved filters (list/get/run), bulk transition, attachment download
 - **2.5.0** — Added 7 Epic management tools: list, get, children, board epics, link/unlink, create
 - **2.4.0** — **Breaking**: removed automatic `.env` file loading (`process.env` only). Removed URL literals from prompt. Added `socket.yml` to scope supply-chain alerts to direct code only.
 - **2.3.11** — Pin `@modelcontextprotocol/sdk`; GitHub Actions publish workflow with npm provenance

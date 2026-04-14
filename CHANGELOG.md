@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.6.0] - 2026-04-14
+
+### Added
+- 9 new tools targeted at AI-agent use cases:
+  - `jira_get_myself` — authenticated user details (accountId, email, timezone)
+  - `jira_add_watcher` — subscribe user to an issue; omitting accountId adds the authenticated user
+  - `jira_remove_watcher` — unsubscribe a user
+  - `jira_get_watchers` — list watchers with isWatching flag and count
+  - `jira_download_attachment` — fetch attachment by ID and save to a local path (restricted to cwd/home)
+  - `jira_list_filters` — search saved JQL filters by name or owner
+  - `jira_get_filter` — get filter metadata (JQL, description, owner, favourite status)
+  - `jira_search_by_filter` — resolve a filter's JQL and execute it; supports token pagination
+  - `jira_bulk_transition_issues` — apply one transition across many issues, with optional comment and per-issue success/failure report
+
+### Notes
+- Tool count: 41 → 50
+- `jira_bulk_transition_issues` supports both `transitionId` (fast, assumes every issue has the same ID) and `transitionName` (looked up per-issue, robust across workflows).
+- `jira_download_attachment` requires the `savePath` to be inside the process cwd or user home — same policy as `jira_add_attachment`.
+
 ## [2.5.0] - 2026-04-08
 
 ### Security

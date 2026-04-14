@@ -9,7 +9,7 @@ import {
   GetPromptRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 import axios, { type AxiosInstance, type AxiosError, type CreateAxiosDefaults } from 'axios';
-import { readFileSync } from 'fs';
+import { readFileSync, writeFileSync } from 'fs';
 import { resolve, basename } from 'path';
 
 interface ADFMark {
@@ -329,7 +329,7 @@ function validateAttachmentPath(filePath: string): string {
   return absolutePath;
 }
 
-const SERVER_VERSION = '2.5.0';
+const SERVER_VERSION = '2.6.0';
 
 const JIRA_URL: string = getRequiredEnv('JIRA_HOST', process.env.JIRA_URL ?? null);
 const JIRA_EMAIL: string = getRequiredEnv('JIRA_EMAIL');
@@ -1214,6 +1214,112 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           required: ['summary'],
         },
       },
+      {
+        name: 'jira_get_myself',
+        description: 'Get the authenticated user (accountId, displayName, email, timezone, locale). Useful to know who the MCP server is acting as.',
+        inputSchema: { type: 'object' as const, properties: {} },
+      },
+      {
+        name: 'jira_add_watcher',
+        description: 'Subscribe a user to watch an issue (receive notifications on changes).',
+        inputSchema: {
+          type: 'object' as const,
+          properties: {
+            issueKey: { type: 'string', description: 'Issue key (e.g., PROJ-123)' },
+            accountId: { type: 'string', description: 'Atlassian accountId of the user to add as watcher. Omit to add the authenticated user.' },
+          },
+          required: ['issueKey'],
+        },
+      },
+      {
+        name: 'jira_remove_watcher',
+        description: 'Unsubscribe a user from watching an issue.',
+        inputSchema: {
+          type: 'object' as const,
+          properties: {
+            issueKey: { type: 'string', description: 'Issue key' },
+            accountId: { type: 'string', description: 'Atlassian accountId to remove. Required.' },
+          },
+          required: ['issueKey', 'accountId'],
+        },
+      },
+      {
+        name: 'jira_get_watchers',
+        description: 'List all watchers on an issue.',
+        inputSchema: {
+          type: 'object' as const,
+          properties: {
+            issueKey: { type: 'string', description: 'Issue key' },
+          },
+          required: ['issueKey'],
+        },
+      },
+      {
+        name: 'jira_download_attachment',
+        description: 'Download an attachment from Jira to a local file. Destination path must be within cwd or user home.',
+        inputSchema: {
+          type: 'object' as const,
+          properties: {
+            attachmentId: { type: 'string', description: 'Attachment ID (from jira_get_attachments)' },
+            savePath: { type: 'string', description: 'Absolute local path where the file will be written' },
+          },
+          required: ['attachmentId', 'savePath'],
+        },
+      },
+      {
+        name: 'jira_list_filters',
+        description: 'Search saved Jira filters (by name, owner). Useful to retrieve team-defined JQL queries.',
+        inputSchema: {
+          type: 'object' as const,
+          properties: {
+            filterName: { type: 'string', description: 'Substring to match in filter name' },
+            accountId: { type: 'string', description: 'Filter owner accountId (defaults to authenticated user if both name and accountId omitted)' },
+            maxResults: { type: 'number', description: 'Maximum results (1-100)', default: 50 },
+          },
+        },
+      },
+      {
+        name: 'jira_get_filter',
+        description: 'Get a saved filter by ID, including its JQL, description, and owner.',
+        inputSchema: {
+          type: 'object' as const,
+          properties: {
+            filterId: { type: 'string', description: 'Numeric filter ID' },
+          },
+          required: ['filterId'],
+        },
+      },
+      {
+        name: 'jira_search_by_filter',
+        description: "Execute a saved filter's JQL and return matching issues.",
+        inputSchema: {
+          type: 'object' as const,
+          properties: {
+            filterId: { type: 'string', description: 'Numeric filter ID' },
+            maxResults: { type: 'number', description: 'Maximum results (1-100)', default: 50 },
+            nextPageToken: { type: 'string', description: 'Pagination token from previous response' },
+          },
+          required: ['filterId'],
+        },
+      },
+      {
+        name: 'jira_bulk_transition_issues',
+        description: 'Apply the same status transition to multiple issues. Iterates client-side; failures are collected and returned.',
+        inputSchema: {
+          type: 'object' as const,
+          properties: {
+            issueKeys: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Array of issue keys to transition',
+            },
+            transitionId: { type: 'string', description: 'Transition ID (from jira_list_transitions). Use either transitionId or transitionName.' },
+            transitionName: { type: 'string', description: 'Transition name (looked up per issue). Alternative to transitionId.' },
+            comment: { type: 'string', description: 'Optional comment added during the transition (Markdown)' },
+          },
+          required: ['issueKeys'],
+        },
+      },
     ],
   };
 });
@@ -2070,6 +2176,220 @@ async function handleCreateEpic(a: ToolArgs): Promise<ToolResponse> {
   });
 }
 
+async function handleGetMyself(_a: ToolArgs): Promise<ToolResponse> {
+  const response = await jiraApi.get('/myself');
+  const u = response.data;
+  return createSuccessResponse({
+    accountId: u.accountId,
+    displayName: u.displayName,
+    email: u.emailAddress,
+    active: u.active,
+    timeZone: u.timeZone,
+    locale: u.locale,
+    accountType: u.accountType,
+  });
+}
+
+async function handleAddWatcher(a: ToolArgs): Promise<ToolResponse> {
+  const issueKey = validateIssueKey(a.issueKey);
+  const accountId = a.accountId === undefined || a.accountId === null
+    ? null
+    : validateAccountId(a.accountId);
+  await jiraApi.post(`/issue/${issueKey}/watchers`, accountId);
+  return createSuccessResponse({ success: true, issueKey, accountId: accountId ?? 'self' });
+}
+
+async function handleRemoveWatcher(a: ToolArgs): Promise<ToolResponse> {
+  const issueKey = validateIssueKey(a.issueKey);
+  const accountId = validateAccountId(a.accountId);
+  await jiraApi.delete(`/issue/${issueKey}/watchers`, { params: { accountId } });
+  return createSuccessResponse({ success: true, issueKey, accountId });
+}
+
+async function handleGetWatchers(a: ToolArgs): Promise<ToolResponse> {
+  const issueKey = validateIssueKey(a.issueKey);
+  const response = await jiraApi.get(`/issue/${issueKey}/watchers`);
+  interface WatcherUser { accountId: string; displayName: string; active?: boolean }
+  const watchers: WatcherUser[] = response.data.watchers ?? [];
+  return createSuccessResponse({
+    issueKey,
+    isWatching: response.data.isWatching,
+    watchCount: response.data.watchCount ?? watchers.length,
+    watchers: watchers.map(w => ({
+      accountId: w.accountId,
+      displayName: w.displayName,
+      active: w.active ?? true,
+    })),
+  });
+}
+
+async function handleDownloadAttachment(a: ToolArgs): Promise<ToolResponse> {
+  const attachmentId = validateSafeParam(a.attachmentId, 'attachmentId', 50);
+  const savePath = sanitizeString(a.savePath, 500, 'savePath');
+  const absolutePath = validateAttachmentPath(savePath);
+
+  const metaResponse = await jiraApi.get(`/attachment/${attachmentId}`);
+  const meta = metaResponse.data;
+
+  const contentResponse = await jiraApi.get(`/attachment/content/${attachmentId}`, {
+    responseType: 'arraybuffer',
+  });
+
+  writeFileSync(absolutePath, Buffer.from(contentResponse.data));
+
+  return createSuccessResponse({
+    success: true,
+    attachmentId,
+    filename: meta.filename,
+    mimeType: meta.mimeType,
+    size: meta.size,
+    savedTo: absolutePath,
+  });
+}
+
+async function handleListFilters(a: ToolArgs): Promise<ToolResponse> {
+  const { filterName, accountId, maxResults = 50 } = a;
+  const validatedMaxResults = validateMaxResults(maxResults);
+
+  const params: Record<string, unknown> = { maxResults: validatedMaxResults, expand: 'description,jql,owner' };
+  if (filterName !== undefined && filterName !== null) {
+    params.filterName = sanitizeString(filterName, 200, 'filterName');
+  }
+  if (accountId !== undefined && accountId !== null) {
+    params.accountId = validateAccountId(accountId);
+  }
+
+  const response = await jiraApi.get('/filter/search', { params });
+  interface JiraFilter { id: string; name: string; description?: string; jql?: string; owner?: { accountId: string; displayName: string }; favourite?: boolean; favouritedCount?: number }
+  const filters: JiraFilter[] = response.data.values ?? [];
+
+  return createSuccessResponse({
+    total: response.data.total ?? filters.length,
+    isLast: response.data.isLast ?? true,
+    filters: filters.map(f => ({
+      id: f.id,
+      name: f.name,
+      description: f.description,
+      jql: f.jql,
+      owner: f.owner ? { accountId: f.owner.accountId, displayName: f.owner.displayName } : null,
+      favourite: f.favourite ?? false,
+      favouritedCount: f.favouritedCount ?? 0,
+    })),
+  });
+}
+
+async function handleGetFilter(a: ToolArgs): Promise<ToolResponse> {
+  const filterId = validateSafeParam(a.filterId, 'filterId', 30);
+  const response = await jiraApi.get(`/filter/${filterId}`);
+  const f = response.data;
+  return createSuccessResponse({
+    id: f.id,
+    name: f.name,
+    description: f.description,
+    jql: f.jql,
+    owner: f.owner ? { accountId: f.owner.accountId, displayName: f.owner.displayName } : null,
+    favourite: f.favourite ?? false,
+    favouritedCount: f.favouritedCount ?? 0,
+    viewUrl: f.viewUrl,
+  });
+}
+
+async function handleSearchByFilter(a: ToolArgs): Promise<ToolResponse> {
+  const filterId = validateSafeParam(a.filterId, 'filterId', 30);
+  const { maxResults = 50, nextPageToken } = a;
+  const validatedMaxResults = validateMaxResults(maxResults);
+
+  const filterResponse = await jiraApi.get(`/filter/${filterId}`);
+  const jql: string = filterResponse.data.jql;
+  if (!jql || typeof jql !== 'string') throw new Error(`Filter ${filterId} has no JQL`);
+
+  const params: Record<string, unknown> = {
+    jql,
+    maxResults: validatedMaxResults,
+    fields: 'summary,status,assignee,priority,created,updated,issuetype,labels',
+  };
+  if (typeof nextPageToken === 'string' && nextPageToken) params.nextPageToken = nextPageToken;
+
+  const response = await jiraApi.get('/search/jql', { params });
+  const issues: JiraIssue[] = response.data.issues ?? [];
+
+  return createSuccessResponse({
+    filterId,
+    filterName: filterResponse.data.name,
+    jql,
+    count: issues.length,
+    isLast: response.data.isLast ?? true,
+    nextPageToken: response.data.nextPageToken ?? null,
+    issues: issues.map(issue => ({
+      key: issue.key,
+      summary: issue.fields.summary,
+      status: issue.fields.status?.name,
+      assignee: issue.fields.assignee?.displayName ?? null,
+      priority: issue.fields.priority?.name,
+      issueType: issue.fields.issuetype?.name,
+      labels: issue.fields.labels || [],
+      url: createIssueUrl(issue.key),
+    })),
+  });
+}
+
+async function handleBulkTransitionIssues(a: ToolArgs): Promise<ToolResponse> {
+  const { issueKeys, transitionId, transitionName, comment } = a;
+  if (!Array.isArray(issueKeys) || issueKeys.length === 0) {
+    throw new Error('issueKeys must be a non-empty array');
+  }
+  if (!transitionId && !transitionName) {
+    throw new Error('Either transitionId or transitionName is required');
+  }
+  const validatedKeys = issueKeys.map(k => validateIssueKey(k));
+  const resolvedId = transitionId !== undefined && transitionId !== null
+    ? validateSafeParam(transitionId, 'transitionId', 30)
+    : null;
+  const resolvedName = transitionName !== undefined && transitionName !== null
+    ? sanitizeString(transitionName, 100, 'transitionName')
+    : null;
+  const commentADF = comment !== undefined && comment !== null
+    ? createADFDocument(sanitizeString(comment, 5000, 'comment'))
+    : null;
+
+  const succeeded: string[] = [];
+  const failed: { issueKey: string; error: string }[] = [];
+
+  for (const issueKey of validatedKeys) {
+    try {
+      let effectiveId = resolvedId;
+      if (!effectiveId && resolvedName) {
+        const transitionsRes = await jiraApi.get(`/issue/${issueKey}/transitions`);
+        interface TR { id: string; name: string }
+        const transitions: TR[] = transitionsRes.data.transitions ?? [];
+        const match = transitions.find(t => t.name.toLowerCase() === resolvedName.toLowerCase());
+        if (!match) throw new Error(`Transition "${resolvedName}" not available on ${issueKey}`);
+        effectiveId = match.id;
+      }
+      const payload: Record<string, unknown> = { transition: { id: effectiveId } };
+      if (commentADF) {
+        payload.update = { comment: [{ add: { body: commentADF } }] };
+      }
+      await jiraApi.post(`/issue/${issueKey}/transitions`, payload);
+      succeeded.push(issueKey);
+    } catch (err) {
+      const axiosErr = err as AxiosError<{ errorMessages?: string[]; errors?: Record<string, string> }>;
+      const apiMsg = axiosErr.response?.data?.errorMessages?.join('; ')
+        || Object.values(axiosErr.response?.data?.errors ?? {}).join('; ')
+        || (err instanceof Error ? err.message : String(err));
+      failed.push({ issueKey, error: apiMsg });
+    }
+  }
+
+  return createSuccessResponse({
+    total: validatedKeys.length,
+    succeeded,
+    failed,
+    successCount: succeeded.length,
+    failedCount: failed.length,
+  });
+}
+
 const toolHandlers: Record<string, ToolHandler> = {
   jira_create_issue: handleCreateIssue,
   jira_get_issue: handleGetIssue,
@@ -2112,6 +2432,15 @@ const toolHandlers: Record<string, ToolHandler> = {
   jira_add_issues_to_epic: handleAddIssuesToEpic,
   jira_remove_issue_from_epic: handleRemoveIssueFromEpic,
   jira_create_epic: handleCreateEpic,
+  jira_get_myself: handleGetMyself,
+  jira_add_watcher: handleAddWatcher,
+  jira_remove_watcher: handleRemoveWatcher,
+  jira_get_watchers: handleGetWatchers,
+  jira_download_attachment: handleDownloadAttachment,
+  jira_list_filters: handleListFilters,
+  jira_get_filter: handleGetFilter,
+  jira_search_by_filter: handleSearchByFilter,
+  jira_bulk_transition_issues: handleBulkTransitionIssues,
 };
 
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
