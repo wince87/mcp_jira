@@ -1,4 +1,4 @@
-# Jira MCP Server v2.6.0
+# Jira MCP Server v2.6.2
 
 Model Context Protocol (MCP) server for Jira API integration with automatic Markdown-to-ADF conversion.
 
@@ -217,6 +217,7 @@ See [CHANGELOG.md](CHANGELOG.md) for full version history.
 
 ### Recent
 
+- **2.6.2** — Fix: `SERVER_VERSION` constant now matches package version (was stale at 2.6.0)
 - **2.6.1** — Added 32 pre-baked MCP prompts (total 33) — every one of the 50 tools is now referenced in at least one workflow prompt. Enhanced cross-refs in tool descriptions (jira_create_issue, jira_update_issue, jira_assign_issue, jira_link_issues, jira_add_worklog).
 - **2.6.0** — Added 9 tools: watchers (add/remove/list), current user (myself), saved filters (list/get/run), bulk transition, attachment download
 - **2.5.0** — Added 7 Epic management tools: list, get, children, board epics, link/unlink, create

@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.6.2] - 2026-04-15
+
+### Fixed
+- `SERVER_VERSION` constant synced with `package.json` version. In 2.6.1 it remained at `2.6.0` because the version bump script only touches `package.json`. Server `initialize` response now returns the correct version.
+
 ## [2.6.1] - 2026-04-14
 
 ### Added

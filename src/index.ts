@@ -329,7 +329,7 @@ function validateAttachmentPath(filePath: string): string {
   return absolutePath;
 }
 
-const SERVER_VERSION = '2.6.0';
+const SERVER_VERSION = '2.6.2';
 
 const JIRA_URL: string = getRequiredEnv('JIRA_HOST', process.env.JIRA_URL ?? null);
 const JIRA_EMAIL: string = getRequiredEnv('JIRA_EMAIL');
