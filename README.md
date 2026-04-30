@@ -1,4 +1,4 @@
-# Jira MCP Server v2.6.2
+# Jira MCP Server v2.7.0
 
 Model Context Protocol (MCP) server for Jira API integration with automatic Markdown-to-ADF conversion.
 
@@ -8,8 +8,8 @@ Model Context Protocol (MCP) server for Jira API integration with automatic Mark
 
 ## Features
 
-- 50 Jira API tools via MCP protocol
-- 33 pre-baked MCP prompts covering every tool (sprint planning, bug triage, epic health, standup, weekly reports, bulk ops, attachments, watchers, filters, reorg, etc.)
+- 52 Jira API tools via MCP protocol
+- 34 pre-baked MCP prompts covering every tool (sprint planning, bug triage, epic health, standup, weekly reports, bulk ops, attachments, watchers, filters, reorg, etc.)
 - Automatic Markdown to ADF conversion (write Markdown, get proper Jira formatting)
 - ADF to Markdown conversion when reading issues and comments
 - Sprint and board management via Jira Agile API
@@ -154,6 +154,8 @@ Pre-baked workflows your AI agent can invoke directly (via MCP `prompts/list` + 
 - `jira_get_changelog` - Get issue change history
 - `jira_add_worklog` - Add time tracking entry
 - `jira_get_worklogs` - Get worklog entries
+- `jira_update_worklog` - Update an existing worklog entry
+- `jira_delete_worklog` - Delete a worklog entry
 - `jira_get_attachments` - List attachments on an issue
 - `jira_add_attachment` - Attach a local file to an issue
 
@@ -217,6 +219,7 @@ See [CHANGELOG.md](CHANGELOG.md) for full version history.
 
 ### Recent
 
+- **2.7.0** — Added `jira_update_worklog` + `jira_delete_worklog` (52 tools). Fix: `handleAddWatcher` self-watch (was sending null body, now empty string). Fix: `handleGetEpicIssues` split status into todo / inProgress / done. Bump axios 1.15.0 → 1.15.2.
 - **2.6.2** — Fix: `SERVER_VERSION` constant now matches package version (was stale at 2.6.0)
 - **2.6.1** — Added 32 pre-baked MCP prompts (total 33) — every one of the 50 tools is now referenced in at least one workflow prompt. Enhanced cross-refs in tool descriptions (jira_create_issue, jira_update_issue, jira_assign_issue, jira_link_issues, jira_add_worklog).
 - **2.6.0** — Added 9 tools: watchers (add/remove/list), current user (myself), saved filters (list/get/run), bulk transition, attachment download

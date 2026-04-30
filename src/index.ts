@@ -329,7 +329,7 @@ function validateAttachmentPath(filePath: string): string {
   return absolutePath;
 }
 
-const SERVER_VERSION = '2.6.2';
+const SERVER_VERSION = '2.7.0';
 
 const JIRA_URL: string = getRequiredEnv('JIRA_HOST', process.env.JIRA_URL ?? null);
 const JIRA_EMAIL: string = getRequiredEnv('JIRA_EMAIL');
@@ -1810,6 +1810,47 @@ Common scenarios:
 - Consolidating related epics: merge children of several into one
 - Fixing mis-linked work: move stories linked to wrong epic after triage`,
   },
+  'jira-worklog-maintenance': {
+    description: 'Edit or delete an existing worklog entry (correct wrong time, fix typo in comment, remove duplicate).',
+    text: `Maintain existing worklog entries on an issue.
+
+Step 1 - Locate the worklog:
+- jira_get_worklogs for the issueKey
+- Each entry has: id, author, timeSpent, started, comment
+- Filter by self (jira_get_myself for accountId) if user said "my entry"
+- If multiple match, show numbered list and ask user which worklogId
+
+Step 2 - Decide intent:
+- Wrong duration: jira_update_worklog with new timeSpent only
+- Wrong start time: jira_update_worklog with new started (ISO 8601 with millis + offset)
+- Typo or missing context in comment: jira_update_worklog with new comment (Markdown)
+- Accidental duplicate or wrong issue: jira_delete_worklog (permanent, confirm with user)
+
+Step 3 - Update:
+- jira_update_worklog with issueKey + worklogId + ONLY the fields that change
+- Pass at least one of timeSpent / comment / started; tool errors otherwise
+- timeSpent uses Jira format ("2h 30m", "1d", "45m"); started must be ISO 8601 with offset, not Z
+
+Step 4 - Delete (last resort):
+- Confirm with user: "This will permanently remove <timeSpent> logged on <started>. Proceed?"
+- jira_delete_worklog with issueKey + worklogId
+- After delete, recommend jira_add_worklog if the time was real but on the wrong issue
+
+Step 5 - Verify:
+- jira_get_worklogs again, confirm change applied (timeSpent / started / comment)
+
+Step 6 - Report:
+## Worklog maintenance on [KEY](<url>)
+- <worklogId>: <action> (<before> -> <after> | deleted)
+
+Common scenarios:
+- Logged 2h but actually 1h45m -> update timeSpent to "1h 45m"
+- Logged today but it was yesterday -> update started with absolute ISO timestamp
+- Comment had a wrong issue link -> update comment
+- Logged on PROJ-12 by mistake, belonged to PROJ-13 -> delete on PROJ-12, add on PROJ-13
+
+NEVER delete someone else's worklog without explicit user approval. Prefer update over delete.`,
+  },
   'jira-worklog-entry': {
     description: 'Log time spent on an issue at end of day (single entry).',
     text: `Log a worklog entry for the current user.
@@ -2159,6 +2200,33 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             issueKey: { type: 'string', description: 'Issue key (e.g., TTC-123)' },
           },
           required: ['issueKey'],
+        },
+      },
+      {
+        name: 'jira_update_worklog',
+        description: 'Update an existing worklog entry on a Jira issue. All fields except issueKey/worklogId are optional - omit to leave unchanged.',
+        inputSchema: {
+          type: 'object' as const,
+          properties: {
+            issueKey: { type: 'string', description: 'Issue key (e.g., PROJ-123)' },
+            worklogId: { type: 'string', description: 'Worklog ID (use jira_get_worklogs to find it)' },
+            timeSpent: { type: 'string', description: 'New duration in Jira format ("2h 30m", "1d", "45m"). Optional.' },
+            comment: { type: 'string', description: 'New comment in Markdown. Optional.' },
+            started: { type: 'string', description: 'New start time as ISO 8601 with millis and offset, e.g. "2024-01-15T09:00:00.000+0000". Optional.' },
+          },
+          required: ['issueKey', 'worklogId'],
+        },
+      },
+      {
+        name: 'jira_delete_worklog',
+        description: 'Delete a worklog entry from a Jira issue. Permanent.',
+        inputSchema: {
+          type: 'object' as const,
+          properties: {
+            issueKey: { type: 'string', description: 'Issue key (e.g., PROJ-123)' },
+            worklogId: { type: 'string', description: 'Worklog ID (use jira_get_worklogs to find it)' },
+          },
+          required: ['issueKey', 'worklogId'],
         },
       },
       {
@@ -2878,6 +2946,42 @@ async function handleGetWorklogs(a: ToolArgs): Promise<ToolResponse> {
   });
 }
 
+async function handleUpdateWorklog(a: ToolArgs): Promise<ToolResponse> {
+  const issueKey = validateIssueKey(a.issueKey);
+  const worklogId = validateSafeParam(a.worklogId, 'worklogId', 50);
+  const { timeSpent, comment, started } = a;
+
+  const worklogData: Record<string, unknown> = {};
+  if (timeSpent !== undefined && timeSpent !== null) {
+    worklogData.timeSpent = sanitizeString(timeSpent, 50, 'timeSpent');
+  }
+  if (comment !== undefined && comment !== null) {
+    worklogData.comment = createADFDocument(comment);
+  }
+  if (started !== undefined && started !== null) {
+    worklogData.started = validateISO8601(started, 'started');
+  }
+  if (Object.keys(worklogData).length === 0) {
+    throw new Error('At least one of timeSpent, comment, or started is required');
+  }
+
+  const response = await jiraApi.put(`/issue/${issueKey}/worklog/${worklogId}`, worklogData);
+  return createSuccessResponse({
+    success: true,
+    id: response.data.id,
+    issueKey,
+    timeSpent: response.data.timeSpent,
+    started: response.data.started,
+  });
+}
+
+async function handleDeleteWorklog(a: ToolArgs): Promise<ToolResponse> {
+  const issueKey = validateIssueKey(a.issueKey);
+  const worklogId = validateSafeParam(a.worklogId, 'worklogId', 50);
+  await jiraApi.delete(`/issue/${issueKey}/worklog/${worklogId}`);
+  return createSuccessResponse({ success: true, message: `Worklog ${worklogId} deleted from ${issueKey}` });
+}
+
 async function handleListProjects(a: ToolArgs): Promise<ToolResponse> {
   const { maxResults = 50, query } = a;
   const validatedMaxResults = validateMaxResults(maxResults);
@@ -3308,12 +3412,15 @@ async function handleGetEpicIssues(a: ToolArgs): Promise<ToolResponse> {
 
   const issues: JiraIssue[] = response.data.issues ?? [];
   const done = issues.filter(i => i.fields.status?.statusCategory?.key === 'done').length;
+  const inProgress = issues.filter(i => i.fields.status?.statusCategory?.key === 'indeterminate').length;
+  const todo = issues.filter(i => i.fields.status?.statusCategory?.key === 'new').length;
 
   return createSuccessResponse({
     epicKey,
     total: response.data.total ?? issues.length,
     done,
-    inProgress: issues.length - done,
+    inProgress,
+    todo,
     issues: issues.map(issue => ({
       key: issue.key,
       summary: issue.fields.summary,
@@ -3443,7 +3550,7 @@ async function handleAddWatcher(a: ToolArgs): Promise<ToolResponse> {
   const accountId = a.accountId === undefined || a.accountId === null
     ? null
     : validateAccountId(a.accountId);
-  await jiraApi.post(`/issue/${issueKey}/watchers`, accountId);
+  await jiraApi.post(`/issue/${issueKey}/watchers`, accountId ?? '');
   return createSuccessResponse({ success: true, issueKey, accountId: accountId ?? 'self' });
 }
 
@@ -3655,6 +3762,8 @@ const toolHandlers: Record<string, ToolHandler> = {
   jira_add_worklog: handleAddWorklog,
   jira_get_comments: handleGetComments,
   jira_get_worklogs: handleGetWorklogs,
+  jira_update_worklog: handleUpdateWorklog,
+  jira_delete_worklog: handleDeleteWorklog,
   jira_list_projects: handleListProjects,
   jira_get_project_components: handleGetProjectComponents,
   jira_get_project_versions: handleGetProjectVersions,

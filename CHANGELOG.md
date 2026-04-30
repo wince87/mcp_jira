@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.0] - 2026-04-30
+
+### Added
+- `jira_update_worklog` — update existing worklog entry (timeSpent, comment, started). Mirrors `jira_update_comment` pattern.
+- `jira_delete_worklog` — permanent delete of a worklog entry.
+- `jira-worklog-maintenance` MCP prompt — workflow for editing/deleting worklog entries.
+
+### Fixed
+- `handleAddWatcher`: self-watch path was sending JSON `null` as POST body, which Jira rejects with 400. Now sends `''` (empty string) per the API contract. Watcher add for the authenticated user works again.
+- `handleGetEpicIssues`: response field `inProgress` was incorrectly counting all non-done issues (including `To Do`). Now split into `todo` / `inProgress` / `done` based on `statusCategory.key` (`new` / `indeterminate` / `done`). The `jira-epic-health` prompt downstream gets accurate traffic-light data.
+
+### Security
+- Bump `axios` 1.15.0 → 1.15.2 (patch update; no new direct CVEs but stays current).
+- Transitive `hono` CVE GHSA-458j-xx4x-4375 (XSS in hono/jsx SSR) cleared via dedupe on reinstall. We do not use jsx/SSR; the path was unreachable.
+
 ## [2.6.2] - 2026-04-15
 
 ### Fixed
