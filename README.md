@@ -1,4 +1,4 @@
-# Jira MCP Server v2.7.0
+# Jira MCP Server v2.8.0
 
 Model Context Protocol (MCP) server for Jira API integration with automatic Markdown-to-ADF conversion.
 
@@ -8,10 +8,12 @@ Model Context Protocol (MCP) server for Jira API integration with automatic Mark
 
 ## Features
 
-- 52 Jira API tools via MCP protocol
+- 53 Jira API tools via MCP protocol
 - 34 pre-baked MCP prompts covering every tool (sprint planning, bug triage, epic health, standup, weekly reports, bulk ops, attachments, watchers, filters, reorg, etc.)
 - Automatic Markdown to ADF conversion (write Markdown, get proper Jira formatting)
 - ADF to Markdown conversion when reading issues and comments
+- Custom field support on create/update/clone (set mandatory `customfield_NNNNN` fields)
+- Image support: view image attachments inline, embed images via Markdown, return embedded images when reading an issue
 - Sprint and board management via Jira Agile API
 - File attachment support
 - Input validation, HTTPS enforcement, Jira error details in responses
@@ -219,6 +221,7 @@ See [CHANGELOG.md](CHANGELOG.md) for full version history.
 
 ### Recent
 
+- **2.8.0** — Added `customFields` on create/update/subtask/epic/bulk/clone (set mandatory `customfield_NNNNN`). Added `jira_view_attachment` (inline image view, 53 tools). Added Markdown image embedding (`![alt](media:<id>)`, external URLs) and `includeImages` on `jira_get_issue`. ADF media now reads as `[image: ...]`. Changed: `priority` no longer forced to Medium on create (sent only when provided).
 - **2.7.0** — Added `jira_update_worklog` + `jira_delete_worklog` (52 tools). Fix: `handleAddWatcher` self-watch (was sending null body, now empty string). Fix: `handleGetEpicIssues` split status into todo / inProgress / done. Bump axios 1.15.0 → 1.15.2.
 - **2.6.2** — Fix: `SERVER_VERSION` constant now matches package version (was stale at 2.6.0)
 - **2.6.1** — Added 32 pre-baked MCP prompts (total 33) — every one of the 50 tools is now referenced in at least one workflow prompt. Enhanced cross-refs in tool descriptions (jira_create_issue, jira_update_issue, jira_assign_issue, jira_link_issues, jira_add_worklog).

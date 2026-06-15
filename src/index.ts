@@ -31,9 +31,22 @@ interface ADFDocument {
   content: ADFNode[];
 }
 
+interface TextContent {
+  type: 'text';
+  text: string;
+}
+
+interface ImageContent {
+  type: 'image';
+  data: string;
+  mimeType: string;
+}
+
+type ToolContent = TextContent | ImageContent;
+
 interface ToolResponse {
   [key: string]: unknown;
-  content: { type: string; text: string }[];
+  content: ToolContent[];
   isError?: boolean;
 }
 
@@ -204,6 +217,7 @@ interface BulkIssueInput {
   priority?: unknown;
   labels?: unknown;
   storyPoints?: unknown;
+  customFields?: unknown;
 }
 
 interface JiraIssuePayload {
@@ -298,6 +312,23 @@ function validateLabels(labels: unknown): string[] {
   });
 }
 
+function validateCustomFields(fields: unknown): Record<string, unknown> {
+  if (typeof fields !== 'object' || fields === null || Array.isArray(fields)) {
+    throw new Error('customFields must be an object mapping customfield_NNNNN keys to values');
+  }
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(fields)) {
+    if (!/^customfield_\d{1,19}$/.test(key)) {
+      throw new Error(`Invalid custom field key "${key}": must match customfield_NNNNN`);
+    }
+    if (value === undefined) {
+      throw new Error(`Custom field "${key}" has undefined value`);
+    }
+    result[key] = value;
+  }
+  return result;
+}
+
 function validateAccountId(id: unknown): string {
   if (!id || typeof id !== 'string') {
     throw new Error('Invalid accountId: must be a string');
@@ -329,7 +360,7 @@ function validateAttachmentPath(filePath: string): string {
   return absolutePath;
 }
 
-const SERVER_VERSION = '2.7.0';
+const SERVER_VERSION = '2.8.0';
 
 const JIRA_URL: string = getRequiredEnv('JIRA_HOST', process.env.JIRA_URL ?? null);
 const JIRA_EMAIL: string = getRequiredEnv('JIRA_EMAIL');
@@ -347,6 +378,29 @@ function createSuccessResponse(data: unknown): ToolResponse {
       type: 'text',
       text: JSON.stringify(data, null, 2),
     }],
+  };
+}
+
+const MAX_INLINE_IMAGE_BYTES = 5 * 1024 * 1024;
+
+function isImageMime(mimeType: unknown): boolean {
+  return typeof mimeType === 'string' && mimeType.startsWith('image/');
+}
+
+function imageContent(buffer: Buffer, mimeType: string): ImageContent {
+  return {
+    type: 'image',
+    data: buffer.toString('base64'),
+    mimeType,
+  };
+}
+
+function createMixedResponse(data: unknown, images: ImageContent[]): ToolResponse {
+  return {
+    content: [
+      { type: 'text', text: JSON.stringify(data, null, 2) },
+      ...images,
+    ],
   };
 }
 
@@ -505,6 +559,15 @@ function createADFDocument(content: unknown): ADFDocument {
         attrs: { level: mdHeading[1].length },
         content: parseInlineContent(mdHeading[2])
       });
+    } else if (/^!\[[^\]]*\]\([^)]+\)$/.test(line)) {
+      const img = line.match(/^!\[([^\]]*)\]\(([^)]+)\)$/)!;
+      const alt = img[1];
+      const target = img[2].trim();
+      const media: ADFNode = target.startsWith('media:')
+        ? { type: 'media', attrs: { type: 'file', id: target.slice(6), collection: '' } }
+        : { type: 'media', attrs: { type: 'external', url: target } };
+      if (alt) media.attrs!.alt = alt;
+      nodes.push({ type: 'mediaSingle', attrs: { layout: 'center' }, content: [media] });
     } else if (line.startsWith('* ') || line.startsWith('- ')) {
       addListItem(nodes, parseInlineContent(line.substring(2)), 'bulletList');
     } else if (/^\d+\.\s+/.test(line)) {
@@ -615,6 +678,28 @@ function inlineNodesToText(nodes: ADFNode[] | undefined): string {
   }).join('');
 }
 
+function mediaNodeToText(node: ADFNode): string {
+  if (node.type !== 'media') return '';
+  const alt = (node.attrs?.alt as string) || '';
+  const id = (node.attrs?.id as string) || '';
+  const label = alt || id;
+  return label ? `[image: ${label}]` : '[image]';
+}
+
+function collectMediaIds(doc: unknown): string[] {
+  const ids: string[] = [];
+  const walk = (node: ADFNode): void => {
+    if (node.type === 'media' && typeof node.attrs?.id === 'string') {
+      ids.push(node.attrs.id);
+    }
+    (node.content || []).forEach(walk);
+  };
+  if (doc && typeof doc === 'object' && Array.isArray((doc as ADFDocument).content)) {
+    (doc as ADFDocument).content.forEach(walk);
+  }
+  return ids;
+}
+
 function blockNodeToText(node: ADFNode): string {
   if (!node) return '';
   switch (node.type) {
@@ -649,7 +734,7 @@ function blockNodeToText(node: ADFNode): string {
       ).join('\n');
     case 'mediaSingle':
     case 'mediaGroup':
-      return '[media]';
+      return (node.content || []).map(mediaNodeToText).join(' ');
     default:
       return inlineNodesToText(node.content);
   }
@@ -685,6 +770,10 @@ Numbered lists: 1. item
 Blockquotes: > text
 Code blocks: \`\`\`language ... \`\`\`
 Horizontal rule: ---
+
+Images (must be on their own line):
+- Attachment already on the issue: ![alt](media:<attachmentId>) - get the id from jira_get_attachments, or upload first with jira_add_attachment.
+- External image URL: ![alt](https://...)
 
 When referencing Jira issues, always use clickable links:
 [PROJ-123](<browse-url>)`,
@@ -1200,8 +1289,8 @@ Step 2 - Apply quality signals:
 2c. Unestimated:
 - storyPoints is null for items older than 30 days
 
-2d. Unpriotitized:
-- priority is the default (Medium) AND age >60 days (likely never reviewed)
+2d. Unprioritized:
+- priority is unset or still the instance default (commonly Medium) AND age >60 days (likely never reviewed)
 
 2e. Orphaned:
 - Has no epic link and is not itself an Epic
@@ -2002,28 +2091,30 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
     tools: [
       {
         name: 'jira_create_issue',
-        description: 'Create a new Jira issue. Description supports Markdown (auto-converted to ADF). To create an Epic, use jira_create_epic instead (sets Epic Name field). If unsure which issueType or priority values the instance accepts, call jira_get_issue_types and jira_get_priorities first.',
+        description: 'Create a new Jira issue. Description supports Markdown (auto-converted to ADF). To create an Epic, use jira_create_epic instead (sets Epic Name field). If unsure which issueType or priority values the instance accepts, call jira_get_issue_types and jira_get_priorities first. If the project requires mandatory custom fields (e.g. "Type of Team is required"), pass them via customFields. priority is only sent when provided — omit it on screens that do not expose the Priority field.',
         inputSchema: {
           type: 'object' as const,
           properties: {
             summary: { type: 'string', description: 'Issue summary/title' },
             description: { type: 'string', description: 'Issue description in Markdown. Use [KEY](url) for clickable issue links.' },
             issueType: { type: 'string', description: 'Issue type name. Common: Task, Story, Bug, Sub-task. Call jira_get_issue_types for the definitive list.', default: 'Task' },
-            priority: { type: 'string', description: 'Priority name. Common: Highest, High, Medium, Low, Lowest. Call jira_get_priorities if custom priorities are used.', default: 'Medium' },
+            priority: { type: 'string', description: 'Priority name. Common: Highest, High, Medium, Low, Lowest. Optional — omit if the create screen does not expose Priority (Jira rejects fields not on the screen).' },
             labels: { type: 'array', items: { type: 'string' }, description: 'Labels for the issue' },
             storyPoints: { type: 'number', description: 'Story points estimate (0-1000)' },
             projectKey: { type: 'string', description: 'Project key (defaults to configured JIRA_PROJECT_KEY)' },
+            customFields: { type: 'object', additionalProperties: true, description: 'Custom field values keyed by field ID (customfield_NNNNN). Values pass through as-is to the Jira API, so use the shape the field expects: single-select { "value": "X" } or { "id": "10001" }; multi-select [ { "value": "X" } ]; user { "accountId": "..." }; text "string". Example: { "customfield_10122": { "value": "Platform" }, "customfield_10712": { "value": "Search" } }.' },
           },
           required: ['summary', 'description'],
         },
       },
       {
         name: 'jira_get_issue',
-        description: 'Get details of a Jira issue',
+        description: 'Get details of a Jira issue. Set includeImages to also return embedded/attached images inline so the model can see them.',
         inputSchema: {
           type: 'object' as const,
           properties: {
             issueKey: { type: 'string', description: 'Issue key (e.g., TTC-123)' },
+            includeImages: { type: 'boolean', description: 'When true, return up to 10 image attachments (image/*, each <=5MB) as inline images, embedded-in-description ones first. Default false.', default: false },
           },
           required: ['issueKey'],
         },
@@ -2051,6 +2142,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             summary: { type: 'string', description: 'New summary' },
             description: { type: 'string', description: 'New description in Markdown. Use [KEY](url) for clickable issue links.' },
             status: { type: 'string', description: 'New status name (e.g. "In Progress", "Done"). Resolved to transition ID via jira_list_transitions.' },
+            customFields: { type: 'object', additionalProperties: true, description: 'Custom field values keyed by field ID (customfield_NNNNN). Values pass through as-is, so use the shape the field expects: single-select { "value": "X" } or { "id": "10001" }; multi-select [ { "value": "X" } ]; user { "accountId": "..." }; text "string".' },
           },
           required: ['issueKey'],
         },
@@ -2135,8 +2227,9 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             parentKey: { type: 'string', description: 'Parent issue key (e.g., TTC-261)' },
             summary: { type: 'string', description: 'Subtask summary/title' },
             description: { type: 'string', description: 'Subtask description in Markdown. Use [KEY](url) for clickable issue links.' },
-            priority: { type: 'string', description: 'Priority (Highest, High, Medium, Low, Lowest)', default: 'Medium' },
+            priority: { type: 'string', description: 'Priority (Highest, High, Medium, Low, Lowest). Optional — omit if the create screen does not expose Priority.' },
             projectKey: { type: 'string', description: 'Project key (defaults to configured JIRA_PROJECT_KEY)' },
+            customFields: { type: 'object', additionalProperties: true, description: 'Mandatory/custom field values keyed by field ID (customfield_NNNNN). Values pass through as-is: single-select { "value": "X" } or { "id": "10001" }; multi-select [ { "value": "X" } ]; user { "accountId": "..." }; text "string".' },
           },
           required: ['parentKey', 'summary', 'description'],
         },
@@ -2338,9 +2431,10 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                   summary: { type: 'string', description: 'Issue summary/title' },
                   description: { type: 'string', description: 'Issue description in Markdown' },
                   issueType: { type: 'string', description: 'Issue type (Story, Task, Bug, etc.)', default: 'Task' },
-                  priority: { type: 'string', description: 'Priority (Highest, High, Medium, Low, Lowest)', default: 'Medium' },
+                  priority: { type: 'string', description: 'Priority (Highest, High, Medium, Low, Lowest). Optional — omit if the create screen does not expose Priority.' },
                   labels: { type: 'array', items: { type: 'string' } },
                   storyPoints: { type: 'number' },
+                  customFields: { type: 'object', additionalProperties: true, description: 'Mandatory/custom field values keyed by field ID (customfield_NNNNN). Values pass through as-is to the Jira API.' },
                 },
                 required: ['summary'],
               },
@@ -2359,6 +2453,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             issueKey: { type: 'string', description: 'Issue key to clone (e.g., PROJ-123)' },
             summary: { type: 'string', description: 'Summary for the cloned issue (defaults to "Clone of <original>")' },
             projectKey: { type: 'string', description: 'Target project key (defaults to same project as source)' },
+            customFields: { type: 'object', additionalProperties: true, description: 'Custom field values keyed by field ID (customfield_NNNNN). Custom fields are NOT auto-copied from the source; supply any the target screen requires here. Values pass through as-is.' },
           },
           required: ['issueKey'],
         },
@@ -2524,8 +2619,9 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             description: { type: 'string', description: 'Epic description (Markdown, converted to ADF)' },
             epicName: { type: 'string', description: 'Short name for classic (company-managed) projects. Defaults to summary.' },
             projectKey: { type: 'string', description: 'Project key (defaults to JIRA_PROJECT_KEY)' },
-            priority: { type: 'string', description: 'Priority name', default: 'Medium' },
+            priority: { type: 'string', description: 'Priority name. Optional — omit if the create screen does not expose Priority.' },
             labels: { type: 'array', items: { type: 'string' }, description: 'Labels' },
+            customFields: { type: 'object', additionalProperties: true, description: 'Mandatory/custom field values keyed by field ID (customfield_NNNNN). Values pass through as-is: single-select { "value": "X" } or { "id": "10001" }; multi-select [ { "value": "X" } ]; user { "accountId": "..." }; text "string".' },
           },
           required: ['summary'],
         },
@@ -2580,6 +2676,17 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             savePath: { type: 'string', description: 'Absolute local path where the file will be written' },
           },
           required: ['attachmentId', 'savePath'],
+        },
+      },
+      {
+        name: 'jira_view_attachment',
+        description: 'Fetch an image attachment and return it inline so the model can see it (no file written). Image attachments only (mimeType image/*), capped at 5MB. For non-images or larger files use jira_download_attachment. Get the attachmentId from jira_get_attachments.',
+        inputSchema: {
+          type: 'object' as const,
+          properties: {
+            attachmentId: { type: 'string', description: 'Attachment ID (from jira_get_attachments)' },
+          },
+          required: ['attachmentId'],
         },
       },
       {
@@ -2644,11 +2751,10 @@ type ToolArgs = Record<string, unknown>;
 type ToolHandler = (a: ToolArgs) => Promise<ToolResponse>;
 
 async function handleCreateIssue(a: ToolArgs): Promise<ToolResponse> {
-  const { summary, description, issueType = 'Task', priority = 'Medium', labels = [], storyPoints } = a;
+  const { summary, description, issueType = 'Task', priority, labels = [], storyPoints, customFields } = a;
   const projectKey = resolveProjectKey(a);
 
   validateSafeParam(issueType, 'issueType');
-  validateSafeParam(priority, 'priority');
   const validatedLabels = validateLabels(labels);
 
   const issueData: JiraIssuePayload = {
@@ -2657,13 +2763,20 @@ async function handleCreateIssue(a: ToolArgs): Promise<ToolResponse> {
       summary: sanitizeString(summary, 500, 'summary'),
       description: createADFDocument(description),
       issuetype: { name: issueType },
-      priority: { name: priority },
       labels: validatedLabels,
     },
   };
 
+  if (priority !== undefined && priority !== null) {
+    issueData.fields.priority = { name: validateSafeParam(priority, 'priority') };
+  }
+
   if (storyPoints !== undefined && storyPoints !== null) {
     issueData.fields[STORY_POINTS_FIELD] = validateStoryPoints(storyPoints);
+  }
+
+  if (customFields !== undefined && customFields !== null) {
+    Object.assign(issueData.fields, validateCustomFields(customFields));
   }
 
   const response = await jiraApi.post('/issue', issueData);
@@ -2681,7 +2794,7 @@ async function handleGetIssue(a: ToolArgs): Promise<ToolResponse> {
   const response = await jiraApi.get(`/issue/${a.issueKey}`);
   const f = response.data.fields;
 
-  return createSuccessResponse({
+  const data = {
     key: response.data.key,
     summary: f.summary,
     description: adfToText(f.description),
@@ -2696,7 +2809,30 @@ async function handleGetIssue(a: ToolArgs): Promise<ToolResponse> {
     created: f.created,
     updated: f.updated,
     url: createIssueUrl(response.data.key),
-  });
+  };
+
+  if (a.includeImages !== true) {
+    return createSuccessResponse(data);
+  }
+
+  const attachments: JiraAttachment[] = f.attachment ?? [];
+  const imageAttachments = attachments.filter(att =>
+    isImageMime(att.mimeType) && typeof att.size === 'number' && att.size <= MAX_INLINE_IMAGE_BYTES,
+  );
+  const embeddedIds = new Set(collectMediaIds(f.description));
+  const ordered = [
+    ...imageAttachments.filter(att => att.id && embeddedIds.has(att.id)),
+    ...imageAttachments.filter(att => !att.id || !embeddedIds.has(att.id)),
+  ].slice(0, 10);
+
+  const images: ImageContent[] = [];
+  for (const att of ordered) {
+    if (!att.id || !att.mimeType) continue;
+    const content = await jiraApi.get(`/attachment/content/${att.id}`, { responseType: 'arraybuffer' });
+    images.push(imageContent(Buffer.from(content.data), att.mimeType));
+  }
+
+  return createMixedResponse({ ...data, imagesReturned: images.length }, images);
 }
 
 async function handleSearchIssues(a: ToolArgs): Promise<ToolResponse> {
@@ -2733,7 +2869,7 @@ async function handleSearchIssues(a: ToolArgs): Promise<ToolResponse> {
 }
 
 async function handleUpdateIssue(a: ToolArgs): Promise<ToolResponse> {
-  const { summary, description, status } = a;
+  const { summary, description, status, customFields } = a;
   const issueKey = validateIssueKey(a.issueKey);
 
   const updateData: JiraIssuePayload = { fields: {} };
@@ -2745,6 +2881,10 @@ async function handleUpdateIssue(a: ToolArgs): Promise<ToolResponse> {
   }
   if (description) {
     updateData.fields.description = createADFDocument(description);
+    hasFieldUpdates = true;
+  }
+  if (customFields !== undefined && customFields !== null) {
+    Object.assign(updateData.fields, validateCustomFields(customFields));
     hasFieldUpdates = true;
   }
 
@@ -2850,21 +2990,26 @@ async function handleDeleteIssue(a: ToolArgs): Promise<ToolResponse> {
 }
 
 async function handleCreateSubtask(a: ToolArgs): Promise<ToolResponse> {
-  const { parentKey, summary, description, priority = 'Medium' } = a;
+  const { parentKey, summary, description, priority, customFields } = a;
   validateIssueKey(parentKey);
-  validateSafeParam(priority, 'priority');
   const projectKey = resolveProjectKey(a);
 
-  const response = await jiraApi.post('/issue', {
-    fields: {
-      project: { key: projectKey },
-      summary: sanitizeString(summary, 500, 'summary'),
-      description: createADFDocument(description),
-      issuetype: { name: 'Subtask' },
-      priority: { name: priority },
-      parent: { key: parentKey },
-    },
-  });
+  const fields: Record<string, unknown> = {
+    project: { key: projectKey },
+    summary: sanitizeString(summary, 500, 'summary'),
+    description: createADFDocument(description),
+    issuetype: { name: 'Subtask' },
+    parent: { key: parentKey },
+  };
+
+  if (priority !== undefined && priority !== null) {
+    fields.priority = { name: validateSafeParam(priority, 'priority') };
+  }
+  if (customFields !== undefined && customFields !== null) {
+    Object.assign(fields, validateCustomFields(customFields));
+  }
+
+  const response = await jiraApi.post('/issue', { fields });
 
   return createSuccessResponse({ success: true, key: response.data.key, id: response.data.id, parent: parentKey, url: createIssueUrl(response.data.key) });
 }
@@ -3131,17 +3276,21 @@ async function handleBulkCreateIssues(a: ToolArgs): Promise<ToolResponse> {
 
   const issueList: JiraIssuePayload[] = (issues as BulkIssueInput[]).map(issue => {
     const issueType = validateSafeParam(issue.issueType ?? 'Task', 'issueType');
-    const priority = validateSafeParam(issue.priority ?? 'Medium', 'priority');
     const fields: Record<string, unknown> = {
       project: { key: projectKey },
       summary: sanitizeString(issue.summary, 500, 'summary'),
       description: createADFDocument(issue.description),
       issuetype: { name: issueType },
-      priority: { name: priority },
       labels: Array.isArray(issue.labels) ? validateLabels(issue.labels) : [],
     };
+    if (issue.priority !== undefined && issue.priority !== null) {
+      fields.priority = { name: validateSafeParam(issue.priority, 'priority') };
+    }
     if (issue.storyPoints !== undefined && issue.storyPoints !== null) {
       fields[STORY_POINTS_FIELD] = validateStoryPoints(issue.storyPoints);
+    }
+    if (issue.customFields !== undefined && issue.customFields !== null) {
+      Object.assign(fields, validateCustomFields(issue.customFields));
     }
     return { fields };
   });
@@ -3173,13 +3322,18 @@ async function handleCloneIssue(a: ToolArgs): Promise<ToolResponse> {
       summary,
       description: f.description ?? createADFDocument(''),
       issuetype: { name: f.issuetype?.name ?? 'Task' },
-      priority: { name: f.priority?.name ?? 'Medium' },
       labels: f.labels || [],
     },
   };
 
+  if (f.priority?.name) {
+    issueData.fields.priority = { name: f.priority.name };
+  }
   if (f[STORY_POINTS_FIELD] !== undefined && f[STORY_POINTS_FIELD] !== null) {
     issueData.fields[STORY_POINTS_FIELD] = f[STORY_POINTS_FIELD];
+  }
+  if (a.customFields !== undefined && a.customFields !== null) {
+    Object.assign(issueData.fields, validateCustomFields(a.customFields));
   }
 
   const response = await jiraApi.post('/issue', issueData);
@@ -3499,10 +3653,9 @@ async function handleRemoveIssueFromEpic(a: ToolArgs): Promise<ToolResponse> {
 }
 
 async function handleCreateEpic(a: ToolArgs): Promise<ToolResponse> {
-  const { summary, description, epicName, priority = 'Medium', labels = [] } = a;
+  const { summary, description, epicName, priority, labels = [], customFields } = a;
   const projectKey = resolveProjectKey(a);
 
-  validateSafeParam(priority, 'priority');
   const validatedLabels = validateLabels(labels);
   const validatedSummary = sanitizeString(summary, 500, 'summary');
   const resolvedEpicName = epicName !== undefined && epicName !== null
@@ -3515,11 +3668,17 @@ async function handleCreateEpic(a: ToolArgs): Promise<ToolResponse> {
       summary: validatedSummary,
       description: createADFDocument(description),
       issuetype: { name: 'Epic' },
-      priority: { name: priority },
       labels: validatedLabels,
       customfield_10011: resolvedEpicName,
     },
   };
+
+  if (priority !== undefined && priority !== null) {
+    issueData.fields.priority = { name: validateSafeParam(priority, 'priority') };
+  }
+  if (customFields !== undefined && customFields !== null) {
+    Object.assign(issueData.fields, validateCustomFields(customFields));
+  }
 
   const response = await jiraApi.post('/issue', issueData);
 
@@ -3600,6 +3759,29 @@ async function handleDownloadAttachment(a: ToolArgs): Promise<ToolResponse> {
     size: meta.size,
     savedTo: absolutePath,
   });
+}
+
+async function handleViewAttachment(a: ToolArgs): Promise<ToolResponse> {
+  const attachmentId = validateSafeParam(a.attachmentId, 'attachmentId', 50);
+
+  const metaResponse = await jiraApi.get(`/attachment/${attachmentId}`);
+  const meta = metaResponse.data;
+
+  if (!isImageMime(meta.mimeType)) {
+    throw new Error(`Attachment ${attachmentId} is not an image (mimeType: ${meta.mimeType ?? 'unknown'}). Use jira_download_attachment for non-image files.`);
+  }
+  if (typeof meta.size === 'number' && meta.size > MAX_INLINE_IMAGE_BYTES) {
+    throw new Error(`Image ${attachmentId} is ${meta.size} bytes, exceeds inline limit of ${MAX_INLINE_IMAGE_BYTES}. Use jira_download_attachment instead.`);
+  }
+
+  const contentResponse = await jiraApi.get(`/attachment/content/${attachmentId}`, {
+    responseType: 'arraybuffer',
+  });
+
+  return createMixedResponse(
+    { attachmentId, filename: meta.filename, mimeType: meta.mimeType, size: meta.size },
+    [imageContent(Buffer.from(contentResponse.data), meta.mimeType)],
+  );
 }
 
 async function handleListFilters(a: ToolArgs): Promise<ToolResponse> {
@@ -3794,6 +3976,7 @@ const toolHandlers: Record<string, ToolHandler> = {
   jira_remove_watcher: handleRemoveWatcher,
   jira_get_watchers: handleGetWatchers,
   jira_download_attachment: handleDownloadAttachment,
+  jira_view_attachment: handleViewAttachment,
   jira_list_filters: handleListFilters,
   jira_get_filter: handleGetFilter,
   jira_search_by_filter: handleSearchByFilter,

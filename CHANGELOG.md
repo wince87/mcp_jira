@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.8.0] - 2026-06-15
+
+### Added
+- `customFields` parameter on `jira_create_issue`, `jira_update_issue`, `jira_create_subtask`, `jira_create_epic`, `jira_bulk_create_issues`, and `jira_clone_issue` — set mandatory/custom fields keyed by field ID. Keys validated against `^customfield_\d{1,19}$` (blocks overriding system fields); values pass through to the Jira API as-is. Unblocks projects that require custom fields on the create screen (e.g. "Type of Team is required").
+- `jira_view_attachment` — fetch an image attachment and return it inline as an MCP image block so the model can see it, no file written. Image mime types only, capped at 5MB. Total tools: 53.
+- Image embedding in Markdown (converted to ADF media nodes): `![alt](media:<attachmentId>)` for attachment-backed images, `![alt](https://...)` for external images. Must be on their own line.
+- `includeImages` parameter on `jira_get_issue` — returns up to 10 image attachments (image/*, each <=5MB) as inline images, embedded-in-description ones first.
+
+### Changed
+- `priority` is no longer forced to `Medium` on create. It is sent only when explicitly provided, so issues can be created on screens that do not expose the Priority field (Jira rejects fields not on the screen). Affects `jira_create_issue`, `jira_create_subtask`, `jira_create_epic`, `jira_bulk_create_issues`; `jira_clone_issue` now copies the source priority only when set.
+- ADF reading: media nodes render as `[image: <alt|id>]` instead of bare `[media]`.
+
+### Fixed
+- `jira-backlog-grooming` prompt: typo "Unpriotitized" → "Unprioritized"; the unprioritized heuristic now also covers issues with no priority set (relevant now that create no longer forces Medium).
+
 ## [2.7.0] - 2026-04-30
 
 ### Added
