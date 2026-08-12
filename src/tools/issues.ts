@@ -3,6 +3,7 @@ import type {
   JiraAttachment, JiraChangelogHistory, JiraIssueFields, ImageContent, ToolArgs, ToolResponse,
 } from '../types.js';
 import { jiraApi } from '../http.js';
+import { readMaxResults } from '../args.js';
 import { JIRA_PROJECT_KEY, STORY_POINTS_FIELD } from '../config.js';
 import { collectMediaIds, createADFDocument } from '../adf.js';
 import {
@@ -310,12 +311,10 @@ export async function handleLinkIssues(a: ToolArgs): Promise<ToolResponse> {
 }
 
 export async function handleGetChangelog(a: ToolArgs): Promise<ToolResponse> {
-  const { maxResults = 50 } = a;
   const issueKey = validateIssueKey(a.issueKey);
-  const validatedMaxResults = validateMaxResults(maxResults);
 
   const response = await jiraApi.get(`/issue/${issueKey}/changelog`, {
-    params: { maxResults: validatedMaxResults },
+    params: { maxResults: readMaxResults(a) },
   });
 
   const histories: JiraChangelogHistory[] = response.data.values ?? [];

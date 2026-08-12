@@ -1,16 +1,17 @@
 import type { JiraIssue, ToolArgs, ToolResponse } from '../types.js';
 import { jiraApi } from '../http.js';
+import { buildJql, equalsClause } from '../jql.js';
+import { readMaxResults } from '../args.js';
 import { createIssueUrl, createSuccessResponse, resolveProjectKey } from '../responses.js';
 import { sanitizeString, validateAccountId, validateJQL, validateMaxResults } from '../validation.js';
 
 export async function handleSearchIssues(a: ToolArgs): Promise<ToolResponse> {
-  const { maxResults = 50, nextPageToken } = a;
+  const { nextPageToken } = a;
   const jql = validateJQL(a.jql);
-  const validatedMaxResults = validateMaxResults(maxResults);
 
   const params: Record<string, unknown> = {
     jql,
-    maxResults: validatedMaxResults,
+    maxResults: readMaxResults(a),
     fields: 'summary,status,assignee,priority,created,updated,issuetype,parent,labels',
   };
   if (nextPageToken) params.nextPageToken = nextPageToken;
@@ -37,20 +38,23 @@ export async function handleSearchIssues(a: ToolArgs): Promise<ToolResponse> {
 }
 
 export async function handleGetUserIssues(a: ToolArgs): Promise<ToolResponse> {
-  const { maxResults = 50, status } = a;
+  const { status } = a;
   const accountId = validateAccountId(a.accountId);
-  const validatedMaxResults = validateMaxResults(maxResults);
   const projectKey = resolveProjectKey(a);
 
-  const escapedStatus = status ? sanitizeString(status, 100, 'status').replace(/"/g, '\\"') : null;
-  let jql = `project = "${projectKey}" AND assignee = "${accountId}"`;
-  if (escapedStatus) jql += ` AND status = "${escapedStatus}"`;
-  jql += ' ORDER BY updated DESC';
+  const jql = buildJql({
+    clauses: [
+      equalsClause('project', projectKey, 'projectKey'),
+      equalsClause('assignee', accountId, 'accountId'),
+      status ? equalsClause('status', status, 'status') : '',
+    ],
+    orderBy: 'updated DESC',
+  });
 
   const response = await jiraApi.get('/search/jql', {
     params: {
       jql,
-      maxResults: validatedMaxResults,
+      maxResults: readMaxResults(a),
       fields: 'summary,status,priority,created,updated,issuetype,labels',
     },
   });

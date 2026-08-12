@@ -1,5 +1,6 @@
 import type { JiraComment, ToolArgs, ToolResponse } from '../types.js';
 import { jiraApi } from '../http.js';
+import { readMaxResults } from '../args.js';
 import { adfToText, createADFDocument } from '../adf.js';
 import { createSuccessResponse } from '../responses.js';
 import { validateIssueKey, validateMaxResults, validateSafeParam } from '../validation.js';
@@ -25,12 +26,11 @@ export async function handleDeleteComment(a: ToolArgs): Promise<ToolResponse> {
 }
 
 export async function handleGetComments(a: ToolArgs): Promise<ToolResponse> {
-  const { maxResults = 50, orderBy = '-created' } = a;
+  const { orderBy = '-created' } = a;
   const issueKey = validateIssueKey(a.issueKey);
-  const validatedMaxResults = validateMaxResults(maxResults);
 
   const validatedOrderBy = orderBy === 'created' ? 'created' : '-created';
-  const response = await jiraApi.get(`/issue/${issueKey}/comment`, { params: { maxResults: validatedMaxResults, orderBy: validatedOrderBy } });
+  const response = await jiraApi.get(`/issue/${issueKey}/comment`, { params: { maxResults: readMaxResults(a), orderBy: validatedOrderBy } });
   const comments: JiraComment[] = response.data.comments ?? [];
   return createSuccessResponse({
     issueKey,

@@ -1,13 +1,12 @@
 import type { JiraUser, ToolArgs, ToolResponse } from '../types.js';
 import { jiraApi } from '../http.js';
+import { readMaxResults } from '../args.js';
 import { createSuccessResponse } from '../responses.js';
 import { sanitizeString, validateAccountId, validateIssueKey, validateMaxResults } from '../validation.js';
 
 export async function handleSearchUsers(a: ToolArgs): Promise<ToolResponse> {
-  const { maxResults = 10 } = a;
   const query = sanitizeString(a.query, 200, 'query');
-  const validatedMaxResults = validateMaxResults(maxResults);
-  const response = await jiraApi.get('/user/search', { params: { query, maxResults: validatedMaxResults } });
+  const response = await jiraApi.get('/user/search', { params: { query, maxResults: readMaxResults(a, 10) } });
   const users: JiraUser[] = response.data ?? [];
   return createSuccessResponse({
     users: users.map(u => ({ accountId: u.accountId, displayName: u.displayName, emailAddress: u.emailAddress, active: u.active, accountType: u.accountType })),

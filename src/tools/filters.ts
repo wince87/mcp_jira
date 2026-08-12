@@ -1,13 +1,13 @@
 import type { JiraIssue, ToolArgs, ToolResponse } from '../types.js';
 import { jiraApi } from '../http.js';
+import { readMaxResults } from '../args.js';
 import { createIssueUrl, createSuccessResponse } from '../responses.js';
 import { sanitizeString, validateAccountId, validateMaxResults, validateSafeParam } from '../validation.js';
 
 export async function handleListFilters(a: ToolArgs): Promise<ToolResponse> {
   const { filterName, accountId, maxResults = 50 } = a;
-  const validatedMaxResults = validateMaxResults(maxResults);
 
-  const params: Record<string, unknown> = { maxResults: validatedMaxResults, expand: 'description,jql,owner' };
+  const params: Record<string, unknown> = { maxResults: readMaxResults(a), expand: 'description,jql,owner' };
   if (filterName !== undefined && filterName !== null) {
     params.filterName = sanitizeString(filterName, 200, 'filterName');
   }
@@ -52,8 +52,7 @@ export async function handleGetFilter(a: ToolArgs): Promise<ToolResponse> {
 
 export async function handleSearchByFilter(a: ToolArgs): Promise<ToolResponse> {
   const filterId = validateSafeParam(a.filterId, 'filterId', 30);
-  const { maxResults = 50, nextPageToken } = a;
-  const validatedMaxResults = validateMaxResults(maxResults);
+  const { nextPageToken } = a;
 
   const filterResponse = await jiraApi.get(`/filter/${filterId}`);
   const jql: string = filterResponse.data.jql;
@@ -61,7 +60,7 @@ export async function handleSearchByFilter(a: ToolArgs): Promise<ToolResponse> {
 
   const params: Record<string, unknown> = {
     jql,
-    maxResults: validatedMaxResults,
+    maxResults: readMaxResults(a),
     fields: 'summary,status,assignee,priority,created,updated,issuetype,labels',
   };
   if (typeof nextPageToken === 'string' && nextPageToken) params.nextPageToken = nextPageToken;

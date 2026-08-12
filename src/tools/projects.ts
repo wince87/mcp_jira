@@ -1,5 +1,6 @@
 import type { JiraComponent, JiraProject, JiraVersion, ToolArgs, ToolResponse } from '../types.js';
 import { jiraApi } from '../http.js';
+import { readMaxResults } from '../args.js';
 import { createSuccessResponse, resolveProjectKey } from '../responses.js';
 import { sanitizeString, validateMaxResults } from '../validation.js';
 
@@ -16,9 +17,8 @@ export async function handleGetProjectInfo(a: ToolArgs): Promise<ToolResponse> {
 }
 
 export async function handleListProjects(a: ToolArgs): Promise<ToolResponse> {
-  const { maxResults = 50, query } = a;
-  const validatedMaxResults = validateMaxResults(maxResults);
-  const params: Record<string, unknown> = { maxResults: validatedMaxResults };
+  const { query } = a;
+  const params: Record<string, unknown> = { maxResults: readMaxResults(a) };
   if (query) params.query = sanitizeString(query, 200, 'query');
 
   const response = await jiraApi.get('/project/search', { params });

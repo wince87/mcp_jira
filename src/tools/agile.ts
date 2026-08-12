@@ -1,5 +1,7 @@
 import type { JiraBoard, JiraIssue, JiraSprint, ToolArgs, ToolResponse } from '../types.js';
+import { numericId, present, readMaxResults } from '../args.js';
 import { agileApi, jiraApi } from '../http.js';
+import { buildJql, equalsClause } from '../jql.js';
 import { createADFDocument } from '../adf.js';
 import { createIssueUrl, createSuccessResponse, resolveProjectKey } from '../responses.js';
 import { sanitizeString, validateIssueKey, validateMaxResults, validateProjectKey } from '../validation.js';
@@ -9,9 +11,7 @@ import {
 import { issueSnapshot } from '../mappers.js';
 
 export async function handleListBoards(a: ToolArgs): Promise<ToolResponse> {
-  const { maxResults = 50 } = a;
-  const validatedMaxResults = validateMaxResults(maxResults);
-  const params: Record<string, unknown> = { maxResults: validatedMaxResults };
+  const params: Record<string, unknown> = { maxResults: readMaxResults(a) };
   if (a.projectKey) params.projectKeyOrId = validateProjectKey(a.projectKey);
 
   const response = await agileApi.get('/board', { params });
@@ -30,15 +30,14 @@ export async function handleListBoards(a: ToolArgs): Promise<ToolResponse> {
 }
 
 export async function handleListSprints(a: ToolArgs): Promise<ToolResponse> {
-  const { boardId, state = 'active', maxResults = 50 } = a;
-  if (typeof boardId !== 'number') throw new Error('boardId must be a number');
+  const { state = 'active' } = a;
+  const boardId = numericId(a.boardId, 'boardId');
   if (typeof state !== 'string' || !['active', 'future', 'closed'].includes(state)) {
     throw new Error('state must be one of: active, future, closed');
   }
-  const validatedMaxResults = validateMaxResults(maxResults);
 
   const response = await agileApi.get(`/board/${boardId}/sprint`, {
-    params: { state, maxResults: validatedMaxResults },
+    params: { state, maxResults: readMaxResults(a) },
   });
 
   const sprints: JiraSprint[] = response.data.values ?? [];
@@ -56,15 +55,13 @@ export async function handleListSprints(a: ToolArgs): Promise<ToolResponse> {
 }
 
 export async function handleGetSprint(a: ToolArgs): Promise<ToolResponse> {
-  const { sprintId, maxResults = 50 } = a;
-  if (typeof sprintId !== 'number') throw new Error('sprintId must be a number');
-  const validatedMaxResults = validateMaxResults(maxResults);
+  const sprintId = numericId(a.sprintId, 'sprintId');
 
   const [sprintRes, issuesRes] = await Promise.all([
     agileApi.get(`/sprint/${sprintId}`),
     agileApi.get(`/sprint/${sprintId}/issue`, {
       params: {
-        maxResults: validatedMaxResults,
+        maxResults: readMaxResults(a),
         fields: 'summary,status,assignee,priority,issuetype,labels',
       },
     }),
@@ -93,8 +90,8 @@ export async function handleGetSprint(a: ToolArgs): Promise<ToolResponse> {
 }
 
 export async function handleMoveToSprint(a: ToolArgs): Promise<ToolResponse> {
-  const { sprintId, issueKeys } = a;
-  if (typeof sprintId !== 'number') throw new Error('sprintId must be a number');
+  const { issueKeys } = a;
+  const sprintId = numericId(a.sprintId, 'sprintId');
   if (!Array.isArray(issueKeys) || issueKeys.length === 0) throw new Error('issueKeys must be a non-empty array');
 
   const validatedKeys = issueKeys.map((k: unknown) => validateIssueKey(k));
@@ -109,20 +106,21 @@ export async function handleMoveToSprint(a: ToolArgs): Promise<ToolResponse> {
 }
 
 export async function handleListEpics(a: ToolArgs): Promise<ToolResponse> {
-  const { maxResults = 50, nextPageToken, status } = a;
+  const { nextPageToken, status } = a;
   const projectKey = resolveProjectKey(a);
-  const validatedMaxResults = validateMaxResults(maxResults);
 
-  let jql = `project = "${projectKey}" AND issuetype = Epic`;
-  if (status !== undefined && status !== null) {
-    const escapedStatus = sanitizeString(status, 100, 'status').replace(/"/g, '\\"');
-    jql += ` AND status = "${escapedStatus}"`;
-  }
-  jql += ' ORDER BY created DESC';
+  const jql = buildJql({
+    clauses: [
+      equalsClause('project', projectKey, 'projectKey'),
+      'issuetype = Epic',
+      present(status) ? equalsClause('status', status, 'status') : '',
+    ],
+    orderBy: 'created DESC',
+  });
 
   const params: Record<string, unknown> = {
     jql,
-    maxResults: validatedMaxResults,
+    maxResults: readMaxResults(a),
     fields: 'summary,status,priority,created,updated,labels',
   };
   if (typeof nextPageToken === 'string' && nextPageToken) params.nextPageToken = nextPageToken;
@@ -165,12 +163,10 @@ export async function handleGetEpic(a: ToolArgs): Promise<ToolResponse> {
 
 export async function handleGetEpicIssues(a: ToolArgs): Promise<ToolResponse> {
   const epicKey = validateIssueKey(a.epicKey);
-  const { maxResults = 50 } = a;
-  const validatedMaxResults = validateMaxResults(maxResults);
 
   const response = await agileApi.get(`/epic/${epicKey}/issue`, {
     params: {
-      maxResults: validatedMaxResults,
+      maxResults: readMaxResults(a),
       fields: 'summary,status,assignee,priority,issuetype,labels',
     },
   });
@@ -201,11 +197,10 @@ export async function handleGetEpicIssues(a: ToolArgs): Promise<ToolResponse> {
 }
 
 export async function handleGetBoardEpics(a: ToolArgs): Promise<ToolResponse> {
-  const { boardId, done, maxResults = 50 } = a;
-  if (typeof boardId !== 'number') throw new Error('boardId must be a number');
-  const validatedMaxResults = validateMaxResults(maxResults);
+  const { done } = a;
+  const boardId = numericId(a.boardId, 'boardId');
 
-  const params: Record<string, unknown> = { maxResults: validatedMaxResults };
+  const params: Record<string, unknown> = { maxResults: readMaxResults(a) };
   if (done !== undefined && done !== null) {
     if (done !== 'true' && done !== 'false') throw new Error('done must be "true" or "false"');
     params.done = done;

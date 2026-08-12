@@ -70,6 +70,13 @@ test('status filter cannot break out of the JQL string', async () => {
   assert.ok(!/OR "x"="x"/.test(search.query.jql.replace(/\\"/g, '')), 'quotes in status must be escaped');
 });
 
+test('a trailing backslash cannot escape the closing JQL quote', async () => {
+  await server.call('jira_get_user_issues', { accountId: '5b10a2844c20165700ede21g', status: 'Done\\' });
+  const search = mock.requests.find(r => r.path === '/rest/api/3/search/jql');
+  assert.ok(search, 'expected a JQL search request');
+  assert.match(search.query.jql, /status = "Done\\\\"/, 'a backslash must be escaped before the quote, not left to escape it');
+});
+
 test('worklog start time must be ISO 8601 with offset', async () => {
   await expectRejected('jira_add_worklog', { issueKey: 'TEST-1', timeSpent: '1h', started: '2026-08-01' }, 'loose date');
   await expectRejected('jira_add_worklog', { issueKey: 'TEST-1', timeSpent: '1h', started: '2026-08-01T09:00:00Z' }, 'Z-terminated ISO');
