@@ -1,8 +1,17 @@
 {
   "protocolVersion": "2025-06-18",
   "capabilities": {
-    "tools": {},
-    "prompts": {}
+    "tools": {
+      "listChanged": false
+    },
+    "prompts": {
+      "listChanged": false
+    },
+    "resources": {
+      "listChanged": false,
+      "subscribe": false
+    },
+    "completions": {}
   },
   "serverInfo": {
     "name": "jira-mcp-server",

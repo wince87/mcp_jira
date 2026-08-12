@@ -1,7 +1,25 @@
+export interface PromptArgument {
+  name: string;
+  description: string;
+  required?: boolean;
+}
+
 export interface PromptDef {
   description: string;
   text: string;
+  arguments?: PromptArgument[];
 }
+
+const PROJECT_KEY_ARG: PromptArgument = {
+  name: 'projectKey',
+  description: 'Project key to work in. Defaults to the configured JIRA_PROJECT_KEY.',
+};
+
+const ISSUE_KEY_ARG: PromptArgument = {
+  name: 'issueKey',
+  description: 'Issue key the workflow applies to, e.g. PROJ-123.',
+  required: true,
+};
 
 export const PROMPTS: Record<string, PromptDef> = {
   'jira-formatting-guide': {
@@ -31,6 +49,7 @@ When referencing Jira issues, always use clickable links:
   },
   'jira-bug-triage': {
     description: 'Workflow guide for triaging open bugs (assign, prioritize, comment).',
+    arguments: [PROJECT_KEY_ARG],
     text: `Workflow for triaging open bugs in Jira.
 
 Step 1 - Find untriaged bugs:
@@ -159,6 +178,7 @@ Keep it under ~10 bullets per section. Prefer outcomes over activity.`,
   },
   'jira-dependency-map': {
     description: 'Trace all blockers (direct and transitive) for an issue or epic.',
+    arguments: [ISSUE_KEY_ARG],
     text: `Map out what is blocking a target issue or epic, recursively.
 
 Step 1 - Load the starting point:
@@ -191,6 +211,7 @@ End with a one-sentence summary: "<target> is blocked by <n> direct and <m> tran
   },
   'jira-release-notes': {
     description: 'Generate release notes from issues resolved in a fixVersion.',
+    arguments: [PROJECT_KEY_ARG],
     text: `Generate release notes for a Jira version.
 
 Step 1 - Identify the version:
@@ -266,6 +287,7 @@ Format as Markdown table + narrative summary at the end. Use clickable sprint li
   },
   'jira-workload-balance': {
     description: 'Snapshot current workload per assignee to detect overload.',
+    arguments: [PROJECT_KEY_ARG],
     text: `Snapshot who is working on what, right now.
 
 Step 1 - Scope:
@@ -302,6 +324,7 @@ Narrative at the end: 1-2 sentences on recommended rebalancing.`,
   },
   'jira-changelog-audit': {
     description: 'Audit history of an issue - who changed what, when, and why.',
+    arguments: [ISSUE_KEY_ARG],
     text: `Audit the change history of a specific issue.
 
 Step 1 - Load context:
@@ -369,6 +392,7 @@ Never pass displayName or email to jira_assign_issue - always resolve to account
   },
   'jira-sprint-planning': {
     description: 'Pull candidates from backlog into the next sprint based on priority and capacity.',
+    arguments: [PROJECT_KEY_ARG],
     text: `Plan the next sprint from the backlog.
 
 Step 1 - Find target sprint:
@@ -409,6 +433,7 @@ Skipped (needs refinement):
   },
   'jira-version-planning': {
     description: 'Assign issues to a fixVersion (release) based on scope and priority.',
+    arguments: [PROJECT_KEY_ARG],
     text: `Plan the contents of an upcoming release version.
 
 Step 1 - Identify the version:
@@ -446,6 +471,7 @@ Risks: <overcommit / blocker dependency / missing scope>`,
   },
   'jira-clone-template': {
     description: 'Create standardized work by cloning a template issue (onboarding, checklists, recurring tasks).',
+    arguments: [PROJECT_KEY_ARG],
     text: `Create a new issue from a template (saved as a reference issue in Jira).
 
 Step 1 - Find the template:
@@ -481,6 +507,7 @@ Assigned to: <name>`,
   },
   'jira-subtask-breakdown': {
     description: 'Split a story or task into concrete subtasks with acceptance criteria.',
+    arguments: [ISSUE_KEY_ARG],
     text: `Break a parent story/task into implementation subtasks.
 
 Step 1 - Understand the parent:
@@ -524,6 +551,7 @@ Total: ~3 days, 4 subtasks`,
   },
   'jira-backlog-grooming': {
     description: 'Find stale, ambiguous, or low-quality backlog items that need attention.',
+    arguments: [PROJECT_KEY_ARG],
     text: `Groom the backlog - surface issues that are stale, unclear, or duplicative.
 
 Step 1 - Pull entire backlog:
@@ -578,6 +606,7 @@ Recommend refinement session if total flagged >20.`,
   },
   'jira-duplicate-detector': {
     description: 'Find potential duplicates of a given issue in the project.',
+    arguments: [PROJECT_KEY_ARG, ISSUE_KEY_ARG],
     text: `Detect possible duplicates of a specific issue.
 
 Step 1 - Load target:
@@ -622,6 +651,7 @@ Do NOT auto-close - always let user confirm duplicate decisions.`,
   },
   'jira-estimation-helper': {
     description: 'Estimate story points for a new issue based on similar completed issues.',
+    arguments: [PROJECT_KEY_ARG, ISSUE_KEY_ARG],
     text: `Estimate story points for a new issue by referencing similar completed work.
 
 Step 1 - Load target:
@@ -834,6 +864,7 @@ Useful for: timesheet export, invoice prep, capacity planning, personal retrospe
   },
   'jira-attachment-review': {
     description: 'Review, download, or add attachments on an issue.',
+    arguments: [ISSUE_KEY_ARG],
     text: `Work with issue attachments.
 
 Step 1 - List:
@@ -864,6 +895,7 @@ Never guess attachment id - always fetch list first. Never upload files from out
   },
   'jira-watcher-management': {
     description: 'Manage issue watchers (subscribe team, audit who is watching, unsubscribe stale).',
+    arguments: [ISSUE_KEY_ARG],
     text: `Manage watchers on an issue.
 
 Step 1 - Audit current state:
@@ -958,6 +990,7 @@ Recommend retry for recoverable failures (permission, wrong workflow).`,
   },
   'jira-bulk-create': {
     description: 'Create many issues in one call (scaffolding a project, import from external list).',
+    arguments: [PROJECT_KEY_ARG],
     text: `Bulk-create issues from a structured list.
 
 Step 1 - Gather input:
@@ -995,6 +1028,7 @@ Useful for: scaffolding a project backlog from a spec, importing Trello/Linear b
   },
   'jira-project-overview': {
     description: 'Snapshot a project for onboarding (metadata, components, versions, epics, activity).',
+    arguments: [PROJECT_KEY_ARG],
     text: `Produce a project onboarding snapshot.
 
 Step 1 - Identify the project:
@@ -1043,6 +1077,7 @@ Great first prompt to run when joining a new Jira project.`,
   },
   'jira-field-discovery': {
     description: 'Discover custom fields and enum values for the Jira instance (configuration lookup).',
+    arguments: [PROJECT_KEY_ARG],
     text: `Discover schema details of this Jira instance.
 
 Step 1 - List all fields:
@@ -1083,6 +1118,7 @@ Cache this snapshot locally - it rarely changes. Use it before calling jira_crea
   },
   'jira-comment-maintenance': {
     description: 'Edit or remove existing comments (typo fix, redact sensitive info, delete accidental comment).',
+    arguments: [ISSUE_KEY_ARG],
     text: `Maintain the comment thread on an issue.
 
 Step 1 - Load comments:
@@ -1196,6 +1232,7 @@ NEVER delete someone else's worklog without explicit user approval. Prefer updat
   },
   'jira-worklog-entry': {
     description: 'Log time spent on an issue at end of day (single entry).',
+    arguments: [ISSUE_KEY_ARG],
     text: `Log a worklog entry for the current user.
 
 Step 1 - Gather input:
@@ -1231,6 +1268,7 @@ For multiple entries in a row (end-of-day batch log), confirm each with user bef
   },
   'jira-issue-cleanup': {
     description: 'Safely delete an issue (verify no incoming links, confirm intent).',
+    arguments: [PROJECT_KEY_ARG, ISSUE_KEY_ARG],
     text: `Safely delete a Jira issue.
 
 Step 1 - Understand why:
@@ -1274,6 +1312,7 @@ NEVER delete without user confirmation. Recommend "Won't Do" resolution first.`,
   },
   'jira-weekly-report': {
     description: 'Cross-project weekly status for management (delivered / planned / risks).',
+    arguments: [PROJECT_KEY_ARG],
     text: `Produce a weekly status report suitable for management.
 
 Step 1 - Scope:
@@ -1320,3 +1359,26 @@ Step 3 - Summarize executive-level:
 Keep each bullet outcome-focused. Avoid Jira jargon when possible. Use clickable links everywhere.`,
   },
 };
+
+export function renderPrompt(prompt: PromptDef, args: Record<string, string>): string {
+  const declared = prompt.arguments ?? [];
+  const missing = declared.filter(arg => arg.required && !args[arg.name]).map(arg => arg.name);
+  if (missing.length > 0) {
+    throw new Error(`Missing required prompt argument(s): ${missing.join(', ')}`);
+  }
+
+  let text = prompt.text;
+  for (const [name, value] of Object.entries(args)) {
+    text = text.split(`{{${name}}}`).join(value);
+  }
+  if (args.projectKey) {
+    text = text.split('<KEY>').join(args.projectKey);
+  }
+
+  const provided = declared
+    .filter(arg => args[arg.name])
+    .map(arg => `- ${arg.name}: ${args[arg.name]}`);
+  if (provided.length === 0) return text;
+
+  return `Inputs for this run:\n${provided.join('\n')}\n\n${text}`;
+}

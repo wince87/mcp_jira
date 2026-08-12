@@ -18,6 +18,7 @@ Model Context Protocol (MCP) server for Jira API integration with automatic Mark
 - Image support: view image attachments inline, embed images via Markdown, return embedded images when reading an issue
 - Sprint and board management via Jira Agile API
 - File attachment support
+- Full MCP surface: tool annotations (read-only tools stop prompting for approval), structured output, prompt arguments with autocomplete, and resources (`jira://issue/{key}`)
 - Input validation, HTTPS enforcement, Jira error details in responses
 - TypeScript source with full type definitions
 - Zero runtime dependencies beyond MCP SDK and axios
@@ -135,6 +136,15 @@ The retry policy is deliberately asymmetric:
 A `Retry-After` longer than 60 seconds is not honoured: the call fails immediately with the Jira error rather than blocking the agent for minutes.
 
 Bulk operations run `JIRA_CONCURRENCY` requests in parallel and report results in input order, with a per-issue error for anything that failed.
+
+## MCP protocol surface
+
+Beyond tools, the server exposes:
+
+- **Tool annotations** — 36 of 75 tools are marked `readOnlyHint`, so a client can auto-approve reads instead of asking about every lookup. 10 destructive tools are marked as such.
+- **Structured output** — every successful call returns `structuredContent` next to the JSON text block, and 44 tools declare an `outputSchema`.
+- **Prompt arguments** — prompts take `projectKey`, `issueKey` and friends, with `completion/complete` suggesting real project keys and issue types from your instance.
+- **Resources** — `jira://issue/{issueKey}`, `jira://project/{projectKey}`, `jira://project/{projectKey}/create-fields/{issueType}`, `jira://filter/{filterId}`, plus `jira://my-open-issues`.
 
 ## MCP Prompts
 
