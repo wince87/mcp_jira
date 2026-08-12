@@ -38,10 +38,5 @@
   "contentTypes": [
     "text"
   ],
-  "requests": [
-    {
-      "method": "GET",
-      "path": "/rest/api/3/issue/createmeta/TEST/issuetypes"
-    }
-  ]
+  "requests": []
 }

@@ -1,10 +1,12 @@
 import type { AxiosError } from 'axios';
 import type { JiraIssue, JiraIssuePayload, BulkIssueInput, ToolArgs, ToolResponse } from '../types.js';
 import { jiraApi } from '../http.js';
+import { JiraDiagnosticError } from '../errors.js';
+import { describeTransitions, fetchTransitions, postTransition, resolveTransition } from '../transitions.js';
 import { createADFDocument } from '../adf.js';
 import { createIssueUrl, createSuccessResponse, resolveProjectKey } from '../responses.js';
-import { sanitizeString, validateIssueKey, validateSafeParam } from '../validation.js';
-import { applyOptionalFields, resolveIssueTypeValue, safeCreateMeta } from '../meta.js';
+import { sanitizeString, validateFieldMap, validateIssueKey, validateSafeParam } from '../validation.js';
+import { applyOptionalFields, convertDocFields, resolveIssueTypeValue, safeCreateMeta } from '../meta.js';
 
 export async function handleBulkCreateIssues(a: ToolArgs): Promise<ToolResponse> {
   const { issues } = a;
@@ -44,51 +46,56 @@ export async function handleBulkCreateIssues(a: ToolArgs): Promise<ToolResponse>
   });
 }
 
+function describeFailure(error: unknown): string {
+  const source = error instanceof JiraDiagnosticError ? error.original : error;
+  const axiosError = source as AxiosError<{ errorMessages?: string[]; errors?: Record<string, string> }>;
+  return axiosError.response?.data?.errorMessages?.filter(Boolean).join('; ')
+    || Object.entries(axiosError.response?.data?.errors ?? {}).map(([field, message]) => `${field}: ${message}`).join('; ')
+    || (source instanceof Error ? source.message : String(source));
+}
+
 export async function handleBulkTransitionIssues(a: ToolArgs): Promise<ToolResponse> {
-  const { issueKeys, transitionId, transitionName, comment } = a;
+  const { issueKeys, transitionId, transitionName, status, comment, transitionFields } = a;
   if (!Array.isArray(issueKeys) || issueKeys.length === 0) {
     throw new Error('issueKeys must be a non-empty array');
   }
-  if (!transitionId && !transitionName) {
-    throw new Error('Either transitionId or transitionName is required');
+  const target = transitionName ?? status;
+  if (!transitionId && !target) {
+    throw new Error('Either transitionId, status, or transitionName is required');
   }
   const validatedKeys = issueKeys.map(k => validateIssueKey(k));
   const resolvedId = transitionId !== undefined && transitionId !== null
     ? validateSafeParam(transitionId, 'transitionId', 30)
     : null;
-  const resolvedName = transitionName !== undefined && transitionName !== null
-    ? sanitizeString(transitionName, 100, 'transitionName')
-    : null;
+  const resolvedTarget = resolvedId ? null : sanitizeString(target, 100, 'status');
   const commentADF = comment !== undefined && comment !== null
     ? createADFDocument(sanitizeString(comment, 5000, 'comment'))
     : null;
+  const screenFields = transitionFields !== undefined && transitionFields !== null
+    ? await convertDocFields(validateFieldMap(transitionFields, 'transitionFields'), null)
+    : null;
 
-  const succeeded: string[] = [];
+  const succeeded: { issueKey: string; transition: string; to?: string }[] = [];
   const failed: { issueKey: string; error: string }[] = [];
 
   for (const issueKey of validatedKeys) {
     try {
-      let effectiveId = resolvedId;
-      if (!effectiveId && resolvedName) {
-        const transitionsRes = await jiraApi.get(`/issue/${issueKey}/transitions`);
-        interface TR { id: string; name: string }
-        const transitions: TR[] = transitionsRes.data.transitions ?? [];
-        const match = transitions.find(t => t.name.toLowerCase() === resolvedName.toLowerCase());
-        if (!match) throw new Error(`Transition "${resolvedName}" not available on ${issueKey}`);
-        effectiveId = match.id;
+      const transitions = await fetchTransitions(issueKey);
+      const transition = resolveTransition(transitions, { id: resolvedId, status: resolvedTarget });
+      if (!transition) {
+        throw new Error(
+          `No transition matching "${resolvedId ?? resolvedTarget}" on ${issueKey}. Available: ${describeTransitions(transitions)}`,
+        );
       }
-      const payload: Record<string, unknown> = { transition: { id: effectiveId } };
-      if (commentADF) {
-        payload.update = { comment: [{ add: { body: commentADF } }] };
-      }
-      await jiraApi.post(`/issue/${issueKey}/transitions`, payload);
-      succeeded.push(issueKey);
-    } catch (err) {
-      const axiosErr = err as AxiosError<{ errorMessages?: string[]; errors?: Record<string, string> }>;
-      const apiMsg = axiosErr.response?.data?.errorMessages?.join('; ')
-        || Object.values(axiosErr.response?.data?.errors ?? {}).join('; ')
-        || (err instanceof Error ? err.message : String(err));
-      failed.push({ issueKey, error: apiMsg });
+
+      const payload: Record<string, unknown> = { transition: { id: transition.id } };
+      if (screenFields) payload.fields = screenFields;
+      if (commentADF) payload.update = { comment: [{ add: { body: commentADF } }] };
+
+      await postTransition(issueKey, transition.id, payload);
+      succeeded.push({ issueKey, transition: transition.name, to: transition.to?.name });
+    } catch (error) {
+      failed.push({ issueKey, error: describeFailure(error) });
     }
   }
 

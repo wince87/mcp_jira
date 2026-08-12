@@ -4,6 +4,28 @@ import { jiraApi } from './http.js';
 import { JiraDiagnosticError } from './errors.js';
 import { collectDiagnostics, describeMetaField } from './meta.js';
 
+export function resolveTransition(
+  transitions: JiraTransition[],
+  wanted: { id?: string | null; status?: string | null },
+): JiraTransition | undefined {
+  if (wanted.id) {
+    return transitions.find(t => t.id === wanted.id);
+  }
+  if (!wanted.status) return undefined;
+  const needle = wanted.status.trim().toLowerCase();
+  return transitions.find(t => (t.to?.name ?? '').trim().toLowerCase() === needle)
+    ?? transitions.find(t => (t.name ?? '').trim().toLowerCase() === needle);
+}
+
+export function describeTransitions(transitions: JiraTransition[]): string {
+  return transitions.map(t => `${t.name} -> ${t.to?.name ?? '?'} (id ${t.id})`).join(', ');
+}
+
+export async function fetchTransitions(issueKey: string): Promise<JiraTransition[]> {
+  const response = await jiraApi.get(`/issue/${issueKey}/transitions`);
+  return response.data.transitions ?? [];
+}
+
 export async function fetchTransitionFields(issueKey: string, transitionId: string): Promise<CreateMetaField[] | null> {
   try {
     const response = await jiraApi.get(`/issue/${issueKey}/transitions`, { params: { expand: 'transitions.fields', transitionId } });

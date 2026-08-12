@@ -1,21 +1,19 @@
-import type { JiraField, JiraIssueType, JiraLinkType, ToolArgs, ToolResponse } from '../types.js';
+import type { JiraLinkType, ToolArgs, ToolResponse } from '../types.js';
 import { jiraApi } from '../http.js';
 import { createSuccessResponse, resolveProjectKey } from '../responses.js';
 import { validateSafeParam } from '../validation.js';
 import {
-  describeMetaField, fetchCreateFields, fetchIssueTypes, fetchPriorities, resolveIssueType,
+  describeMetaField, fetchCreateFields, fetchFieldIndex, fetchIssueTypes, fetchPriorities, resolveIssueType,
 } from '../meta.js';
 
 export async function handleGetFields(_a: ToolArgs): Promise<ToolResponse> {
-  const response = await jiraApi.get('/field');
-  const fields: JiraField[] = response.data ?? [];
+  const fields = [...(await fetchFieldIndex()).values()];
   return createSuccessResponse({ fields: fields.map(f => ({ id: f.id, name: f.name, custom: f.custom, schema: f.schema })) });
 }
 
 export async function handleGetIssueTypes(a: ToolArgs): Promise<ToolResponse> {
   const projectKey = resolveProjectKey(a);
-  const response = await jiraApi.get(`/issue/createmeta/${projectKey}/issuetypes`);
-  const issueTypes: JiraIssueType[] = response.data.values ?? [];
+  const issueTypes = await fetchIssueTypes(projectKey);
   return createSuccessResponse({
     projectKey,
     issueTypes: issueTypes.map(t => ({ id: t.id, name: t.name, subtask: t.subtask, description: t.description })),

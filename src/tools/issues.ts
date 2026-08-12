@@ -1,6 +1,6 @@
 import type { AxiosError } from 'axios';
 import type {
-  JiraAttachment, JiraChangelogHistory, JiraIssueFields, JiraTransition, ImageContent, ToolArgs, ToolResponse,
+  JiraAttachment, JiraChangelogHistory, JiraIssueFields, ImageContent, ToolArgs, ToolResponse,
 } from '../types.js';
 import { jiraApi } from '../http.js';
 import { JIRA_PROJECT_KEY, STORY_POINTS_FIELD } from '../config.js';
@@ -17,9 +17,8 @@ import {
   applyOptionalFields, convertDocFields, dryRunResult, fetchIssueTypes, postIssue, putIssue,
   resolveIssueTypeValue, resolvePriorityValue, safeCreateMeta,
 } from '../meta.js';
-import { postTransition } from '../transitions.js';
+import { describeTransitions, fetchTransitions, postTransition, resolveTransition } from '../transitions.js';
 import { issueSnapshot, mapCustomFields, mapIssue, namesOf, simplifyFieldValue } from '../mappers.js';
-import { findTransition } from './transitions.js';
 
 export async function handleCreateIssue(a: ToolArgs): Promise<ToolResponse> {
   const { summary, description, issueType = 'Task' } = a;
@@ -136,14 +135,12 @@ export async function handleUpdateIssue(a: ToolArgs): Promise<ToolResponse> {
   let applied: Record<string, unknown> | null = null;
 
   if (status || transitionId) {
-    const response = await jiraApi.get(`/issue/${issueKey}/transitions`);
-    const transitionList: JiraTransition[] = response.data.transitions ?? [];
+    const transitionList = await fetchTransitions(issueKey);
     const requestedId = transitionId !== undefined && transitionId !== null
       ? validateSafeParam(transitionId, 'transitionId', 30)
       : null;
-    const transition = requestedId
-      ? transitionList.find(t => t.id === requestedId)
-      : findTransition(transitionList, sanitizeString(status, 100, 'status'));
+    const requestedStatus = requestedId ? null : sanitizeString(status, 100, 'status');
+    const transition = resolveTransition(transitionList, { id: requestedId, status: requestedStatus });
 
     if (transition) {
       const payload: Record<string, unknown> = { transition: { id: transition.id } };
@@ -153,8 +150,9 @@ export async function handleUpdateIssue(a: ToolArgs): Promise<ToolResponse> {
       await postTransition(issueKey, transition.id, payload);
       applied = { id: transition.id, name: transition.name, to: transition.to?.name };
     } else {
-      const available = transitionList.map(t => `${t.name} -> ${t.to?.name ?? '?'} (id ${t.id})`).join(', ');
-      warnings.push(`No transition matching "${requestedId ?? status}" on ${issueKey}. Available: ${available}`);
+      warnings.push(
+        `No transition matching "${requestedId ?? status}" on ${issueKey}. Available: ${describeTransitions(transitionList)}`,
+      );
     }
   }
 

@@ -48,10 +48,5 @@
   "contentTypes": [
     "text"
   ],
-  "requests": [
-    {
-      "method": "GET",
-      "path": "/rest/api/3/field"
-    }
-  ]
+  "requests": []
 }

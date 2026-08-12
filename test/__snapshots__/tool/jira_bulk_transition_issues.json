@@ -3,7 +3,11 @@
   "data": {
     "total": 1,
     "succeeded": [
-      "TEST-1"
+      {
+        "issueKey": "TEST-1",
+        "transition": "Back to backlog",
+        "to": "To Do"
+      }
     ],
     "failed": [],
     "successCount": 1,
@@ -13,6 +17,10 @@
     "text"
   ],
   "requests": [
+    {
+      "method": "GET",
+      "path": "/rest/api/3/issue/TEST-1/transitions"
+    },
     {
       "method": "POST",
       "path": "/rest/api/3/issue/TEST-1/transitions",

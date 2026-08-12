@@ -667,7 +667,7 @@ export const TOOL_DEFINITIONS = [
         },
         {
           name: 'jira_bulk_transition_issues',
-          description: 'Apply the same status transition to multiple issues. Iterates client-side; failures are collected and returned.',
+          description: 'Apply the same status transition to multiple issues. Iterates client-side; failures are collected per issue and returned. status is matched against each transition target status first, then transition names, case-insensitively — so "In Progress" works even where the transition is called "Start work". Use transitionFields when the transition screen requires input.',
           inputSchema: {
             type: 'object' as const,
             properties: {
@@ -676,8 +676,10 @@ export const TOOL_DEFINITIONS = [
                 items: { type: 'string' },
                 description: 'Array of issue keys to transition',
               },
-              transitionId: { type: 'string', description: 'Transition ID (from jira_list_transitions). Use either transitionId or transitionName.' },
-              transitionName: { type: 'string', description: 'Transition name (looked up per issue). Alternative to transitionId.' },
+              transitionId: { type: 'string', description: 'Exact transition ID from jira_list_transitions. Takes precedence over status.' },
+              status: { type: 'string', description: 'Target status name (e.g. "In Progress") or transition name. Resolved per issue.' },
+              transitionName: { type: 'string', description: 'Deprecated alias for status, kept for compatibility.' },
+              transitionFields: { type: 'object', additionalProperties: true, description: 'Fields required by the transition screen, keyed by field ID. Call jira_list_transitions with includeFields to see what a transition requires.' },
               comment: { type: 'string', description: 'Optional comment added during the transition (Markdown)' },
             },
             required: ['issueKeys'],

@@ -18,16 +18,34 @@ after(async () => {
 
 beforeEach(() => mock.reset());
 
-test('B1: bulk transition resolves a transition by its target status', { todo: 'fixed in phase 1.6' }, async () => {
+test('B1: bulk transition resolves a transition by its target status', async () => {
   const result = await server.call('jira_bulk_transition_issues', {
     issueKeys: ['TEST-1'],
-    transitionName: 'In Progress',
+    status: 'To Do',
   });
-  assert.deepStrictEqual(result.data.failed, [], 'target status "In Progress" must resolve to transition "Start work (estimate)"');
+  assert.deepStrictEqual(result.data.failed, [], 'target status "To Do" must resolve to transition "Back to backlog"');
   assert.equal(result.data.successCount, 1);
+  assert.equal(result.data.succeeded[0].transition, 'Back to backlog');
 });
 
-test('B1: bulk transition accepts transition screen fields', { todo: 'fixed in phase 1.6' }, async () => {
+test('B1: transitionName stays accepted as an alias for status', async () => {
+  const result = await server.call('jira_bulk_transition_issues', {
+    issueKeys: ['TEST-1'],
+    transitionName: 'Back to backlog',
+  });
+  assert.equal(result.data.successCount, 1, 'the pre-3.0 transitionName argument must keep working');
+});
+
+test('B1: bulk transition reports why a transition could not be resolved', async () => {
+  const result = await server.call('jira_bulk_transition_issues', {
+    issueKeys: ['TEST-1'],
+    status: 'Nonexistent',
+  });
+  assert.equal(result.data.failedCount, 1);
+  assert.match(result.data.failed[0].error, /Back to backlog -> To Do \(id 21\)/, 'the failure must list what was available');
+});
+
+test('B1: bulk transition accepts transition screen fields', async () => {
   const result = await server.call('jira_bulk_transition_issues', {
     issueKeys: ['TEST-1'],
     transitionId: '11',
