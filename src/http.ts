@@ -1,5 +1,6 @@
 import axios, { type AxiosInstance, type CreateAxiosDefaults } from 'axios';
 import { JIRA_API_TOKEN, JIRA_EMAIL, JIRA_FORCE_ENGLISH, JIRA_TIMEOUT_MS, JIRA_URL } from './config.js';
+import { installRetry } from './retry.js';
 
 export const axiosAuthConfig: CreateAxiosDefaults = {
   auth: {
@@ -19,11 +20,13 @@ function defaultHeaders(): Record<string, string> {
 }
 
 function createClient(path: string): AxiosInstance {
-  return axios.create({
+  const client = axios.create({
     baseURL: `${JIRA_URL}${path}`,
     headers: defaultHeaders(),
     ...axiosAuthConfig,
   });
+  installRetry(client);
+  return client;
 }
 
 export const jiraApi: AxiosInstance = createClient('/rest/api/3');

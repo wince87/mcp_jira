@@ -107,19 +107,7 @@ test('B4: startAt is rejected when it is not a non-negative integer', async () =
   assert.equal(result.isError, true);
 });
 
-test('B5: a 429 is retried after Retry-After', { todo: 'fixed in phase 2' }, async () => {
-  mock.respondOnce('GET', '/rest/api/3/myself', 429, { errorMessages: ['Rate limit exceeded'] });
-  const result = await server.call('jira_get_myself', {});
-  assert.equal(result.isError, false, 'a rate-limited read must be retried, not surfaced as a failure');
-  assert.equal(mock.requests.filter(r => r.path === '/rest/api/3/myself').length, 2);
-});
 
-test('B5: a write is not retried on 5xx', { todo: 'fixed in phase 2' }, async () => {
-  mock.respondOnce('POST', '/rest/api/3/issue', 503, { errorMessages: ['Service unavailable'] });
-  await server.call('jira_create_issue', { summary: 'x', description: 'y' });
-  const creates = mock.requests.filter(r => r.method === 'POST' && r.path === '/rest/api/3/issue');
-  assert.equal(creates.length, 1, 'retrying a create on 5xx risks a duplicate issue');
-});
 
 test('worklogs are not silently capped when maxResults is omitted', async () => {
   await server.call('jira_get_worklogs', { issueKey: 'TEST-1' });

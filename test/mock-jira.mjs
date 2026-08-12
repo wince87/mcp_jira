@@ -452,8 +452,9 @@ export async function startMock(options = {}) {
     url: `https://127.0.0.1:${server.address().port}`,
     requests,
     reset: () => { requests.length = 0; overrides.clear(); },
-    respondOnce: (method, path, status, body, times = 1) => {
-      overrides.set(`${method} ${path}`, { status, body, times });
+    respondOnce: (method, path, status, body, options = {}) => {
+      const { times = 1, headers } = options;
+      overrides.set(`${method} ${path}`, { status, body, times, headers: headers ? { 'Content-Type': 'application/json', ...headers } : undefined });
     },
     stop: () => new Promise(resolve => server.close(resolve)),
   };

@@ -31,6 +31,8 @@ function readPositiveInt(name: string, fallback: number): number {
 
 export const JIRA_TIMEOUT_MS: number = readPositiveInt('JIRA_TIMEOUT_MS', 30000);
 export const JIRA_MAX_RETRIES: number = readPositiveInt('JIRA_MAX_RETRIES', 3);
+export const JIRA_RETRY_BASE_MS: number = readPositiveInt('JIRA_RETRY_BASE_MS', 500);
+export const JIRA_CONCURRENCY: number = readPositiveInt('JIRA_CONCURRENCY', 5);
 export const JIRA_FORCE_ENGLISH: boolean = process.env.JIRA_FORCE_ENGLISH === 'true';
 
 if (!JIRA_URL.startsWith('https://')) {

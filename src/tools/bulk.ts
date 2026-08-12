@@ -1,6 +1,8 @@
 import type { AxiosError } from 'axios';
 import type { JiraIssue, JiraIssuePayload, BulkIssueInput, ToolArgs, ToolResponse } from '../types.js';
 import { jiraApi } from '../http.js';
+import { JIRA_CONCURRENCY } from '../config.js';
+import { mapWithConcurrency } from '../concurrency.js';
 import { JiraDiagnosticError } from '../errors.js';
 import { describeTransitions, fetchTransitions, postTransition, resolveTransition } from '../transitions.js';
 import { createADFDocument } from '../adf.js';
@@ -78,10 +80,7 @@ export async function handleBulkTransitionIssues(a: ToolArgs): Promise<ToolRespo
     ? await convertDocFields(validateFieldMap(transitionFields, 'transitionFields'), null)
     : null;
 
-  const succeeded: { issueKey: string; transition: string; to?: string }[] = [];
-  const failed: { issueKey: string; error: string }[] = [];
-
-  for (const issueKey of validatedKeys) {
+  const outcomes = await mapWithConcurrency(validatedKeys, JIRA_CONCURRENCY, async (issueKey) => {
     try {
       const transitions = await fetchTransitions(issueKey);
       const transition = resolveTransition(transitions, { id: resolvedId, status: resolvedTarget });
@@ -96,11 +95,14 @@ export async function handleBulkTransitionIssues(a: ToolArgs): Promise<ToolRespo
       if (commentADF) payload.update = { comment: [{ add: { body: commentADF } }] };
 
       await postTransition(issueKey, transition.id, payload);
-      succeeded.push({ issueKey, transition: transition.name, to: transition.to?.name });
+      return { issueKey, transition: transition.name, to: transition.to?.name };
     } catch (error) {
-      failed.push({ issueKey, error: describeFailure(error) });
+      return { issueKey, error: describeFailure(error) };
     }
-  }
+  });
+
+  const succeeded = outcomes.filter((o): o is { issueKey: string; transition: string; to?: string } => !('error' in o));
+  const failed = outcomes.filter((o): o is { issueKey: string; error: string } => 'error' in o);
 
   return createSuccessResponse({
     total: validatedKeys.length,

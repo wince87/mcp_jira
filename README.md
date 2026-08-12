@@ -117,7 +117,24 @@ Add `"dryRun": true` to validate the payload without creating anything. If a cre
 
 **Non-English instances:** `jira_get_priorities` and `jira_get_issue_types` return names in the account language (`Високий`, `Помилка`), but Jira only accepts the canonical English name or the id. Pass the **id**. Localized names are matched against the screen's allowed values and converted to ids automatically, so they work too — ids just skip the lookup.
 
-**Status changes:** transitions are often named differently from the status they lead to ("Start work (estimate)" -> "In Progress"). `jira_update_issue` matches `status` against the target status first, then the transition name. If a transition screen requires input, list it with `jira_list_transitions { includeFields: true }` and pass the values via `transitionFields`.
+**Status changes:** transitions are often named differently from the status they lead to ("Start work (estimate)" -> "In Progress"). `jira_update_issue` and `jira_bulk_transition_issues` match `status` against the target status first, then the transition name. If a transition screen requires input, list it with `jira_list_transitions { includeFields: true }` and pass the values via `transitionFields`.
+
+## Rate limits and retries
+
+Jira Cloud answers `429` with a `Retry-After` header when you exceed its rate limit. The server honours it and retries with exponential backoff plus jitter, up to `JIRA_MAX_RETRIES`.
+
+The retry policy is deliberately asymmetric:
+
+| Failure | Reads (`GET`) | Writes (`POST`/`PUT`/`DELETE`) |
+|---------|---------------|-------------------------------|
+| `429` rate limit | retried | retried — a rate-limited request never reached the handler |
+| `5xx` server error | retried | **never retried** — the write may have been applied, and a second attempt could create a duplicate issue |
+| Network error / timeout | retried | never retried |
+| Any other `4xx` | not retried | not retried |
+
+A `Retry-After` longer than 60 seconds is not honoured: the call fails immediately with the Jira error rather than blocking the agent for minutes.
+
+Bulk operations run `JIRA_CONCURRENCY` requests in parallel and report results in input order, with a per-issue error for anything that failed.
 
 ## MCP Prompts
 
@@ -248,6 +265,11 @@ Pre-baked workflows your AI agent can invoke directly (via MCP `prompts/list` + 
 | `JIRA_API_TOKEN` | Yes | API token from Atlassian |
 | `JIRA_PROJECT_KEY` | No | Default project key used when not specified in tool calls (e.g. `MYPROJECT`) |
 | `JIRA_STORY_POINTS_FIELD` | No | Custom field ID for story points (defaults to `customfield_10016`) |
+| `JIRA_TIMEOUT_MS` | No | Per-request timeout in milliseconds (default `30000`) |
+| `JIRA_MAX_RETRIES` | No | Retries after the first attempt (default `3`). Applies to rate limits, and to reads on server errors — never to writes on server errors |
+| `JIRA_RETRY_BASE_MS` | No | Base backoff delay in milliseconds (default `500`), doubled per attempt with jitter |
+| `JIRA_CONCURRENCY` | No | Parallel requests inside bulk operations (default `5`) |
+| `JIRA_FORCE_ENGLISH` | No | Set to `true` to send `Accept-Language: en-US` with `X-Force-Accept-Language`, so Jira answers with canonical English names instead of the account language |
 
 ## Changelog
 
