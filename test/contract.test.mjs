@@ -141,3 +141,12 @@ test('stdout carries JSON-RPC only', () => {
     assert.doesNotThrow(() => JSON.parse(line), `Non-JSON line on stdout would corrupt the stdio transport: ${line}`);
   }
 });
+
+test('every tool declaration carries a handler and a unique name', async () => {
+  const { tools } = await server.listTools();
+  assert.equal(tools.length, 54, 'tool count changed; update this number deliberately');
+  for (const tool of tools) {
+    assert.ok(tool.description && tool.description.length > 20, `${tool.name} needs a real description`);
+    assert.equal(tool.inputSchema.type, 'object', `${tool.name} must take an object`);
+  }
+});

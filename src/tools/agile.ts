@@ -9,6 +9,9 @@ import { sanitizeString, validateIssueKey, validateProjectKey } from '../validat
 import {
   applyOptionalFields, dryRunResult, metaFieldId, postIssue, resolveIssueTypeValue, safeCreateMeta,
 } from '../meta.js';
+import { defineTool } from '../registry.js';
+import { PRIORITY_SCHEMA, COMMON_ISSUE_FIELDS_SCHEMA } from '../schemas.js';
+import { JIRA_PROJECT_KEY } from '../config.js';
 
 export async function handleListBoards(a: ToolArgs): Promise<ToolResponse> {
   const params: Record<string, unknown> = offsetParams(a);
@@ -254,3 +257,189 @@ export async function handleCreateEpic(a: ToolArgs): Promise<ToolResponse> {
     issue: await issueSnapshot(response.data.key),
   });
 }
+
+export const ListBoardsTool = defineTool({
+  name: 'jira_list_boards',
+  description: 'List all Scrum/Kanban boards.',
+  inputSchema: {
+    type: 'object' as const,
+    properties: {
+      projectKey: { type: 'string', description: 'Filter by project key' },
+      maxResults: { type: 'number', description: 'Maximum number of results (1-100)', default: 50 },
+      startAt: { type: 'number', description: 'Zero-based index of the first item to return. Use it with the returned startAt/total/hasMore to page beyond the first batch.' },
+    },
+  },
+  handler: handleListBoards,
+});
+
+export const ListSprintsTool = defineTool({
+  name: 'jira_list_sprints',
+  description: 'List sprints for a board.',
+  inputSchema: {
+    type: 'object' as const,
+    properties: {
+      boardId: { type: 'number', description: 'Board ID (use jira_list_boards to find it)' },
+      state: { type: 'string', description: 'Filter by state: active, future, closed', default: 'active' },
+      maxResults: { type: 'number', description: 'Maximum number of results (1-100)', default: 50 },
+      startAt: { type: 'number', description: 'Zero-based index of the first item to return. Use it with the returned startAt/total/hasMore to page beyond the first batch.' },
+    },
+    required: ['boardId'],
+  },
+  handler: handleListSprints,
+});
+
+export const GetSprintTool = defineTool({
+  name: 'jira_get_sprint',
+  description: 'Get details of a sprint including all issues in it.',
+  inputSchema: {
+    type: 'object' as const,
+    properties: {
+      sprintId: { type: 'number', description: 'Sprint ID (use jira_list_sprints to find it)' },
+      maxResults: { type: 'number', description: 'Maximum number of issues (1-100)', default: 50 },
+      startAt: { type: 'number', description: 'Zero-based index of the first item to return. Use it with the returned startAt/total/hasMore to page beyond the first batch.' },
+    },
+    required: ['sprintId'],
+  },
+  handler: handleGetSprint,
+});
+
+export const MoveToSprintTool = defineTool({
+  name: 'jira_move_to_sprint',
+  description: 'Move one or more issues to a sprint.',
+  inputSchema: {
+    type: 'object' as const,
+    properties: {
+      sprintId: { type: 'number', description: 'Sprint ID (use jira_list_sprints to find it)' },
+      issueKeys: { type: 'array', items: { type: 'string' }, description: 'Array of issue keys to move (e.g., ["PROJ-1", "PROJ-2"])' },
+    },
+    required: ['sprintId', 'issueKeys'],
+  },
+  handler: handleMoveToSprint,
+});
+
+export const ListEpicsTool = defineTool({
+  name: 'jira_list_epics',
+  description: 'List all epics in a project via JQL (issuetype = Epic).',
+  inputSchema: {
+    type: 'object' as const,
+    properties: {
+      projectKey: { type: 'string', description: 'Project key (defaults to JIRA_PROJECT_KEY)' },
+      status: { type: 'string', description: 'Filter by status name (e.g., "In Progress", "Done")' },
+      maxResults: { type: 'number', description: 'Maximum results (1-100)', default: 50 },
+      nextPageToken: { type: 'string', description: 'Pagination token from previous response' },
+    },
+  },
+  handler: handleListEpics,
+});
+
+export const GetEpicTool = defineTool({
+  name: 'jira_get_epic',
+  description: 'Get epic details via Agile API (name, summary, color, done status).',
+  inputSchema: {
+    type: 'object' as const,
+    properties: {
+      epicKey: { type: 'string', description: 'Epic issue key (e.g., PROJ-100)' },
+    },
+    required: ['epicKey'],
+  },
+  handler: handleGetEpic,
+});
+
+export const GetEpicIssuesTool = defineTool({
+  name: 'jira_get_epic_issues',
+  description: 'Get all child issues linked to an epic.',
+  inputSchema: {
+    type: 'object' as const,
+    properties: {
+      epicKey: { type: 'string', description: 'Epic issue key' },
+      maxResults: { type: 'number', description: 'Maximum results (1-100)', default: 50 },
+      startAt: { type: 'number', description: 'Zero-based index of the first item to return. Use it with the returned startAt/total/hasMore to page beyond the first batch.' },
+    },
+    required: ['epicKey'],
+  },
+  handler: handleGetEpicIssues,
+});
+
+export const GetBoardEpicsTool = defineTool({
+  name: 'jira_get_board_epics',
+  description: 'List epics on a Scrum/Kanban board, optionally filtered by done status.',
+  inputSchema: {
+    type: 'object' as const,
+    properties: {
+      boardId: { type: 'number', description: 'Board ID (from jira_list_boards)' },
+      done: { type: 'string', enum: ['true', 'false'], description: 'Filter: "true" for done epics, "false" for active, omit for all' },
+      maxResults: { type: 'number', description: 'Maximum results (1-100)', default: 50 },
+      startAt: { type: 'number', description: 'Zero-based index of the first item to return. Use it with the returned startAt/total/hasMore to page beyond the first batch.' },
+    },
+    required: ['boardId'],
+  },
+  handler: handleGetBoardEpics,
+});
+
+export const AddIssuesToEpicTool = defineTool({
+  name: 'jira_add_issues_to_epic',
+  description: 'Link one or more issues to an epic. Uses Agile API bulk move.',
+  inputSchema: {
+    type: 'object' as const,
+    properties: {
+      epicKey: { type: 'string', description: 'Target epic key' },
+      issueKeys: {
+        type: 'array',
+        items: { type: 'string' },
+        description: 'Array of issue keys to attach to the epic',
+      },
+    },
+    required: ['epicKey', 'issueKeys'],
+  },
+  handler: handleAddIssuesToEpic,
+});
+
+export const RemoveIssueFromEpicTool = defineTool({
+  name: 'jira_remove_issue_from_epic',
+  description: 'Remove issues from their current epic (unlink).',
+  inputSchema: {
+    type: 'object' as const,
+    properties: {
+      issueKeys: {
+        type: 'array',
+        items: { type: 'string' },
+        description: 'Array of issue keys to detach from their epic',
+      },
+    },
+    required: ['issueKeys'],
+  },
+  handler: handleRemoveIssueFromEpic,
+});
+
+export const CreateEpicTool = defineTool({
+  name: 'jira_create_epic',
+  description: 'Create a new epic. Convenience wrapper that sets issueType to Epic.',
+  inputSchema: {
+    type: 'object' as const,
+    properties: {
+      summary: { type: 'string', description: 'Epic summary' },
+      description: { type: 'string', description: 'Epic description (Markdown, converted to ADF)' },
+      epicName: { type: 'string', description: 'Short name for classic (company-managed) projects. Sent only when the create screen actually has the Epic Name field.' },
+      projectKey: { type: 'string', description: 'Project key (defaults to JIRA_PROJECT_KEY)' },
+      priority: PRIORITY_SCHEMA,
+      ...COMMON_ISSUE_FIELDS_SCHEMA,
+      dryRun: { type: 'boolean', description: 'When true, validate against the create screen and return what is missing without creating the epic.', default: false },
+    },
+    required: ['summary'],
+  },
+  handler: handleCreateEpic,
+});
+
+export const AGILE_TOOLS = [
+  ListBoardsTool,
+  ListSprintsTool,
+  GetSprintTool,
+  MoveToSprintTool,
+  ListEpicsTool,
+  GetEpicTool,
+  GetEpicIssuesTool,
+  GetBoardEpicsTool,
+  AddIssuesToEpicTool,
+  RemoveIssueFromEpicTool,
+  CreateEpicTool,
+];

@@ -5,6 +5,8 @@ import { ISSUE_LIST_FIELDS, mapIssueSummary } from '../mappers.js';
 import { buildJql, equalsClause } from '../jql.js';
 import { createSuccessResponse, resolveProjectKey } from '../responses.js';
 import { validateAccountId, validateJQL } from '../validation.js';
+import { defineTool } from '../registry.js';
+import { JIRA_PROJECT_KEY } from '../config.js';
 
 export async function handleSearchIssues(a: ToolArgs): Promise<ToolResponse> {
   const { nextPageToken } = a;
@@ -53,3 +55,39 @@ export async function handleGetUserIssues(a: ToolArgs): Promise<ToolResponse> {
     issues: userIssues.map(mapIssueSummary),
   });
 }
+
+export const SearchIssuesTool = defineTool({
+  name: 'jira_search_issues',
+  description: 'Search for Jira issues using JQL. Uses token-based pagination — pass nextPageToken from previous response to get next page.',
+  inputSchema: {
+    type: 'object' as const,
+    properties: {
+      jql: { type: 'string', description: 'JQL query string' },
+      nextPageToken: { type: 'string', description: 'Pagination token from previous search response' },
+      maxResults: { type: 'number', description: 'Maximum number of results (1-100)', default: 50 },
+    },
+    required: ['jql'],
+  },
+  handler: handleSearchIssues,
+});
+
+export const GetUserIssuesTool = defineTool({
+  name: 'jira_get_user_issues',
+  description: 'Get all issues assigned to a specific user.',
+  inputSchema: {
+    type: 'object' as const,
+    properties: {
+      accountId: { type: 'string', description: 'Atlassian account ID of the user' },
+      projectKey: { type: 'string', description: 'Filter by project key (defaults to configured JIRA_PROJECT_KEY)' },
+      maxResults: { type: 'number', description: 'Maximum number of results (1-100)', default: 50 },
+      status: { type: 'string', description: 'Filter by status (e.g., "In Progress")' },
+    },
+    required: ['accountId'],
+  },
+  handler: handleGetUserIssues,
+});
+
+export const SEARCH_TOOLS = [
+  SearchIssuesTool,
+  GetUserIssuesTool,
+];

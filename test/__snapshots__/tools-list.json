@@ -775,13 +775,18 @@
   },
   {
     "name": "jira_delete_issue",
-    "description": "Delete a Jira issue",
+    "description": "Permanently delete a Jira issue. This cannot be undone and there is no trash to restore from — confirm with the user before calling it. An issue that has subtasks is rejected unless deleteSubtasks is set, which deletes them too.",
     "inputSchema": {
       "type": "object",
       "properties": {
         "issueKey": {
           "type": "string",
           "description": "Issue key to delete (e.g., TTC-123)"
+        },
+        "deleteSubtasks": {
+          "type": "boolean",
+          "description": "Also delete every subtask of this issue. Without it, Jira refuses to delete an issue that has subtasks.",
+          "default": false
         }
       },
       "required": [

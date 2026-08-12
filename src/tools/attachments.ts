@@ -6,6 +6,7 @@ import {
   MAX_INLINE_IMAGE_BYTES, createMixedResponse, createSuccessResponse, imageContent, isImageMime,
 } from '../responses.js';
 import { sanitizeString, validateAttachmentPath, validateIssueKey, validateSafeParam } from '../validation.js';
+import { defineTool } from '../registry.js';
 
 export async function handleGetAttachments(a: ToolArgs): Promise<ToolResponse> {
   const issueKey = validateIssueKey(a.issueKey);
@@ -103,3 +104,64 @@ export async function handleViewAttachment(a: ToolArgs): Promise<ToolResponse> {
     [imageContent(Buffer.from(contentResponse.data), meta.mimeType)],
   );
 }
+
+export const GetAttachmentsTool = defineTool({
+  name: 'jira_get_attachments',
+  description: 'Get list of attachments on a Jira issue.',
+  inputSchema: {
+    type: 'object' as const,
+    properties: {
+      issueKey: { type: 'string', description: 'Issue key (e.g., PROJ-123)' },
+    },
+    required: ['issueKey'],
+  },
+  handler: handleGetAttachments,
+});
+
+export const AddAttachmentTool = defineTool({
+  name: 'jira_add_attachment',
+  description: 'Attach a local file to a Jira issue.',
+  inputSchema: {
+    type: 'object' as const,
+    properties: {
+      issueKey: { type: 'string', description: 'Issue key (e.g., PROJ-123)' },
+      filePath: { type: 'string', description: 'Absolute path to the file to attach' },
+    },
+    required: ['issueKey', 'filePath'],
+  },
+  handler: handleAddAttachment,
+});
+
+export const DownloadAttachmentTool = defineTool({
+  name: 'jira_download_attachment',
+  description: 'Download an attachment from Jira to a local file. Destination path must be within cwd or user home.',
+  inputSchema: {
+    type: 'object' as const,
+    properties: {
+      attachmentId: { type: 'string', description: 'Attachment ID (from jira_get_attachments)' },
+      savePath: { type: 'string', description: 'Absolute local path where the file will be written' },
+    },
+    required: ['attachmentId', 'savePath'],
+  },
+  handler: handleDownloadAttachment,
+});
+
+export const ViewAttachmentTool = defineTool({
+  name: 'jira_view_attachment',
+  description: 'Fetch an image attachment and return it inline so the model can see it (no file written). Image attachments only (mimeType image/*), capped at 5MB. For non-images or larger files use jira_download_attachment. Get the attachmentId from jira_get_attachments.',
+  inputSchema: {
+    type: 'object' as const,
+    properties: {
+      attachmentId: { type: 'string', description: 'Attachment ID (from jira_get_attachments)' },
+    },
+    required: ['attachmentId'],
+  },
+  handler: handleViewAttachment,
+});
+
+export const ATTACHMENTS_TOOLS = [
+  GetAttachmentsTool,
+  AddAttachmentTool,
+  DownloadAttachmentTool,
+  ViewAttachmentTool,
+];

@@ -19,6 +19,8 @@ import {
 } from '../meta.js';
 import { describeTransitions, fetchTransitions, postTransition, resolveTransition } from '../transitions.js';
 import { issueSnapshot, mapCustomFields, mapIssue, namesOf, simplifyFieldValue } from '../mappers.js';
+import { defineTool } from '../registry.js';
+import { PRIORITY_SCHEMA, COMMON_ISSUE_FIELDS_SCHEMA } from '../schemas.js';
 
 export async function handleCreateIssue(a: ToolArgs): Promise<ToolResponse> {
   const { summary, description, issueType = 'Task' } = a;
@@ -177,9 +179,13 @@ export async function handleUpdateIssue(a: ToolArgs): Promise<ToolResponse> {
 }
 
 export async function handleDeleteIssue(a: ToolArgs): Promise<ToolResponse> {
-  validateIssueKey(a.issueKey);
-  await jiraApi.delete(`/issue/${a.issueKey}`);
-  return createSuccessResponse({ success: true, message: `Issue ${a.issueKey} deleted successfully` });
+  const issueKey = validateIssueKey(a.issueKey);
+  const deleteSubtasks = a.deleteSubtasks === true;
+  await jiraApi.delete(`/issue/${issueKey}`, { params: { deleteSubtasks } });
+  return createSuccessResponse({
+    success: true,
+    message: `Issue ${issueKey} deleted permanently${deleteSubtasks ? ', along with its subtasks' : ''}`,
+  });
 }
 
 export async function resolveSubtaskTypeName(projectKey: string, requested: unknown): Promise<string> {
@@ -331,3 +337,172 @@ export async function handleGetChangelog(a: ToolArgs): Promise<ToolResponse> {
     })),
   });
 }
+
+export const CreateIssueTool = defineTool({
+  name: 'jira_create_issue',
+  description: 'Create a new Jira issue. Description supports Markdown (auto-converted to ADF). To create an Epic use jira_create_epic. Call jira_get_create_fields(projectKey, issueType) first when the screen is unknown — it returns every field with required, type and allowedValues, which removes the guesswork (Bug screens commonly require Affects versions and other mandatory fields). Optional fields are only sent when provided, so nothing is rejected for not being on the screen. On a 400 the response carries missingRequired and allowedValues. Set dryRun to validate the payload without creating anything.',
+  inputSchema: {
+    type: 'object' as const,
+    properties: {
+      summary: { type: 'string', description: 'Issue summary/title' },
+      description: { type: 'string', description: 'Issue description in Markdown. Use [KEY](url) for clickable issue links.' },
+      issueType: { type: 'string', description: 'Issue type name or id. Names are localized on non-English instances; a name is resolved to an id automatically. Call jira_get_issue_types for the definitive list.', default: 'Task' },
+      priority: PRIORITY_SCHEMA,
+      storyPoints: { type: 'number', description: 'Story points estimate (0-1000)' },
+      projectKey: { type: 'string', description: 'Project key (defaults to configured JIRA_PROJECT_KEY)' },
+      parent: { type: 'string', description: 'Parent issue key — the epic for a story, or the parent for a subtask (e.g. "PROJ-12").' },
+      ...COMMON_ISSUE_FIELDS_SCHEMA,
+      dryRun: { type: 'boolean', description: 'When true, validate the payload against the create screen and return missingRequired / invalidValues / fieldsNotOnScreen without creating the issue.', default: false },
+    },
+    required: ['summary', 'description'],
+  },
+  handler: handleCreateIssue,
+});
+
+export const GetIssueTool = defineTool({
+  name: 'jira_get_issue',
+  description: 'Get details of a Jira issue. The default response includes status, resolution, assignee, priority, labels, story points, parent, components, versions, fixVersions, dueDate and timetracking. Set includeCustomFields to also get every populated custom field with its human-readable name (rich-text ones rendered as Markdown), or pass fields to select an exact set. Set includeImages to return embedded/attached images inline.',
+  inputSchema: {
+    type: 'object' as const,
+    properties: {
+      issueKey: { type: 'string', description: 'Issue key (e.g., TTC-123)' },
+      fields: { type: 'array', items: { type: 'string' }, description: 'Exact field IDs to return (passed to the Jira ?fields= parameter), e.g. ["summary", "versions", "customfield_10122"] or ["*all"]. When set, the response returns a raw fields map instead of the default shape.' },
+      includeCustomFields: { type: 'boolean', description: 'When true, add a customFields map of every populated customfield_NNNNN with { name, type, value }. Rich-text (doc) fields are converted to Markdown.', default: false },
+      includeImages: { type: 'boolean', description: 'When true, return up to 10 image attachments (image/*, each <=5MB) as inline images, embedded-in-description ones first. Default false.', default: false },
+    },
+    required: ['issueKey'],
+  },
+  handler: handleGetIssue,
+});
+
+export const UpdateIssueTool = defineTool({
+  name: 'jira_update_issue',
+  description: 'Update fields and/or status of an issue. status is matched against the target status of each available transition first (so "In Progress" works even when the transition is named "Start work"), then against transition names, case-insensitively. Use transitionId for an exact transition and transitionFields when the transition screen requires input (e.g. an estimate) — jira_list_transitions with includeFields lists what each one needs. On a 400 the response carries missingRequired and allowedValues.',
+  inputSchema: {
+    type: 'object' as const,
+    properties: {
+      issueKey: { type: 'string', description: 'Issue key to update' },
+      summary: { type: 'string', description: 'New summary' },
+      description: { type: 'string', description: 'New description in Markdown. Use [KEY](url) for clickable issue links.' },
+      status: { type: 'string', description: 'Target status name (e.g. "In Progress", "To Do") or transition name. Matched on the transition target status first, then the transition name, case-insensitively.' },
+      transitionId: { type: 'string', description: 'Exact transition id from jira_list_transitions. Takes precedence over status.' },
+      transitionFields: { type: 'object', additionalProperties: true, description: 'Fields required by the transition screen, keyed by field ID (e.g. { "customfield_10016": 3, "resolution": { "id": "10000" } }). Call jira_list_transitions with includeFields to see what a transition requires.' },
+      priority: PRIORITY_SCHEMA,
+      storyPoints: { type: 'number', description: 'Story points estimate (0-1000)' },
+      parent: { type: 'string', description: 'New parent issue key (epic or parent task).' },
+      ...COMMON_ISSUE_FIELDS_SCHEMA,
+    },
+    required: ['issueKey'],
+  },
+  handler: handleUpdateIssue,
+});
+
+export const LinkIssuesTool = defineTool({
+  name: 'jira_link_issues',
+  description: 'Create a link between two issues. The inward side uses the linkType.inward phrasing ("is blocked by", "duplicates"), the outward side uses linkType.outward ("blocks", "is duplicated by"). If unsure which linkType names exist in this instance, call jira_get_link_types. Call sequentially (2-3 at a time) to avoid permission prompt storms in Claude Code.',
+  inputSchema: {
+    type: 'object' as const,
+    properties: {
+      inwardIssue: { type: 'string', description: 'Issue key on the inward side (the one that "is blocked by" / "duplicates" the other)' },
+      outwardIssue: { type: 'string', description: 'Issue key on the outward side (the one that "blocks" / "is duplicated by" the inward one)' },
+      linkType: { type: 'string', description: 'Link type name. Common: Relates, Blocks, Duplicate, Cloners. Call jira_get_link_types for instance-specific list.', default: 'Relates' },
+    },
+    required: ['inwardIssue', 'outwardIssue'],
+  },
+  handler: handleLinkIssues,
+});
+
+export const DeleteIssueTool = defineTool({
+  name: 'jira_delete_issue',
+  description: 'Permanently delete a Jira issue. This cannot be undone and there is no trash to restore from — confirm with the user before calling it. An issue that has subtasks is rejected unless deleteSubtasks is set, which deletes them too.',
+  inputSchema: {
+    type: 'object' as const,
+    properties: {
+      issueKey: { type: 'string', description: 'Issue key to delete (e.g., TTC-123)' },
+      deleteSubtasks: { type: 'boolean', description: 'Also delete every subtask of this issue. Without it, Jira refuses to delete an issue that has subtasks.', default: false },
+    },
+    required: ['issueKey'],
+  },
+  handler: handleDeleteIssue,
+});
+
+export const CreateSubtaskTool = defineTool({
+  name: 'jira_create_subtask',
+  description: 'Create a subtask under a parent issue. Description supports standard Markdown, automatically converted to ADF. The subtask issue type is discovered from the project (handles "Sub-task" vs "Subtask" and localized names) unless issueType is given.',
+  inputSchema: {
+    type: 'object' as const,
+    properties: {
+      parentKey: { type: 'string', description: 'Parent issue key (e.g., TTC-261)' },
+      summary: { type: 'string', description: 'Subtask summary/title' },
+      description: { type: 'string', description: 'Subtask description in Markdown. Use [KEY](url) for clickable issue links.' },
+      issueType: { type: 'string', description: 'Subtask issue type name or id. Defaults to the project\'s subtask type.' },
+      priority: PRIORITY_SCHEMA,
+      storyPoints: { type: 'number', description: 'Story points estimate (0-1000)' },
+      projectKey: { type: 'string', description: 'Project key (defaults to configured JIRA_PROJECT_KEY)' },
+      ...COMMON_ISSUE_FIELDS_SCHEMA,
+      dryRun: { type: 'boolean', description: 'When true, validate against the create screen and return what is missing without creating the subtask.', default: false },
+    },
+    required: ['parentKey', 'summary', 'description'],
+  },
+  handler: handleCreateSubtask,
+});
+
+export const AssignIssueTool = defineTool({
+  name: 'jira_assign_issue',
+  description: 'Assign or unassign a user. Jira uses accountId (not email or username). To find accountId: call jira_search_users by name/email, or jira_get_myself for the current user. Pass null accountId to unassign.',
+  inputSchema: {
+    type: 'object' as const,
+    properties: {
+      issueKey: { type: 'string', description: 'Issue key (e.g., PROJ-123)' },
+      accountId: { type: ['string', 'null'], description: 'Atlassian accountId of the assignee (opaque string like "5b10a2844c20165700ede21g"), or null to unassign. Get via jira_search_users or jira_get_myself.' },
+    },
+    required: ['issueKey'],
+  },
+  handler: handleAssignIssue,
+});
+
+export const GetChangelogTool = defineTool({
+  name: 'jira_get_changelog',
+  description: 'Get the change history of a Jira issue (who changed what and when).',
+  inputSchema: {
+    type: 'object' as const,
+    properties: {
+      issueKey: { type: 'string', description: 'Issue key (e.g., PROJ-123)' },
+      maxResults: { type: 'number', description: 'Maximum number of changelog entries (1-100)', default: 50 },
+      startAt: { type: 'number', description: 'Zero-based index of the first item to return. Use it with the returned startAt/total/hasMore to page beyond the first batch.' },
+    },
+    required: ['issueKey'],
+  },
+  handler: handleGetChangelog,
+});
+
+export const CloneIssueTool = defineTool({
+  name: 'jira_clone_issue',
+  description: 'Clone an existing Jira issue with a new summary. Copies issue type, description, labels, priority, story points, components and versions from the source. Custom fields are NOT copied — supply any the target screen requires via customFields. Any field passed explicitly overrides the copied value.',
+  inputSchema: {
+    type: 'object' as const,
+    properties: {
+      issueKey: { type: 'string', description: 'Issue key to clone (e.g., PROJ-123)' },
+      summary: { type: 'string', description: 'Summary for the cloned issue (defaults to "Clone of <original>")' },
+      projectKey: { type: 'string', description: 'Target project key (defaults to same project as source)' },
+      priority: PRIORITY_SCHEMA,
+      storyPoints: { type: 'number', description: 'Story points estimate (0-1000). Overrides the copied value.' },
+      parent: { type: 'string', description: 'Parent issue key (epic or parent task).' },
+      ...COMMON_ISSUE_FIELDS_SCHEMA,
+    },
+    required: ['issueKey'],
+  },
+  handler: handleCloneIssue,
+});
+
+export const ISSUES_TOOLS = [
+  CreateIssueTool,
+  GetIssueTool,
+  UpdateIssueTool,
+  LinkIssuesTool,
+  DeleteIssueTool,
+  CreateSubtaskTool,
+  AssignIssueTool,
+  GetChangelogTool,
+  CloneIssueTool,
+];

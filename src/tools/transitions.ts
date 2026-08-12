@@ -3,6 +3,7 @@ import { jiraApi } from '../http.js';
 import { createSuccessResponse } from '../responses.js';
 import { validateIssueKey } from '../validation.js';
 import { describeMetaField } from '../meta.js';
+import { defineTool } from '../registry.js';
 
 export async function handleListTransitions(a: ToolArgs): Promise<ToolResponse> {
   const issueKey = validateIssueKey(a.issueKey);
@@ -28,3 +29,21 @@ export async function handleListTransitions(a: ToolArgs): Promise<ToolResponse> 
     }),
   });
 }
+
+export const ListTransitionsTool = defineTool({
+  name: 'jira_list_transitions',
+  description: 'Get available status transitions for a Jira issue. Each entry has the transition id and name plus the target status under "to" — a workflow can name a transition "Start work" while its target status is "In Progress". Set includeFields to also get the fields each transition screen accepts, with required flags and allowed values, for passing via jira_update_issue transitionFields.',
+  inputSchema: {
+    type: 'object' as const,
+    properties: {
+      issueKey: { type: 'string', description: 'Issue key (e.g., TTC-123)' },
+      includeFields: { type: 'boolean', description: 'When true, expand each transition with its screen fields (fieldId, name, required, type, allowedValues) and a requiredFields shortlist.', default: false },
+    },
+    required: ['issueKey'],
+  },
+  handler: handleListTransitions,
+});
+
+export const TRANSITIONS_TOOLS = [
+  ListTransitionsTool,
+];

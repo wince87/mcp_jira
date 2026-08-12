@@ -4,6 +4,7 @@ import { offsetPage, offsetParams, readMaxResults, readPageToken, tokenPage } fr
 import { ISSUE_LIST_FIELDS, mapIssueSummary } from '../mappers.js';
 import { createSuccessResponse } from '../responses.js';
 import { sanitizeString, validateAccountId, validateSafeParam } from '../validation.js';
+import { defineTool } from '../registry.js';
 
 export async function handleListFilters(a: ToolArgs): Promise<ToolResponse> {
   const { filterName, accountId, maxResults = 50 } = a;
@@ -73,3 +74,52 @@ export async function handleSearchByFilter(a: ToolArgs): Promise<ToolResponse> {
     issues: issues.map(mapIssueSummary),
   });
 }
+
+export const ListFiltersTool = defineTool({
+  name: 'jira_list_filters',
+  description: 'Search saved Jira filters (by name, owner). Useful to retrieve team-defined JQL queries.',
+  inputSchema: {
+    type: 'object' as const,
+    properties: {
+      filterName: { type: 'string', description: 'Substring to match in filter name' },
+      accountId: { type: 'string', description: 'Filter owner accountId (defaults to authenticated user if both name and accountId omitted)' },
+      maxResults: { type: 'number', description: 'Maximum results (1-100)', default: 50 },
+      startAt: { type: 'number', description: 'Zero-based index of the first item to return. Use it with the returned startAt/total/hasMore to page beyond the first batch.' },
+    },
+  },
+  handler: handleListFilters,
+});
+
+export const GetFilterTool = defineTool({
+  name: 'jira_get_filter',
+  description: 'Get a saved filter by ID, including its JQL, description, and owner.',
+  inputSchema: {
+    type: 'object' as const,
+    properties: {
+      filterId: { type: 'string', description: 'Numeric filter ID' },
+    },
+    required: ['filterId'],
+  },
+  handler: handleGetFilter,
+});
+
+export const SearchByFilterTool = defineTool({
+  name: 'jira_search_by_filter',
+  description: "Execute a saved filter's JQL and return matching issues.",
+  inputSchema: {
+    type: 'object' as const,
+    properties: {
+      filterId: { type: 'string', description: 'Numeric filter ID' },
+      maxResults: { type: 'number', description: 'Maximum results (1-100)', default: 50 },
+      nextPageToken: { type: 'string', description: 'Pagination token from previous response' },
+    },
+    required: ['filterId'],
+  },
+  handler: handleSearchByFilter,
+});
+
+export const FILTERS_TOOLS = [
+  ListFiltersTool,
+  GetFilterTool,
+  SearchByFilterTool,
+];
