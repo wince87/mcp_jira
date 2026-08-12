@@ -48,5 +48,6 @@
   "contentTypes": [
     "text"
   ],
+  "hasStructuredContent": true,
   "requests": []
 }

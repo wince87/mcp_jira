@@ -13,6 +13,7 @@ import { applyOptionalFields, convertDocFields, describeMetaField, dryRunResult,
 import { describeTransitions, fetchTransitions, postTransition, resolveTransition } from '../transitions.js';
 import { issueSnapshot, mapCustomFields, mapIssue, mapUser, namesOf, simplifyFieldValue } from '../mappers.js';
 import { defineTool } from '../registry.js';
+import { ACK_OUTPUT, CREATED_ISSUE_OUTPUT, ISSUE_OUTPUT, META_FIELDS_OUTPUT } from '../outputs.js';
 import { PRIORITY_SCHEMA, COMMON_ISSUE_FIELDS_SCHEMA } from '../schemas.js';
 
 export async function handleCreateIssue(a: ToolArgs): Promise<ToolResponse> {
@@ -318,6 +319,7 @@ export async function handleGetChangelog(a: ToolArgs): Promise<ToolResponse> {
 
 export const CreateIssueTool = defineTool({
   name: 'jira_create_issue',
+  outputSchema: CREATED_ISSUE_OUTPUT,
   annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
   description: 'Create a new Jira issue. Description supports Markdown (auto-converted to ADF). To create an Epic use jira_create_epic. Call jira_get_create_fields(projectKey, issueType) first when the screen is unknown — it returns every field with required, type and allowedValues, which removes the guesswork (Bug screens commonly require Affects versions and other mandatory fields). Optional fields are only sent when provided, so nothing is rejected for not being on the screen. On a 400 the response carries missingRequired and allowedValues. Set dryRun to validate the payload without creating anything.',
   inputSchema: {
@@ -340,6 +342,7 @@ export const CreateIssueTool = defineTool({
 
 export const GetIssueTool = defineTool({
   name: 'jira_get_issue',
+  outputSchema: ISSUE_OUTPUT,
   annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   description: 'Get details of a Jira issue. The default response includes status, resolution, assignee, priority, labels, story points, parent, components, versions, fixVersions, dueDate and timetracking. Set includeCustomFields to also get every populated custom field with its human-readable name (rich-text ones rendered as Markdown), or pass fields to select an exact set. Set includeImages to return embedded/attached images inline.',
   inputSchema: {
@@ -357,6 +360,7 @@ export const GetIssueTool = defineTool({
 
 export const UpdateIssueTool = defineTool({
   name: 'jira_update_issue',
+  outputSchema: ACK_OUTPUT,
   annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
   description: 'Update fields and/or status of an issue. status is matched against the target status of each available transition first (so "In Progress" works even when the transition is named "Start work"), then against transition names, case-insensitively. Use transitionId for an exact transition and transitionFields when the transition screen requires input (e.g. an estimate) — jira_list_transitions with includeFields lists what each one needs. On a 400 the response carries missingRequired and allowedValues.',
   inputSchema: {
@@ -386,6 +390,7 @@ export async function handleDeleteIssueLink(a: ToolArgs): Promise<ToolResponse> 
 
 export const DeleteIssueLinkTool = defineTool({
   name: 'jira_delete_issue_link',
+  outputSchema: ACK_OUTPUT,
   annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
   description: 'Remove a link between two issues. The linkId comes from the links array returned by jira_get_issue, not from the issue keys.',
   inputSchema: {
@@ -400,6 +405,7 @@ export const DeleteIssueLinkTool = defineTool({
 
 export const LinkIssuesTool = defineTool({
   name: 'jira_link_issues',
+  outputSchema: ACK_OUTPUT,
   annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   description: 'Create a link between two issues. The inward side uses the linkType.inward phrasing ("is blocked by", "duplicates"), the outward side uses linkType.outward ("blocks", "is duplicated by"). If unsure which linkType names exist in this instance, call jira_get_link_types. Call sequentially (2-3 at a time) to avoid permission prompt storms in Claude Code.',
   inputSchema: {
@@ -416,6 +422,7 @@ export const LinkIssuesTool = defineTool({
 
 export const DeleteIssueTool = defineTool({
   name: 'jira_delete_issue',
+  outputSchema: ACK_OUTPUT,
   annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
   description: 'Permanently delete a Jira issue. This cannot be undone and there is no trash to restore from — confirm with the user before calling it. An issue that has subtasks is rejected unless deleteSubtasks is set, which deletes them too.',
   inputSchema: {
@@ -431,6 +438,7 @@ export const DeleteIssueTool = defineTool({
 
 export const CreateSubtaskTool = defineTool({
   name: 'jira_create_subtask',
+  outputSchema: CREATED_ISSUE_OUTPUT,
   annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
   description: 'Create a subtask under a parent issue. Description supports standard Markdown, automatically converted to ADF. The subtask issue type is discovered from the project (handles "Sub-task" vs "Subtask" and localized names) unless issueType is given.',
   inputSchema: {
@@ -453,6 +461,7 @@ export const CreateSubtaskTool = defineTool({
 
 export const AssignIssueTool = defineTool({
   name: 'jira_assign_issue',
+  outputSchema: ACK_OUTPUT,
   annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   description: 'Assign or unassign a user. Jira uses accountId (not email or username). To find accountId: call jira_search_users by name/email, or jira_get_myself for the current user. Pass null accountId to unassign.',
   inputSchema: {
@@ -484,6 +493,7 @@ export const GetChangelogTool = defineTool({
 
 export const CloneIssueTool = defineTool({
   name: 'jira_clone_issue',
+  outputSchema: CREATED_ISSUE_OUTPUT,
   annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
   description: 'Clone an existing Jira issue with a new summary. Copies issue type, description, labels, priority, story points, components and versions from the source. Custom fields are NOT copied — supply any the target screen requires via customFields. Any field passed explicitly overrides the copied value.',
   inputSchema: {
@@ -559,6 +569,7 @@ export async function handleDeleteRemoteLink(a: ToolArgs): Promise<ToolResponse>
 
 export const GetEditFieldsTool = defineTool({
   name: 'jira_get_edit_fields',
+  outputSchema: META_FIELDS_OUTPUT,
   annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   description: 'Get the edit screen for one existing issue: every field you may change, with required flags, types and allowed values. This is the update-time mirror of jira_get_create_fields, and the way to find out why a field is rejected on jira_update_issue.',
   inputSchema: {
@@ -587,6 +598,7 @@ export const GetRemoteLinksTool = defineTool({
 
 export const AddRemoteLinkTool = defineTool({
   name: 'jira_add_remote_link',
+  outputSchema: ACK_OUTPUT,
   annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
   description: 'Attach a web link to an issue, e.g. the pull request that implements it or the Confluence page that specifies it.',
   inputSchema: {
@@ -606,6 +618,7 @@ export const AddRemoteLinkTool = defineTool({
 
 export const DeleteRemoteLinkTool = defineTool({
   name: 'jira_delete_remote_link',
+  outputSchema: ACK_OUTPUT,
   annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
   description: 'Remove a web link from an issue. Link ids come from jira_get_remote_links.',
   inputSchema: {

@@ -7,6 +7,7 @@ import { offsetPage, offsetParams } from '../args.js';
 import { createSuccessResponse, resolveProjectKey } from '../responses.js';
 import { sanitizeString, validateAccountId, validateAssigneeType, validateDate, validateSafeParam } from '../validation.js';
 import { defineTool } from '../registry.js';
+import { ACK_OUTPUT, COMPONENT_LIST_OUTPUT, VERSION_LIST_OUTPUT } from '../outputs.js';
 import { JIRA_PROJECT_KEY } from '../config.js';
 
 export async function handleGetProjectInfo(a: ToolArgs): Promise<ToolResponse> {
@@ -78,6 +79,7 @@ export const ListProjectsTool = defineTool({
 
 export const GetProjectComponentsTool = defineTool({
   name: 'jira_get_project_components',
+  outputSchema: COMPONENT_LIST_OUTPUT,
   annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   description: 'Get components of a Jira project.',
   inputSchema: {
@@ -91,6 +93,7 @@ export const GetProjectComponentsTool = defineTool({
 
 export const GetProjectVersionsTool = defineTool({
   name: 'jira_get_project_versions',
+  outputSchema: VERSION_LIST_OUTPUT,
   annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   description: 'Get versions (releases) of a Jira project.',
   inputSchema: {
@@ -231,6 +234,7 @@ export const UpdateVersionTool = defineTool({
 
 export const DeleteVersionTool = defineTool({
   name: 'jira_delete_version',
+  outputSchema: ACK_OUTPUT,
   annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
   description: 'Permanently delete a project version. Issues referencing it keep their other fields, but lose this version unless you pass a replacement. This cannot be undone -- confirm with the user first.',
   inputSchema: {
@@ -283,6 +287,7 @@ export const UpdateComponentTool = defineTool({
 
 export const DeleteComponentTool = defineTool({
   name: 'jira_delete_component',
+  outputSchema: ACK_OUTPUT,
   annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
   description: 'Permanently delete a project component. Pass moveIssuesTo to reassign its issues to another component, otherwise they simply lose it. This cannot be undone -- confirm with the user first.',
   inputSchema: {

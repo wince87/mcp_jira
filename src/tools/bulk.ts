@@ -11,6 +11,7 @@ import { createIssueUrl, createSuccessResponse, resolveProjectKey } from '../res
 import { sanitizeString, validateFieldMap, validateIssueKey, validateLabels, validateSafeParam } from '../validation.js';
 import { applyOptionalFields, convertDocFields, putIssue, resolveIssueTypeValue, safeCreateMeta } from '../meta.js';
 import { defineTool } from '../registry.js';
+import { BULK_RESULT_OUTPUT } from '../outputs.js';
 import { PRIORITY_SCHEMA, COMMON_ISSUE_FIELDS_SCHEMA } from '../schemas.js';
 import { JIRA_PROJECT_KEY } from '../config.js';
 
@@ -166,6 +167,7 @@ export async function handleBulkUpdateIssues(a: ToolArgs): Promise<ToolResponse>
 
 export const BulkUpdateIssuesTool = defineTool({
   name: 'jira_bulk_update_issues',
+  outputSchema: BULK_RESULT_OUTPUT,
   annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   description: 'Apply the same field changes to many issues. Iterates client-side with a per-issue result, because Jira has no stable bulk edit endpoint. Use addLabels/removeLabels to adjust labels without destroying the ones already there; the labels argument replaces the whole list on every issue.',
   inputSchema: {
@@ -217,6 +219,7 @@ export const BulkCreateIssuesTool = defineTool({
 
 export const BulkTransitionIssuesTool = defineTool({
   name: 'jira_bulk_transition_issues',
+  outputSchema: BULK_RESULT_OUTPUT,
   annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
   description: 'Apply the same status transition to multiple issues. Iterates client-side; failures are collected per issue and returned. status is matched against each transition target status first, then transition names, case-insensitively — so "In Progress" works even where the transition is called "Start work". Use transitionFields when the transition screen requires input.',
   inputSchema: {

@@ -3,12 +3,16 @@ import { JIRA_PROJECT_KEY, JIRA_URL } from './config.js';
 import { validateProjectKey } from './validation.js';
 
 export function createSuccessResponse(data: unknown): ToolResponse {
-  return {
+  const response: ToolResponse = {
     content: [{
       type: 'text',
       text: JSON.stringify(data, null, 2),
     }],
   };
+  if (data !== null && typeof data === 'object' && !Array.isArray(data)) {
+    response.structuredContent = data as Record<string, unknown>;
+  }
+  return response;
 }
 
 export const MAX_INLINE_IMAGE_BYTES = 5 * 1024 * 1024;
@@ -26,12 +30,16 @@ export function imageContent(buffer: Buffer, mimeType: string): ImageContent {
 }
 
 export function createMixedResponse(data: unknown, images: ImageContent[]): ToolResponse {
-  return {
+  const response: ToolResponse = {
     content: [
       { type: 'text', text: JSON.stringify(data, null, 2) },
       ...images,
     ],
   };
+  if (data !== null && typeof data === 'object' && !Array.isArray(data)) {
+    response.structuredContent = data as Record<string, unknown>;
+  }
+  return response;
 }
 
 export function createIssueUrl(issueKey: string): string {

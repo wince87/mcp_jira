@@ -57,6 +57,7 @@
     "text",
     "image"
   ],
+  "hasStructuredContent": true,
   "requests": [
     {
       "method": "GET",

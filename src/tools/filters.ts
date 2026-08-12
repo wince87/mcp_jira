@@ -5,6 +5,7 @@ import { issueListFieldsParam, mapFilter, mapIssueList, readIssueListOptions } f
 import { createSuccessResponse } from '../responses.js';
 import { sanitizeString, validateAccountId, validateSafeParam } from '../validation.js';
 import { defineTool } from '../registry.js';
+import { ISSUE_LIST_OUTPUT } from '../outputs.js';
 
 export async function handleListFilters(a: ToolArgs): Promise<ToolResponse> {
   const { filterName, accountId, maxResults = 50 } = a;
@@ -90,6 +91,7 @@ export const GetFilterTool = defineTool({
 
 export const SearchByFilterTool = defineTool({
   name: 'jira_search_by_filter',
+  outputSchema: ISSUE_LIST_OUTPUT,
   annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   description: "Execute a saved filter's JQL and return matching issues.",
   inputSchema: {

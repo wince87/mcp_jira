@@ -7,6 +7,7 @@ import {
   describeMetaField, fetchCreateFields, fetchFieldIndex, fetchIssueTypes, fetchPriorities, resolveIssueType,
 } from '../meta.js';
 import { defineTool } from '../registry.js';
+import { META_FIELDS_OUTPUT } from '../outputs.js';
 import { JIRA_PROJECT_KEY } from '../config.js';
 
 export async function handleGetFields(_a: ToolArgs): Promise<ToolResponse> {
@@ -81,6 +82,7 @@ export const GetIssueTypesTool = defineTool({
 
 export const GetCreateFieldsTool = defineTool({
   name: 'jira_get_create_fields',
+  outputSchema: META_FIELDS_OUTPUT,
   annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   description: 'Get the create screen definition for one issue type: every field with fieldId, name, required, type and allowedValues, plus a requiredFields shortlist. This is the second createmeta step (jira_get_issue_types is the first) and it is what tells you which fields are mandatory and which values they accept. Call it before jira_create_issue on an unfamiliar project or issue type instead of guessing.',
   inputSchema: {

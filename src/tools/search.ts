@@ -6,6 +6,7 @@ import { buildJql, equalsClause } from '../jql.js';
 import { createSuccessResponse, resolveProjectKey } from '../responses.js';
 import { validateAccountId, validateExpandList, validateJQL } from '../validation.js';
 import { defineTool } from '../registry.js';
+import { ISSUE_LIST_OUTPUT } from '../outputs.js';
 import { JIRA_PROJECT_KEY } from '../config.js';
 
 export async function handleSearchIssues(a: ToolArgs): Promise<ToolResponse> {
@@ -61,6 +62,7 @@ export async function handleGetUserIssues(a: ToolArgs): Promise<ToolResponse> {
 
 export const SearchIssuesTool = defineTool({
   name: 'jira_search_issues',
+  outputSchema: ISSUE_LIST_OUTPUT,
   annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   description: 'Search for Jira issues using JQL. Uses token-based pagination — pass nextPageToken from previous response to get next page.',
   inputSchema: {
@@ -80,6 +82,7 @@ export const SearchIssuesTool = defineTool({
 
 export const GetUserIssuesTool = defineTool({
   name: 'jira_get_user_issues',
+  outputSchema: ISSUE_LIST_OUTPUT,
   annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   description: 'Get all issues assigned to a specific user.',
   inputSchema: {

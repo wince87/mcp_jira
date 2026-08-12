@@ -10,6 +10,7 @@ import {
   applyOptionalFields, dryRunResult, metaFieldId, postIssue, resolveIssueTypeValue, safeCreateMeta,
 } from '../meta.js';
 import { defineTool } from '../registry.js';
+import { ACK_OUTPUT, CREATED_ISSUE_OUTPUT, ISSUE_LIST_OUTPUT, SPRINT_LIST_OUTPUT } from '../outputs.js';
 import { PRIORITY_SCHEMA, COMMON_ISSUE_FIELDS_SCHEMA } from '../schemas.js';
 import { JIRA_PROJECT_KEY } from '../config.js';
 
@@ -270,6 +271,7 @@ export const ListBoardsTool = defineTool({
 
 export const ListSprintsTool = defineTool({
   name: 'jira_list_sprints',
+  outputSchema: SPRINT_LIST_OUTPUT,
   annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   description: 'List sprints for a board.',
   inputSchema: {
@@ -305,6 +307,7 @@ export const GetSprintTool = defineTool({
 
 export const MoveToSprintTool = defineTool({
   name: 'jira_move_to_sprint',
+  outputSchema: ACK_OUTPUT,
   annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   description: 'Move one or more issues to a sprint.',
   inputSchema: {
@@ -354,6 +357,7 @@ export const GetEpicTool = defineTool({
 
 export const GetEpicIssuesTool = defineTool({
   name: 'jira_get_epic_issues',
+  outputSchema: ISSUE_LIST_OUTPUT,
   annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   description: 'Get all child issues linked to an epic.',
   inputSchema: {
@@ -389,6 +393,7 @@ export const GetBoardEpicsTool = defineTool({
 
 export const AddIssuesToEpicTool = defineTool({
   name: 'jira_add_issues_to_epic',
+  outputSchema: ACK_OUTPUT,
   annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   description: 'Link one or more issues to an epic. Uses Agile API bulk move.',
   inputSchema: {
@@ -408,6 +413,7 @@ export const AddIssuesToEpicTool = defineTool({
 
 export const RemoveIssueFromEpicTool = defineTool({
   name: 'jira_remove_issue_from_epic',
+  outputSchema: ACK_OUTPUT,
   annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   description: 'Remove issues from their current epic (unlink).',
   inputSchema: {
@@ -426,6 +432,7 @@ export const RemoveIssueFromEpicTool = defineTool({
 
 export const CreateEpicTool = defineTool({
   name: 'jira_create_epic',
+  outputSchema: CREATED_ISSUE_OUTPUT,
   annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
   description: 'Create a new epic. Convenience wrapper that sets issueType to Epic.',
   inputSchema: {
@@ -528,6 +535,7 @@ export const UpdateSprintTool = defineTool({
 
 export const DeleteSprintTool = defineTool({
   name: 'jira_delete_sprint',
+  outputSchema: ACK_OUTPUT,
   annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
   description: 'Permanently delete a sprint. Issues in it are moved to the backlog. This cannot be undone -- confirm with the user first.',
   inputSchema: {
@@ -584,6 +592,7 @@ export async function handleMoveToBacklog(a: ToolArgs): Promise<ToolResponse> {
 
 export const RankIssuesTool = defineTool({
   name: 'jira_rank_issues',
+  outputSchema: ACK_OUTPUT,
   annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   description: 'Reorder issues in the backlog or on a board by placing them before or after a reference issue. This is what changes the order sprint planning reads as priority.',
   inputSchema: {
@@ -600,6 +609,7 @@ export const RankIssuesTool = defineTool({
 
 export const MoveToBacklogTool = defineTool({
   name: 'jira_move_to_backlog',
+  outputSchema: ACK_OUTPUT,
   annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   description: 'Move issues out of their sprint and back to the backlog. The inverse of jira_move_to_sprint.',
   inputSchema: {

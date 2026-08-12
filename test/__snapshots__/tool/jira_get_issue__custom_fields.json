@@ -72,6 +72,7 @@
   "contentTypes": [
     "text"
   ],
+  "hasStructuredContent": true,
   "requests": [
     {
       "method": "GET",

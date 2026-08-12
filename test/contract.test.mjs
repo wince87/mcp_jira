@@ -152,6 +152,7 @@ for (const [caseName, args, canonicalName] of CASES) {
       isError: result.isError,
       data: result.data,
       contentTypes: result.content.map(c => c.type),
+      hasStructuredContent: result.structuredContent !== undefined,
       requests: requestTrace(mock.requests),
     });
   });

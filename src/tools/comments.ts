@@ -7,6 +7,7 @@ import { adfToText, createADFDocument } from '../adf.js';
 import { createSuccessResponse } from '../responses.js';
 import { sanitizeString, validateIssueKey, validateSafeParam } from '../validation.js';
 import { defineTool } from '../registry.js';
+import { ACK_OUTPUT, COMMENT_LIST_OUTPUT } from '../outputs.js';
 
 function commentPayload(a: ToolArgs): Record<string, unknown> {
   const payload: Record<string, unknown> = { body: createADFDocument(a.comment) };
@@ -107,6 +108,7 @@ export const UpdateCommentTool = defineTool({
 
 export const DeleteCommentTool = defineTool({
   name: 'jira_delete_comment',
+  outputSchema: ACK_OUTPUT,
   annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
   description: 'Delete a comment from a Jira issue.',
   inputSchema: {
@@ -122,6 +124,7 @@ export const DeleteCommentTool = defineTool({
 
 export const GetCommentsTool = defineTool({
   name: 'jira_get_comments',
+  outputSchema: COMMENT_LIST_OUTPUT,
   annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   description: 'Get comments from a Jira issue.',
   inputSchema: {

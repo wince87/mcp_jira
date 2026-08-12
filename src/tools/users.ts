@@ -5,6 +5,7 @@ import { offsetPage, offsetParams } from '../args.js';
 import { createSuccessResponse } from '../responses.js';
 import { sanitizeString, validateAccountId, validateIssueKey } from '../validation.js';
 import { defineTool } from '../registry.js';
+import { ACK_OUTPUT, USER_LIST_OUTPUT } from '../outputs.js';
 
 export async function handleSearchUsers(a: ToolArgs): Promise<ToolResponse> {
   const query = sanitizeString(a.query, 200, 'query');
@@ -61,6 +62,7 @@ export async function handleGetWatchers(a: ToolArgs): Promise<ToolResponse> {
 
 export const SearchUsersTool = defineTool({
   name: 'jira_search_users',
+  outputSchema: USER_LIST_OUTPUT,
   annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   description: 'Search for Jira users by name or email. Returns accountId needed for jira_assign_issue.',
   inputSchema: {
@@ -85,6 +87,7 @@ export const GetMyselfTool = defineTool({
 
 export const AddWatcherTool = defineTool({
   name: 'jira_add_watcher',
+  outputSchema: ACK_OUTPUT,
   annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   description: 'Subscribe a user to watch an issue (receive notifications on changes).',
   inputSchema: {
@@ -100,6 +103,7 @@ export const AddWatcherTool = defineTool({
 
 export const RemoveWatcherTool = defineTool({
   name: 'jira_remove_watcher',
+  outputSchema: ACK_OUTPUT,
   annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   description: 'Unsubscribe a user from watching an issue.',
   inputSchema: {

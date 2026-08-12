@@ -6,6 +6,7 @@ import { adfToText, createADFDocument } from '../adf.js';
 import { createSuccessResponse } from '../responses.js';
 import { sanitizeString, validateISO8601, validateIssueKey, validateSafeParam } from '../validation.js';
 import { defineTool } from '../registry.js';
+import { ACK_OUTPUT, WORKLOG_LIST_OUTPUT } from '../outputs.js';
 
 export async function handleAddWorklog(a: ToolArgs): Promise<ToolResponse> {
   const { comment, started } = a;
@@ -70,6 +71,7 @@ export async function handleDeleteWorklog(a: ToolArgs): Promise<ToolResponse> {
 
 export const AddWorklogTool = defineTool({
   name: 'jira_add_worklog',
+  outputSchema: ACK_OUTPUT,
   annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
   description: 'Add a worklog entry (time tracking). `timeSpent` uses Jira units: w (week), d (day, 8h by default), h (hour), m (minute). `started` must be ISO 8601 with millisecond and timezone offset, e.g. "2024-01-15T09:00:00.000+0000" (NOT a Z-terminated ISO). If omitted, server uses now.',
   inputSchema: {
@@ -87,6 +89,7 @@ export const AddWorklogTool = defineTool({
 
 export const GetWorklogsTool = defineTool({
   name: 'jira_get_worklogs',
+  outputSchema: WORKLOG_LIST_OUTPUT,
   annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   description: 'Get worklog entries from a Jira issue.',
   inputSchema: {
@@ -103,6 +106,7 @@ export const GetWorklogsTool = defineTool({
 
 export const UpdateWorklogTool = defineTool({
   name: 'jira_update_worklog',
+  outputSchema: ACK_OUTPUT,
   annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   description: 'Update an existing worklog entry on a Jira issue. All fields except issueKey/worklogId are optional - omit to leave unchanged.',
   inputSchema: {
@@ -121,6 +125,7 @@ export const UpdateWorklogTool = defineTool({
 
 export const DeleteWorklogTool = defineTool({
   name: 'jira_delete_worklog',
+  outputSchema: ACK_OUTPUT,
   annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
   description: 'Delete a worklog entry from a Jira issue. Permanent.',
   inputSchema: {

@@ -8,6 +8,7 @@ import {
 } from '../responses.js';
 import { sanitizeString, validateAttachmentPath, validateIssueKey, validateSafeParam } from '../validation.js';
 import { defineTool } from '../registry.js';
+import { ACK_OUTPUT } from '../outputs.js';
 
 export async function handleGetAttachments(a: ToolArgs): Promise<ToolResponse> {
   const issueKey = validateIssueKey(a.issueKey);
@@ -108,6 +109,7 @@ export const GetAttachmentsTool = defineTool({
 
 export const AddAttachmentTool = defineTool({
   name: 'jira_add_attachment',
+  outputSchema: ACK_OUTPUT,
   annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
   description: 'Attach a local file to a Jira issue.',
   inputSchema: {
@@ -123,6 +125,7 @@ export const AddAttachmentTool = defineTool({
 
 export const DownloadAttachmentTool = defineTool({
   name: 'jira_download_attachment',
+  outputSchema: ACK_OUTPUT,
   annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   description: 'Download an attachment from Jira to a local file. Destination path must be within cwd or user home.',
   inputSchema: {
@@ -158,6 +161,7 @@ export async function handleDeleteAttachment(a: ToolArgs): Promise<ToolResponse>
 
 export const DeleteAttachmentTool = defineTool({
   name: 'jira_delete_attachment',
+  outputSchema: ACK_OUTPUT,
   annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
   description: 'Permanently delete an attachment. Attachment ids come from jira_get_attachments. This cannot be undone — confirm with the user first.',
   inputSchema: {

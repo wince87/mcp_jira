@@ -25,7 +25,24 @@
       "idempotentHint": false,
       "openWorldHint": true
     },
-    "outputSchema": null
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "success"
+      ],
+      "additionalProperties": true
+    }
   },
   {
     "name": "jira_add_comment",
@@ -105,7 +122,24 @@
       "idempotentHint": true,
       "openWorldHint": true
     },
-    "outputSchema": null
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "success"
+      ],
+      "additionalProperties": true
+    }
   },
   {
     "name": "jira_add_remote_link",
@@ -150,7 +184,24 @@
       "idempotentHint": false,
       "openWorldHint": true
     },
-    "outputSchema": null
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "success"
+      ],
+      "additionalProperties": true
+    }
   },
   {
     "name": "jira_add_watcher",
@@ -177,7 +228,24 @@
       "idempotentHint": true,
       "openWorldHint": true
     },
-    "outputSchema": null
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "success"
+      ],
+      "additionalProperties": true
+    }
   },
   {
     "name": "jira_add_worklog",
@@ -213,7 +281,24 @@
       "idempotentHint": false,
       "openWorldHint": true
     },
-    "outputSchema": null
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "success"
+      ],
+      "additionalProperties": true
+    }
   },
   {
     "name": "jira_assign_issue",
@@ -243,7 +328,24 @@
       "idempotentHint": true,
       "openWorldHint": true
     },
-    "outputSchema": null
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "success"
+      ],
+      "additionalProperties": true
+    }
   },
   {
     "name": "jira_bulk_create_issues",
@@ -415,7 +517,51 @@
       "idempotentHint": false,
       "openWorldHint": true
     },
-    "outputSchema": null
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "total": {
+          "type": "number"
+        },
+        "succeeded": {
+          "type": "array",
+          "items": {}
+        },
+        "failed": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "issueKey": {
+                "type": "string"
+              },
+              "error": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "issueKey",
+              "error"
+            ],
+            "additionalProperties": true
+          }
+        },
+        "successCount": {
+          "type": "number"
+        },
+        "failedCount": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "total",
+        "succeeded",
+        "failed",
+        "successCount",
+        "failedCount"
+      ],
+      "additionalProperties": true
+    }
   },
   {
     "name": "jira_bulk_update_issues",
@@ -533,7 +679,51 @@
       "idempotentHint": true,
       "openWorldHint": true
     },
-    "outputSchema": null
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "total": {
+          "type": "number"
+        },
+        "succeeded": {
+          "type": "array",
+          "items": {}
+        },
+        "failed": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "issueKey": {
+                "type": "string"
+              },
+              "error": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "issueKey",
+              "error"
+            ],
+            "additionalProperties": true
+          }
+        },
+        "successCount": {
+          "type": "number"
+        },
+        "failedCount": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "total",
+        "succeeded",
+        "failed",
+        "successCount",
+        "failedCount"
+      ],
+      "additionalProperties": true
+    }
   },
   {
     "name": "jira_clone_issue",
@@ -642,7 +832,61 @@
       "idempotentHint": false,
       "openWorldHint": true
     },
-    "outputSchema": null
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "key": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        },
+        "issue": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "dryRun": {
+          "type": "boolean"
+        },
+        "valid": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "missingRequired": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "invalidValues": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "fieldsNotOnScreen": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "payload": {
+          "type": "object"
+        }
+      },
+      "required": [],
+      "additionalProperties": true
+    }
   },
   {
     "name": "jira_create_component",
@@ -797,7 +1041,61 @@
       "idempotentHint": false,
       "openWorldHint": true
     },
-    "outputSchema": null
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "key": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        },
+        "issue": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "dryRun": {
+          "type": "boolean"
+        },
+        "valid": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "missingRequired": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "invalidValues": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "fieldsNotOnScreen": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "payload": {
+          "type": "object"
+        }
+      },
+      "required": [],
+      "additionalProperties": true
+    }
   },
   {
     "name": "jira_create_issue",
@@ -917,7 +1215,61 @@
       "idempotentHint": false,
       "openWorldHint": true
     },
-    "outputSchema": null
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "key": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        },
+        "issue": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "dryRun": {
+          "type": "boolean"
+        },
+        "valid": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "missingRequired": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "invalidValues": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "fieldsNotOnScreen": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "payload": {
+          "type": "object"
+        }
+      },
+      "required": [],
+      "additionalProperties": true
+    }
   },
   {
     "name": "jira_create_sprint",
@@ -1077,7 +1429,61 @@
       "idempotentHint": false,
       "openWorldHint": true
     },
-    "outputSchema": null
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "key": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        },
+        "issue": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "dryRun": {
+          "type": "boolean"
+        },
+        "valid": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "missingRequired": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "invalidValues": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "fieldsNotOnScreen": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "payload": {
+          "type": "object"
+        }
+      },
+      "required": [],
+      "additionalProperties": true
+    }
   },
   {
     "name": "jira_create_version",
@@ -1144,7 +1550,24 @@
       "idempotentHint": true,
       "openWorldHint": true
     },
-    "outputSchema": null
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "success"
+      ],
+      "additionalProperties": true
+    }
   },
   {
     "name": "jira_delete_comment",
@@ -1172,7 +1595,24 @@
       "idempotentHint": true,
       "openWorldHint": true
     },
-    "outputSchema": null
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "success"
+      ],
+      "additionalProperties": true
+    }
   },
   {
     "name": "jira_delete_component",
@@ -1199,7 +1639,24 @@
       "idempotentHint": true,
       "openWorldHint": true
     },
-    "outputSchema": null
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "success"
+      ],
+      "additionalProperties": true
+    }
   },
   {
     "name": "jira_delete_issue",
@@ -1227,7 +1684,24 @@
       "idempotentHint": true,
       "openWorldHint": true
     },
-    "outputSchema": null
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "success"
+      ],
+      "additionalProperties": true
+    }
   },
   {
     "name": "jira_delete_issue_link",
@@ -1250,7 +1724,24 @@
       "idempotentHint": true,
       "openWorldHint": true
     },
-    "outputSchema": null
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "success"
+      ],
+      "additionalProperties": true
+    }
   },
   {
     "name": "jira_delete_remote_link",
@@ -1278,7 +1769,24 @@
       "idempotentHint": true,
       "openWorldHint": true
     },
-    "outputSchema": null
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "success"
+      ],
+      "additionalProperties": true
+    }
   },
   {
     "name": "jira_delete_sprint",
@@ -1301,7 +1809,24 @@
       "idempotentHint": true,
       "openWorldHint": true
     },
-    "outputSchema": null
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "success"
+      ],
+      "additionalProperties": true
+    }
   },
   {
     "name": "jira_delete_version",
@@ -1332,7 +1857,24 @@
       "idempotentHint": true,
       "openWorldHint": true
     },
-    "outputSchema": null
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "success"
+      ],
+      "additionalProperties": true
+    }
   },
   {
     "name": "jira_delete_worklog",
@@ -1360,7 +1902,24 @@
       "idempotentHint": true,
       "openWorldHint": true
     },
-    "outputSchema": null
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "success"
+      ],
+      "additionalProperties": true
+    }
   },
   {
     "name": "jira_download_attachment",
@@ -1388,7 +1947,24 @@
       "idempotentHint": true,
       "openWorldHint": true
     },
-    "outputSchema": null
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "success"
+      ],
+      "additionalProperties": true
+    }
   },
   {
     "name": "jira_get_attachments",
@@ -1520,7 +2096,70 @@
       "idempotentHint": true,
       "openWorldHint": true
     },
-    "outputSchema": null
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "returned": {
+          "type": "number"
+        },
+        "hasMore": {
+          "type": "boolean"
+        },
+        "startAt": {
+          "type": "number"
+        },
+        "total": {
+          "type": "number"
+        },
+        "nextPageToken": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "comments": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "author": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "properties": {
+                  "accountId": {
+                    "type": "string"
+                  },
+                  "displayName": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": true
+              },
+              "body": {
+                "type": "string"
+              },
+              "created": {
+                "type": "string"
+              },
+              "updated": {
+                "type": "string"
+              }
+            },
+            "required": [],
+            "additionalProperties": true
+          }
+        }
+      },
+      "required": [
+        "comments"
+      ],
+      "additionalProperties": true
+    }
   },
   {
     "name": "jira_get_create_fields",
@@ -1547,7 +2186,74 @@
       "idempotentHint": true,
       "openWorldHint": true
     },
-    "outputSchema": null
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "projectKey": {
+          "type": "string"
+        },
+        "issueKey": {
+          "type": "string"
+        },
+        "issueType": {
+          "type": "object"
+        },
+        "requiredFields": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "editableFields": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "fieldId": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "required": {
+                "type": "boolean"
+              },
+              "type": {
+                "type": "string"
+              },
+              "itemsType": {
+                "type": "string"
+              },
+              "custom": {
+                "type": "string"
+              },
+              "hasDefaultValue": {
+                "type": "boolean"
+              },
+              "allowedValues": {},
+              "autoCompleteUrl": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "fieldId",
+              "required"
+            ],
+            "additionalProperties": true
+          }
+        }
+      },
+      "required": [
+        "fields"
+      ],
+      "additionalProperties": true
+    }
   },
   {
     "name": "jira_get_edit_fields",
@@ -1570,7 +2276,74 @@
       "idempotentHint": true,
       "openWorldHint": true
     },
-    "outputSchema": null
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "projectKey": {
+          "type": "string"
+        },
+        "issueKey": {
+          "type": "string"
+        },
+        "issueType": {
+          "type": "object"
+        },
+        "requiredFields": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "editableFields": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "fieldId": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "required": {
+                "type": "boolean"
+              },
+              "type": {
+                "type": "string"
+              },
+              "itemsType": {
+                "type": "string"
+              },
+              "custom": {
+                "type": "string"
+              },
+              "hasDefaultValue": {
+                "type": "boolean"
+              },
+              "allowedValues": {},
+              "autoCompleteUrl": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "fieldId",
+              "required"
+            ],
+            "additionalProperties": true
+          }
+        }
+      },
+      "required": [
+        "fields"
+      ],
+      "additionalProperties": true
+    }
   },
   {
     "name": "jira_get_epic",
@@ -1649,7 +2422,103 @@
       "idempotentHint": true,
       "openWorldHint": true
     },
-    "outputSchema": null
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "returned": {
+          "type": "number"
+        },
+        "hasMore": {
+          "type": "boolean"
+        },
+        "startAt": {
+          "type": "number"
+        },
+        "total": {
+          "type": "number"
+        },
+        "nextPageToken": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "issues": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "key": {
+                "type": "string"
+              },
+              "summary": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              },
+              "statusCategory": {
+                "type": "string"
+              },
+              "assignee": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "properties": {
+                  "accountId": {
+                    "type": "string"
+                  },
+                  "displayName": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": true
+              },
+              "priority": {
+                "type": "string"
+              },
+              "issueType": {
+                "type": "string"
+              },
+              "parent": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "labels": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "storyPoints": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "created": {
+                "type": "string"
+              },
+              "updated": {
+                "type": "string"
+              },
+              "url": {
+                "type": "string"
+              }
+            },
+            "required": [],
+            "additionalProperties": true
+          }
+        }
+      },
+      "required": [
+        "issues"
+      ],
+      "additionalProperties": true
+    }
   },
   {
     "name": "jira_get_fields",
@@ -1727,7 +2596,167 @@
       "idempotentHint": true,
       "openWorldHint": true
     },
-    "outputSchema": null
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "type": "string"
+        },
+        "summary": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "statusCategory": {
+          "type": "string"
+        },
+        "assignee": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "accountId": {
+              "type": "string"
+            },
+            "displayName": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        },
+        "priority": {
+          "type": "string"
+        },
+        "issueType": {
+          "type": "string"
+        },
+        "parent": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "labels": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "storyPoints": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "created": {
+          "type": "string"
+        },
+        "updated": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "resolution": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "reporter": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "accountId": {
+              "type": "string"
+            },
+            "displayName": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        },
+        "components": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "versions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "fixVersions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "links": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string"
+              },
+              "direction": {
+                "type": "string"
+              },
+              "relation": {
+                "type": "string"
+              },
+              "key": {
+                "type": "string"
+              },
+              "summary": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              },
+              "url": {
+                "type": "string"
+              }
+            },
+            "required": [],
+            "additionalProperties": true
+          }
+        },
+        "dueDate": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "timetracking": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "customFields": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "key",
+        "url"
+      ],
+      "additionalProperties": true
+    }
   },
   {
     "name": "jira_get_issue_types",
@@ -1843,7 +2872,70 @@
       "idempotentHint": true,
       "openWorldHint": true
     },
-    "outputSchema": null
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "returned": {
+          "type": "number"
+        },
+        "hasMore": {
+          "type": "boolean"
+        },
+        "startAt": {
+          "type": "number"
+        },
+        "total": {
+          "type": "number"
+        },
+        "nextPageToken": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "components": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "lead": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "properties": {
+                  "accountId": {
+                    "type": "string"
+                  },
+                  "displayName": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": true
+              },
+              "assigneeType": {
+                "type": "string"
+              }
+            },
+            "required": [],
+            "additionalProperties": true
+          }
+        }
+      },
+      "required": [
+        "components"
+      ],
+      "additionalProperties": true
+    }
   },
   {
     "name": "jira_get_project_info",
@@ -1904,7 +2996,70 @@
       "idempotentHint": true,
       "openWorldHint": true
     },
-    "outputSchema": null
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "returned": {
+          "type": "number"
+        },
+        "hasMore": {
+          "type": "boolean"
+        },
+        "startAt": {
+          "type": "number"
+        },
+        "total": {
+          "type": "number"
+        },
+        "nextPageToken": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "versions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "released": {
+                "type": "boolean"
+              },
+              "archived": {
+                "type": "boolean"
+              },
+              "startDate": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "releaseDate": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [],
+            "additionalProperties": true
+          }
+        }
+      },
+      "required": [
+        "versions"
+      ],
+      "additionalProperties": true
+    }
   },
   {
     "name": "jira_get_remote_links",
@@ -2019,7 +3174,103 @@
       "idempotentHint": true,
       "openWorldHint": true
     },
-    "outputSchema": null
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "returned": {
+          "type": "number"
+        },
+        "hasMore": {
+          "type": "boolean"
+        },
+        "startAt": {
+          "type": "number"
+        },
+        "total": {
+          "type": "number"
+        },
+        "nextPageToken": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "issues": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "key": {
+                "type": "string"
+              },
+              "summary": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              },
+              "statusCategory": {
+                "type": "string"
+              },
+              "assignee": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "properties": {
+                  "accountId": {
+                    "type": "string"
+                  },
+                  "displayName": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": true
+              },
+              "priority": {
+                "type": "string"
+              },
+              "issueType": {
+                "type": "string"
+              },
+              "parent": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "labels": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "storyPoints": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "created": {
+                "type": "string"
+              },
+              "updated": {
+                "type": "string"
+              },
+              "url": {
+                "type": "string"
+              }
+            },
+            "required": [],
+            "additionalProperties": true
+          }
+        }
+      },
+      "required": [
+        "issues"
+      ],
+      "additionalProperties": true
+    }
   },
   {
     "name": "jira_get_watchers",
@@ -2073,7 +3324,73 @@
       "idempotentHint": true,
       "openWorldHint": true
     },
-    "outputSchema": null
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "returned": {
+          "type": "number"
+        },
+        "hasMore": {
+          "type": "boolean"
+        },
+        "startAt": {
+          "type": "number"
+        },
+        "total": {
+          "type": "number"
+        },
+        "nextPageToken": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "worklogs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "author": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "properties": {
+                  "accountId": {
+                    "type": "string"
+                  },
+                  "displayName": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": true
+              },
+              "timeSpent": {
+                "type": "string"
+              },
+              "timeSpentSeconds": {
+                "type": "number"
+              },
+              "started": {
+                "type": "string"
+              },
+              "comment": {
+                "type": "string"
+              }
+            },
+            "required": [],
+            "additionalProperties": true
+          }
+        }
+      },
+      "required": [
+        "worklogs"
+      ],
+      "additionalProperties": true
+    }
   },
   {
     "name": "jira_link_issues",
@@ -2106,7 +3423,24 @@
       "idempotentHint": true,
       "openWorldHint": true
     },
-    "outputSchema": null
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "success"
+      ],
+      "additionalProperties": true
+    }
   },
   {
     "name": "jira_list_boards",
@@ -2304,7 +3638,70 @@
       "idempotentHint": true,
       "openWorldHint": true
     },
-    "outputSchema": null
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "returned": {
+          "type": "number"
+        },
+        "hasMore": {
+          "type": "boolean"
+        },
+        "startAt": {
+          "type": "number"
+        },
+        "total": {
+          "type": "number"
+        },
+        "nextPageToken": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sprints": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "number"
+              },
+              "name": {
+                "type": "string"
+              },
+              "state": {
+                "type": "string"
+              },
+              "startDate": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "endDate": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "goal": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [],
+            "additionalProperties": true
+          }
+        }
+      },
+      "required": [
+        "sprints"
+      ],
+      "additionalProperties": true
+    }
   },
   {
     "name": "jira_list_transitions",
@@ -2332,7 +3729,65 @@
       "idempotentHint": true,
       "openWorldHint": true
     },
-    "outputSchema": null
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "issueKey": {
+          "type": "string"
+        },
+        "transitions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "to": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "category": {
+                    "type": "string"
+                  }
+                },
+                "required": [],
+                "additionalProperties": true
+              },
+              "fields": {
+                "type": "array",
+                "items": {
+                  "type": "object"
+                }
+              },
+              "requiredFields": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "id",
+              "name"
+            ],
+            "additionalProperties": true
+          }
+        }
+      },
+      "required": [
+        "transitions"
+      ],
+      "additionalProperties": true
+    }
   },
   {
     "name": "jira_move_to_backlog",
@@ -2358,7 +3813,24 @@
       "idempotentHint": true,
       "openWorldHint": true
     },
-    "outputSchema": null
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "success"
+      ],
+      "additionalProperties": true
+    }
   },
   {
     "name": "jira_move_to_sprint",
@@ -2389,7 +3861,24 @@
       "idempotentHint": true,
       "openWorldHint": true
     },
-    "outputSchema": null
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "success"
+      ],
+      "additionalProperties": true
+    }
   },
   {
     "name": "jira_rank_issues",
@@ -2423,7 +3912,24 @@
       "idempotentHint": true,
       "openWorldHint": true
     },
-    "outputSchema": null
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "success"
+      ],
+      "additionalProperties": true
+    }
   },
   {
     "name": "jira_remove_issue_from_epic",
@@ -2449,7 +3955,24 @@
       "idempotentHint": true,
       "openWorldHint": true
     },
-    "outputSchema": null
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "success"
+      ],
+      "additionalProperties": true
+    }
   },
   {
     "name": "jira_remove_watcher",
@@ -2477,7 +4000,24 @@
       "idempotentHint": true,
       "openWorldHint": true
     },
-    "outputSchema": null
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "success"
+      ],
+      "additionalProperties": true
+    }
   },
   {
     "name": "jira_search_by_filter",
@@ -2521,7 +4061,103 @@
       "idempotentHint": true,
       "openWorldHint": true
     },
-    "outputSchema": null
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "returned": {
+          "type": "number"
+        },
+        "hasMore": {
+          "type": "boolean"
+        },
+        "startAt": {
+          "type": "number"
+        },
+        "total": {
+          "type": "number"
+        },
+        "nextPageToken": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "issues": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "key": {
+                "type": "string"
+              },
+              "summary": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              },
+              "statusCategory": {
+                "type": "string"
+              },
+              "assignee": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "properties": {
+                  "accountId": {
+                    "type": "string"
+                  },
+                  "displayName": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": true
+              },
+              "priority": {
+                "type": "string"
+              },
+              "issueType": {
+                "type": "string"
+              },
+              "parent": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "labels": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "storyPoints": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "created": {
+                "type": "string"
+              },
+              "updated": {
+                "type": "string"
+              },
+              "url": {
+                "type": "string"
+              }
+            },
+            "required": [],
+            "additionalProperties": true
+          }
+        }
+      },
+      "required": [
+        "issues"
+      ],
+      "additionalProperties": true
+    }
   },
   {
     "name": "jira_search_issues",
@@ -2572,7 +4208,103 @@
       "idempotentHint": true,
       "openWorldHint": true
     },
-    "outputSchema": null
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "returned": {
+          "type": "number"
+        },
+        "hasMore": {
+          "type": "boolean"
+        },
+        "startAt": {
+          "type": "number"
+        },
+        "total": {
+          "type": "number"
+        },
+        "nextPageToken": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "issues": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "key": {
+                "type": "string"
+              },
+              "summary": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              },
+              "statusCategory": {
+                "type": "string"
+              },
+              "assignee": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "properties": {
+                  "accountId": {
+                    "type": "string"
+                  },
+                  "displayName": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": true
+              },
+              "priority": {
+                "type": "string"
+              },
+              "issueType": {
+                "type": "string"
+              },
+              "parent": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "labels": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "storyPoints": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "created": {
+                "type": "string"
+              },
+              "updated": {
+                "type": "string"
+              },
+              "url": {
+                "type": "string"
+              }
+            },
+            "required": [],
+            "additionalProperties": true
+          }
+        }
+      },
+      "required": [
+        "issues"
+      ],
+      "additionalProperties": true
+    }
   },
   {
     "name": "jira_search_users",
@@ -2604,7 +4336,58 @@
       "idempotentHint": true,
       "openWorldHint": true
     },
-    "outputSchema": null
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "returned": {
+          "type": "number"
+        },
+        "hasMore": {
+          "type": "boolean"
+        },
+        "startAt": {
+          "type": "number"
+        },
+        "total": {
+          "type": "number"
+        },
+        "nextPageToken": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "users": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "accountId": {
+                "type": "string"
+              },
+              "displayName": {
+                "type": "string"
+              },
+              "emailAddress": {
+                "type": "string"
+              },
+              "active": {
+                "type": "boolean"
+              },
+              "accountType": {
+                "type": "string"
+              }
+            },
+            "required": [],
+            "additionalProperties": true
+          }
+        }
+      },
+      "required": [
+        "users"
+      ],
+      "additionalProperties": true
+    }
   },
   {
     "name": "jira_update_comment",
@@ -2825,7 +4608,24 @@
       "idempotentHint": false,
       "openWorldHint": true
     },
-    "outputSchema": null
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "success"
+      ],
+      "additionalProperties": true
+    }
   },
   {
     "name": "jira_update_sprint",
@@ -2960,7 +4760,24 @@
       "idempotentHint": true,
       "openWorldHint": true
     },
-    "outputSchema": null
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "success"
+      ],
+      "additionalProperties": true
+    }
   },
   {
     "name": "jira_view_attachment",

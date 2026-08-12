@@ -10,6 +10,7 @@
   "contentTypes": [
     "text"
   ],
+  "hasStructuredContent": true,
   "requests": [
     {
       "method": "POST",

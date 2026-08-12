@@ -33,6 +33,7 @@ export type ToolContent = TextContent | ImageContent;
 export interface ToolResponse {
   [key: string]: unknown;
   content: ToolContent[];
+  structuredContent?: Record<string, unknown>;
   isError?: boolean;
 }
 
