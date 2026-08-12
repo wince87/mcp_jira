@@ -237,44 +237,40 @@ resolution surprises for npx, easier to audit"). Після цього релі�
 
 ---
 
-## Фаза 3 — Покриття Jira API
+## Фаза 3 — Покриття Jira API — ГОТОВО
 
-Кожен пункт: інструмент + анотації + `outputSchema` + тест на моку + рядок у README.
+75 інструментів. Кожен новий має схему поряд із хендлером, маршрут у моці,
+контрактний знімок і поведінковий тест.
 
 ### 3.1 Спринти
-- [ ] `jira_create_sprint` (POST `/sprint`)
-- [ ] `jira_update_sprint` — назва, ціль, дати і **стан** (`future`/`active`/`closed`) одним інструментом замість трьох
-- [ ] `jira_delete_sprint`
+- [x] `jira_create_sprint`, `jira_update_sprint` (назва/ціль/дати/стан одним інструментом), `jira_delete_sprint`
 
 ### 3.2 Версії
-- [ ] `jira_create_version` (потрібен project **id**, не key — резолвити через кеш проєкту)
-- [ ] `jira_update_version` — покриває і реліз (`released: true`, `releaseDate`)
-- [ ] `jira_delete_version` з `moveFixIssuesTo`
+- [x] `jira_create_version` (резолвить ключ проєкту в числовий id, бо ендпоінт ключі не приймає)
+- [x] `jira_update_version` — реліз це `released: true`, окремого інструмента немає
+- [x] `jira_delete_version` через `removeAndSwap`, а не застарілий `DELETE`
 
 ### 3.3 Компоненти
-- [ ] `jira_create_component`, `jira_update_component`, `jira_delete_component` (з `moveIssuesTo`)
+- [x] `jira_create_component`, `jira_update_component`, `jira_delete_component` з `moveIssuesTo`
 
 ### 3.4 Задачі
-- [ ] `jira_get_edit_fields(issueKey)` — `editmeta` як інструмент, дзеркало `jira_get_create_fields` (внутрішньо вже використовується для збагачення 400)
-- [ ] `jira_bulk_update_issues` — по-задачний звіт, як у bulk transition; реалізація клієнтська (цикл + обмежувач), бо стабільного bulk-edit в API v3 немає. Явно задокументувати
-- [ ] `issuelinks` у `mapIssue` (**B2**) + `jira_delete_issue_link`
-- [ ] `jira_add_remote_link` / `jira_get_remote_links` / `jira_delete_remote_link` — лінк на PR, Confluence
-- [ ] `jira_delete_attachment`
-- [ ] `visibility` / internal-коментарі в `jira_add_comment` (JSM)
+- [x] `jira_get_edit_fields` — дзеркало `jira_get_create_fields` для update
+- [x] `jira_bulk_update_issues` з `addLabels`/`removeLabels` через verb `update`
+- [x] `issuelinks` у `mapIssue` (**B2**) + `jira_delete_issue_link`
+- [x] `jira_get_remote_links` / `jira_add_remote_link` / `jira_delete_remote_link`, лише http і https
+- [x] `jira_delete_attachment`
+- [x] `visibility` і `internal` (JSM) у коментарях
 
 ### 3.5 Метадані і права
-- [ ] `jira_get_project_statuses` — статуси по типах задач (потрібно для JQL і для перевірки цілі переходу)
-- [ ] `jira_list_labels`
-- [ ] `jira_get_my_permissions` — перевірити права до виклику замість того, щоб ловити 403
+- [x] `jira_get_project_statuses`, `jira_list_labels`, `jira_get_my_permissions`
 
 ### 3.6 Дошки
-- [ ] `jira_rank_issues`, `jira_move_to_backlog`
+- [x] `jira_rank_issues`, `jira_move_to_backlog`
 
-### 3.7 Пошук (закриває п.6 фідбеку для масових операцій)
-- [ ] `fields` / `expand` / `includeCustomFields` у `jira_search_issues`
-- [ ] Той самий набір параметрів через спільний хелпер у `jira_get_user_issues`, `jira_get_sprint`, `jira_get_epic_issues`, `jira_search_by_filter`, `jira_list_epics`
+### 3.7 Пошук
+- [x] `fields` / `expand` / `includeCustomFields` у шести пошукових інструментах через спільний хелпер
 
----
+Промпти `jira-sprint-planning` і `jira-version-planning` більше не відсилають у Jira UI.
 
 ## Фаза 4 — Протокол MCP
 
