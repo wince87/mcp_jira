@@ -1,5 +1,6 @@
 import type { JiraWorklog, ToolArgs, ToolResponse } from '../types.js';
 import { jiraApi } from '../http.js';
+import { mapUser, mapWorklog } from '../mappers.js';
 import { offsetPage, offsetParams } from '../args.js';
 import { adfToText, createADFDocument } from '../adf.js';
 import { createSuccessResponse } from '../responses.js';
@@ -16,7 +17,7 @@ export async function handleAddWorklog(a: ToolArgs): Promise<ToolResponse> {
   if (started !== undefined && started !== null) worklogData.started = validateISO8601(started, 'started');
 
   const response = await jiraApi.post(`/issue/${issueKey}/worklog`, worklogData);
-  return createSuccessResponse({ success: true, id: response.data.id, issueKey, timeSpent: response.data.timeSpent, author: response.data.author?.displayName });
+  return createSuccessResponse({ success: true, id: response.data.id, issueKey, timeSpent: response.data.timeSpent, author: mapUser(response.data.author) });
 }
 
 export async function handleGetWorklogs(a: ToolArgs): Promise<ToolResponse> {
@@ -27,14 +28,7 @@ export async function handleGetWorklogs(a: ToolArgs): Promise<ToolResponse> {
   return createSuccessResponse({
     issueKey,
     ...offsetPage(response.data, worklogs.length, params),
-    worklogs: worklogs.map(w => ({
-      id: w.id,
-      author: w.author?.displayName,
-      timeSpent: w.timeSpent,
-      timeSpentSeconds: w.timeSpentSeconds,
-      started: w.started,
-      comment: adfToText(w.comment),
-    })),
+    worklogs: worklogs.map(mapWorklog),
   });
 }
 

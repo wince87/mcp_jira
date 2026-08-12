@@ -1,5 +1,6 @@
 import type { JiraComponent, JiraProject, JiraVersion, ToolArgs, ToolResponse } from '../types.js';
 import { jiraApi } from '../http.js';
+import { mapComponent, mapProject, mapVersion } from '../mappers.js';
 import { offsetPage, offsetParams } from '../args.js';
 import { createSuccessResponse, resolveProjectKey } from '../responses.js';
 import { sanitizeString } from '../validation.js';
@@ -9,13 +10,7 @@ import { JIRA_PROJECT_KEY } from '../config.js';
 export async function handleGetProjectInfo(a: ToolArgs): Promise<ToolResponse> {
   const projectKey = resolveProjectKey(a);
   const response = await jiraApi.get(`/project/${projectKey}`);
-  return createSuccessResponse({
-    key: response.data.key,
-    name: response.data.name,
-    description: response.data.description,
-    lead: response.data.lead?.displayName,
-    url: response.data.url,
-  });
+  return createSuccessResponse(mapProject(response.data));
 }
 
 export async function handleListProjects(a: ToolArgs): Promise<ToolResponse> {
@@ -27,7 +22,7 @@ export async function handleListProjects(a: ToolArgs): Promise<ToolResponse> {
   const projects: JiraProject[] = response.data.values ?? [];
   return createSuccessResponse({
     ...offsetPage(response.data, projects.length, params),
-    projects: projects.map(p => ({ key: p.key, name: p.name, projectTypeKey: p.projectTypeKey, style: p.style, lead: p.lead?.displayName })),
+    projects: projects.map(mapProject),
   });
 }
 
@@ -37,7 +32,7 @@ export async function handleGetProjectComponents(a: ToolArgs): Promise<ToolRespo
   const components: JiraComponent[] = response.data ?? [];
   return createSuccessResponse({
     projectKey,
-    components: components.map(c => ({ id: c.id, name: c.name, description: c.description, lead: c.lead?.displayName, assigneeType: c.assigneeType })),
+    components: components.map(mapComponent),
   });
 }
 
@@ -47,7 +42,7 @@ export async function handleGetProjectVersions(a: ToolArgs): Promise<ToolRespons
   const versions: JiraVersion[] = response.data ?? [];
   return createSuccessResponse({
     projectKey,
-    versions: versions.map(v => ({ id: v.id, name: v.name, description: v.description, released: v.released, archived: v.archived, releaseDate: v.releaseDate, startDate: v.startDate })),
+    versions: versions.map(mapVersion),
   });
 }
 

@@ -1,5 +1,6 @@
 import type { JiraComment, ToolArgs, ToolResponse } from '../types.js';
 import { jiraApi } from '../http.js';
+import { mapComment } from '../mappers.js';
 import { offsetPage, offsetParams } from '../args.js';
 import { adfToText, createADFDocument } from '../adf.js';
 import { createSuccessResponse } from '../responses.js';
@@ -37,13 +38,7 @@ export async function handleGetComments(a: ToolArgs): Promise<ToolResponse> {
   return createSuccessResponse({
     issueKey,
     ...offsetPage(response.data, comments.length, params),
-    comments: comments.map(c => ({
-      id: c.id,
-      author: c.author?.displayName,
-      body: adfToText(c.body),
-      created: c.created,
-      updated: c.updated,
-    })),
+    comments: comments.map(mapComment),
   });
 }
 

@@ -222,6 +222,26 @@ export interface JiraVersion {
   startDate?: string;
 }
 
+export interface JiraFilter {
+  id?: string;
+  name?: string;
+  description?: string;
+  jql?: string;
+  owner?: JiraUser;
+  favourite?: boolean;
+  favouritedCount?: number;
+  viewUrl?: string;
+}
+
+export interface AgileEpic {
+  id?: number;
+  key?: string;
+  name?: string;
+  summary?: string;
+  done?: boolean;
+  color?: { key?: string };
+}
+
 export interface JiraBoard {
   id?: number;
   name?: string;

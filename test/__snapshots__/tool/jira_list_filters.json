@@ -16,7 +16,8 @@
           "displayName": "Vova Press"
         },
         "favourite": true,
-        "favouritedCount": 2
+        "favouritedCount": 2,
+        "viewUrl": "https://mock/filter/1000"
       }
     ]
   },

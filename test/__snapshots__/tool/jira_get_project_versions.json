@@ -9,8 +9,8 @@
         "description": "First",
         "released": true,
         "archived": false,
-        "releaseDate": "2026-06-01",
-        "startDate": "2026-05-01"
+        "startDate": "2026-05-01",
+        "releaseDate": "2026-06-01"
       },
       {
         "id": "10101",
@@ -18,8 +18,8 @@
         "description": "Next",
         "released": false,
         "archived": false,
-        "releaseDate": "2026-10-01",
-        "startDate": "2026-08-01"
+        "startDate": "2026-08-01",
+        "releaseDate": "2026-10-01"
       }
     ]
   },

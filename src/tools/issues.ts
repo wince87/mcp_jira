@@ -1,7 +1,5 @@
 import type { AxiosError } from 'axios';
-import type {
-  JiraAttachment, JiraChangelogHistory, JiraIssueFields, ImageContent, ToolArgs, ToolResponse,
-} from '../types.js';
+import type { ImageContent, JiraAttachment, JiraChangelogHistory, JiraIssueFields, ToolArgs, ToolResponse } from '../types.js';
 import { jiraApi } from '../http.js';
 import { offsetPage, offsetParams } from '../args.js';
 import { JIRA_PROJECT_KEY, STORY_POINTS_FIELD } from '../config.js';
@@ -18,7 +16,7 @@ import {
   resolveIssueTypeValue, resolvePriorityValue, safeCreateMeta,
 } from '../meta.js';
 import { describeTransitions, fetchTransitions, postTransition, resolveTransition } from '../transitions.js';
-import { issueSnapshot, mapCustomFields, mapIssue, namesOf, simplifyFieldValue } from '../mappers.js';
+import { issueSnapshot, mapCustomFields, mapIssue, mapUser, namesOf, simplifyFieldValue } from '../mappers.js';
 import { defineTool } from '../registry.js';
 import { PRIORITY_SCHEMA, COMMON_ISSUE_FIELDS_SCHEMA } from '../schemas.js';
 
@@ -312,7 +310,7 @@ export async function handleGetChangelog(a: ToolArgs): Promise<ToolResponse> {
     ...offsetPage(response.data, histories.length, params),
     histories: histories.map(h => ({
       id: h.id,
-      author: h.author?.displayName,
+      author: mapUser(h.author),
       created: h.created,
       items: (h.items ?? []).map(item => ({
         field: item.field,

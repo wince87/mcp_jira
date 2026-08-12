@@ -1,7 +1,7 @@
-import type { JiraIssue, ToolArgs, ToolResponse } from '../types.js';
+import type { JiraFilter, JiraIssue, ToolArgs, ToolResponse } from '../types.js';
 import { jiraApi } from '../http.js';
 import { offsetPage, offsetParams, readMaxResults, readPageToken, tokenPage } from '../args.js';
-import { ISSUE_LIST_FIELDS, issueListFieldsParam, mapIssueList, mapIssueSummary, readIssueListOptions } from '../mappers.js';
+import { issueListFieldsParam, mapFilter, mapIssueList, readIssueListOptions } from '../mappers.js';
 import { createSuccessResponse } from '../responses.js';
 import { sanitizeString, validateAccountId, validateSafeParam } from '../validation.js';
 import { defineTool } from '../registry.js';
@@ -23,32 +23,14 @@ export async function handleListFilters(a: ToolArgs): Promise<ToolResponse> {
 
   return createSuccessResponse({
     ...offsetPage(response.data, filters.length, params),
-    filters: filters.map(f => ({
-      id: f.id,
-      name: f.name,
-      description: f.description,
-      jql: f.jql,
-      owner: f.owner ? { accountId: f.owner.accountId, displayName: f.owner.displayName } : null,
-      favourite: f.favourite ?? false,
-      favouritedCount: f.favouritedCount ?? 0,
-    })),
+    filters: filters.map(mapFilter),
   });
 }
 
 export async function handleGetFilter(a: ToolArgs): Promise<ToolResponse> {
   const filterId = validateSafeParam(a.filterId, 'filterId', 30);
   const response = await jiraApi.get(`/filter/${filterId}`);
-  const f = response.data;
-  return createSuccessResponse({
-    id: f.id,
-    name: f.name,
-    description: f.description,
-    jql: f.jql,
-    owner: f.owner ? { accountId: f.owner.accountId, displayName: f.owner.displayName } : null,
-    favourite: f.favourite ?? false,
-    favouritedCount: f.favouritedCount ?? 0,
-    viewUrl: f.viewUrl,
-  });
+  return createSuccessResponse(mapFilter(response.data));
 }
 
 export async function handleSearchByFilter(a: ToolArgs): Promise<ToolResponse> {

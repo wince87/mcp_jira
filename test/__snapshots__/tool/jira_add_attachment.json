@@ -8,6 +8,7 @@
         "filename": "upload.txt",
         "size": 12,
         "mimeType": "text/plain",
+        "author": null,
         "url": "https://mock/attachment/content/9002"
       }
     ]

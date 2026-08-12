@@ -1,7 +1,7 @@
-import type { JiraBoard, JiraIssue, JiraSprint, ToolArgs, ToolResponse } from '../types.js';
+import type { AgileEpic, JiraBoard, JiraIssue, JiraSprint, ToolArgs, ToolResponse } from '../types.js';
 import { agileApi, jiraApi } from '../http.js';
 import { numericId, offsetPage, offsetParams, present, readMaxResults, readPageToken, tokenPage } from '../args.js';
-import { ISSUE_LIST_FIELDS, issueListFieldsParam, issueSnapshot, mapIssueList, mapIssueSummary, readIssueListOptions } from '../mappers.js';
+import { issueListFieldsParam, issueSnapshot, mapIssueList, mapSprint, readIssueListOptions } from '../mappers.js';
 import { buildJql, equalsClause } from '../jql.js';
 import { createADFDocument } from '../adf.js';
 import { createIssueUrl, createSuccessResponse, resolveProjectKey } from '../responses.js';
@@ -45,14 +45,7 @@ export async function handleListSprints(a: ToolArgs): Promise<ToolResponse> {
   const sprints: JiraSprint[] = response.data.values ?? [];
   return createSuccessResponse({
     ...offsetPage(response.data, sprints.length, params),
-    sprints: sprints.map(s => ({
-      id: s.id,
-      name: s.name,
-      state: s.state,
-      startDate: s.startDate,
-      endDate: s.endDate,
-      goal: s.goal,
-    })),
+    sprints: sprints.map(mapSprint),
   });
 }
 
@@ -173,7 +166,6 @@ export async function handleGetBoardEpics(a: ToolArgs): Promise<ToolResponse> {
   }
 
   const response = await agileApi.get(`/board/${boardId}/epic`, { params });
-  interface AgileEpic { id: number; key: string; name: string; summary: string; done: boolean; color?: { key: string } }
   const epics: AgileEpic[] = response.data.values ?? [];
 
   return createSuccessResponse({
@@ -186,7 +178,7 @@ export async function handleGetBoardEpics(a: ToolArgs): Promise<ToolResponse> {
       summary: e.summary,
       done: e.done,
       color: e.color?.key,
-      url: createIssueUrl(e.key),
+      url: e.key ? createIssueUrl(e.key) : null,
     })),
   });
 }

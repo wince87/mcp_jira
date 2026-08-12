@@ -1,5 +1,6 @@
 import type { JiraUser, ToolArgs, ToolResponse } from '../types.js';
 import { jiraApi } from '../http.js';
+import { mapWatcher } from '../mappers.js';
 import { offsetPage, offsetParams } from '../args.js';
 import { createSuccessResponse } from '../responses.js';
 import { sanitizeString, validateAccountId, validateIssueKey } from '../validation.js';
@@ -49,17 +50,12 @@ export async function handleRemoveWatcher(a: ToolArgs): Promise<ToolResponse> {
 export async function handleGetWatchers(a: ToolArgs): Promise<ToolResponse> {
   const issueKey = validateIssueKey(a.issueKey);
   const response = await jiraApi.get(`/issue/${issueKey}/watchers`);
-  interface WatcherUser { accountId: string; displayName: string; active?: boolean }
-  const watchers: WatcherUser[] = response.data.watchers ?? [];
+  const watchers: JiraUser[] = response.data.watchers ?? [];
   return createSuccessResponse({
     issueKey,
     isWatching: response.data.isWatching,
     watchCount: response.data.watchCount ?? watchers.length,
-    watchers: watchers.map(w => ({
-      accountId: w.accountId,
-      displayName: w.displayName,
-      active: w.active ?? true,
-    })),
+    watchers: watchers.map(mapWatcher),
   });
 }
 

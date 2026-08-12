@@ -1,4 +1,7 @@
-import type { JiraField, JiraIssue, JiraIssueFields, JiraIssueLink, JiraUser } from './types.js';
+import type {
+  JiraAttachment, JiraComment, JiraComponent, JiraField, JiraFilter, JiraIssue, JiraIssueFields,
+  JiraIssueLink, JiraProject, JiraSprint, JiraUser, JiraVersion, JiraWorklog,
+} from './types.js';
 import { jiraApi } from './http.js';
 import { STORY_POINTS_FIELD } from './config.js';
 import { adfToText } from './adf.js';
@@ -164,4 +167,100 @@ export async function mapIssueList(issues: JiraIssue[], options: IssueListOption
     mapped[i].customFields = await mapCustomFields(issues[i].fields ?? {});
   }
   return mapped;
+}
+
+export function mapComment(comment: JiraComment): Record<string, unknown> {
+  return {
+    id: comment.id,
+    author: mapUser(comment.author),
+    body: adfToText(comment.body),
+    created: comment.created,
+    updated: comment.updated,
+  };
+}
+
+export function mapWorklog(worklog: JiraWorklog): Record<string, unknown> {
+  return {
+    id: worklog.id,
+    author: mapUser(worklog.author),
+    timeSpent: worklog.timeSpent,
+    timeSpentSeconds: worklog.timeSpentSeconds,
+    started: worklog.started,
+    comment: adfToText(worklog.comment),
+  };
+}
+
+export function mapAttachment(attachment: JiraAttachment): Record<string, unknown> {
+  return {
+    id: attachment.id,
+    filename: attachment.filename,
+    size: attachment.size,
+    mimeType: attachment.mimeType,
+    created: attachment.created,
+    author: mapUser(attachment.author),
+    url: attachment.content,
+  };
+}
+
+export function mapVersion(version: JiraVersion): Record<string, unknown> {
+  return {
+    id: version.id,
+    name: version.name,
+    description: version.description,
+    released: version.released ?? false,
+    archived: version.archived ?? false,
+    startDate: version.startDate ?? null,
+    releaseDate: version.releaseDate ?? null,
+  };
+}
+
+export function mapComponent(component: JiraComponent): Record<string, unknown> {
+  return {
+    id: component.id,
+    name: component.name,
+    description: component.description,
+    lead: mapUser(component.lead),
+    assigneeType: component.assigneeType,
+  };
+}
+
+export function mapSprint(sprint: JiraSprint): Record<string, unknown> {
+  return {
+    id: sprint.id,
+    name: sprint.name,
+    state: sprint.state,
+    startDate: sprint.startDate ?? null,
+    endDate: sprint.endDate ?? null,
+    goal: sprint.goal ?? null,
+  };
+}
+
+export function mapFilter(filter: JiraFilter): Record<string, unknown> {
+  return {
+    id: filter.id,
+    name: filter.name,
+    description: filter.description,
+    jql: filter.jql,
+    owner: mapUser(filter.owner),
+    favourite: filter.favourite ?? false,
+    favouritedCount: filter.favouritedCount ?? 0,
+    viewUrl: filter.viewUrl,
+  };
+}
+
+export function mapProject(project: JiraProject): Record<string, unknown> {
+  return {
+    id: project.id,
+    key: project.key,
+    name: project.name,
+    description: project.description,
+    lead: mapUser(project.lead),
+    projectTypeKey: project.projectTypeKey,
+    style: project.style,
+    url: project.url,
+  };
+}
+
+export function mapWatcher(watcher: JiraUser): Record<string, unknown> {
+  return { accountId: watcher.accountId, displayName: watcher.displayName, active: watcher.active ?? true };
 }

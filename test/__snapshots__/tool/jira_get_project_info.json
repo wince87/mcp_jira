@@ -1,10 +1,16 @@
 {
   "isError": false,
   "data": {
+    "id": "10000",
     "key": "TEST",
     "name": "Test project",
     "description": "Mock project",
-    "lead": "Vova Press",
+    "lead": {
+      "accountId": "5b10a2844c20165700ede21g",
+      "displayName": "Vova Press"
+    },
+    "projectTypeKey": "software",
+    "style": "classic",
     "url": "https://mock/browse/TEST"
   },
   "contentTypes": [

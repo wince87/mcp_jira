@@ -2,6 +2,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { basename } from 'node:path';
 import type { JiraAttachment, ToolArgs, ToolResponse } from '../types.js';
 import { jiraApi } from '../http.js';
+import { mapAttachment } from '../mappers.js';
 import {
   MAX_INLINE_IMAGE_BYTES, createMixedResponse, createSuccessResponse, imageContent, isImageMime,
 } from '../responses.js';
@@ -19,15 +20,7 @@ export async function handleGetAttachments(a: ToolArgs): Promise<ToolResponse> {
   return createSuccessResponse({
     issueKey,
     total: attachments.length,
-    attachments: attachments.map(att => ({
-      id: att.id,
-      filename: att.filename,
-      size: att.size,
-      mimeType: att.mimeType,
-      created: att.created,
-      author: att.author?.displayName,
-      url: att.content,
-    })),
+    attachments: attachments.map(mapAttachment),
   });
 }
 
@@ -48,13 +41,7 @@ export async function handleAddAttachment(a: ToolArgs): Promise<ToolResponse> {
   const attachments: JiraAttachment[] = response.data ?? [];
   return createSuccessResponse({
     success: true,
-    attachments: attachments.map(att => ({
-      id: att.id,
-      filename: att.filename,
-      size: att.size,
-      mimeType: att.mimeType,
-      url: att.content,
-    })),
+    attachments: attachments.map(mapAttachment),
   });
 }
 

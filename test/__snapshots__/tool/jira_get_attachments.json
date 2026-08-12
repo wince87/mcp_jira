@@ -10,7 +10,10 @@
         "size": 1024,
         "mimeType": "image/png",
         "created": "2026-08-01T11:00:00.000+0000",
-        "author": "Vova Press",
+        "author": {
+          "accountId": "5b10a2844c20165700ede21g",
+          "displayName": "Vova Press"
+        },
         "url": "https://mock/attachment/content/9001"
       }
     ]

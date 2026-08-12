@@ -9,7 +9,10 @@
     "histories": [
       {
         "id": "50001",
-        "author": "Vova Press",
+        "author": {
+          "accountId": "5b10a2844c20165700ede21g",
+          "displayName": "Vova Press"
+        },
         "created": "2026-08-02T10:00:00.000+0000",
         "items": [
           {

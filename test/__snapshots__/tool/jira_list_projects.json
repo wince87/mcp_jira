@@ -7,11 +7,17 @@
     "hasMore": false,
     "projects": [
       {
+        "id": "10000",
         "key": "TEST",
         "name": "Test project",
+        "description": "Mock project",
+        "lead": {
+          "accountId": "5b10a2844c20165700ede21g",
+          "displayName": "Vova Press"
+        },
         "projectTypeKey": "software",
         "style": "classic",
-        "lead": "Vova Press"
+        "url": "https://mock/browse/TEST"
       }
     ]
   },

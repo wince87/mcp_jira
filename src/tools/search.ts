@@ -1,7 +1,7 @@
 import type { JiraIssue, ToolArgs, ToolResponse } from '../types.js';
 import { jiraApi } from '../http.js';
 import { present, readMaxResults, readPageToken, tokenPage } from '../args.js';
-import { ISSUE_LIST_FIELDS, issueListFieldsParam, mapIssueList, mapIssueSummary, readIssueListOptions } from '../mappers.js';
+import { issueListFieldsParam, mapIssueList, readIssueListOptions } from '../mappers.js';
 import { buildJql, equalsClause } from '../jql.js';
 import { createSuccessResponse, resolveProjectKey } from '../responses.js';
 import { validateAccountId, validateExpandList, validateJQL } from '../validation.js';

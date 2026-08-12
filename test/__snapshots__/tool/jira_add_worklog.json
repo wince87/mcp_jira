@@ -5,7 +5,10 @@
     "id": "40002",
     "issueKey": "TEST-1",
     "timeSpent": "1h",
-    "author": "Vova Press"
+    "author": {
+      "accountId": "5b10a2844c20165700ede21g",
+      "displayName": "Vova Press"
+    }
   },
   "contentTypes": [
     "text"

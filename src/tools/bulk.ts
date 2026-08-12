@@ -1,5 +1,5 @@
 import type { AxiosError } from 'axios';
-import type { JiraIssue, JiraIssuePayload, BulkIssueInput, ToolArgs, ToolResponse } from '../types.js';
+import type { BulkIssueInput, JiraIssue, JiraIssuePayload, ToolArgs, ToolResponse } from '../types.js';
 import { jiraApi } from '../http.js';
 import { JIRA_CONCURRENCY } from '../config.js';
 import { mapWithConcurrency } from '../concurrency.js';
