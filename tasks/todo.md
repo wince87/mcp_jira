@@ -147,6 +147,16 @@ resolution surprises for npx, easier to audit"). Після цього релі�
 Усі знімки Фази 0 мусять лишитися байт-у-байт ідентичними, крім свідомих ламких змін D4,
 які вносяться окремим комітом з оновленням знімків.
 
+### 1.0 Розбиття на модулі (D1) — ГОТОВО
+
+- [x] 26 модулів: `config`, `types`, `validation`, `adf`, `http`, `errors`, `responses`, `meta`,
+      `transitions`, `mappers`, `schemas`, `prompts`, `index` + `tools/` за доменами
+- [x] Витяг механічний, скриптом — усі 84 знімки байт-у-байт ідентичні після розбиття
+- [x] Валідатори безпеки зібрані в один `validation.ts`
+- [x] Мертві імпорти вичищені (тип-імпорти `--noUnusedLocals` не ловить, прибрано окремо)
+
+Пастка Node16: відносні імпорти пишуться з `.js`, хоча джерела `.ts`.
+
 ### 1.1 Реєстр інструментів (закриває R9, вмикає Фазу 4)
 
 - [ ] `defineTool({ name, description, annotations, inputSchema, outputSchema, handler })`
@@ -176,15 +186,18 @@ resolution surprises for npx, easier to audit"). Після цього релі�
 - [ ] `jql.project(key).and.status(s).orderBy(...)` або простий `buildJql()` з єдиним екрануванням
 - [ ] Єдине місце, де взагалі відбувається екранування лапок
 
-### 1.6 Переходи (закриває B1, R11)
+### 1.6 Переходи (закриває B1, R11) — ГОТОВО
 
-- [ ] Один `resolveTransition(list, { id, status })`: спершу `to.name`, потім `name`, без регістру
-- [ ] `jira_update_issue` і `jira_bulk_transition_issues` користуються ним обидва
-- [ ] `jira_bulk_transition_issues` отримує `transitionFields`, як і `jira_update_issue`
+- [x] Один `resolveTransition(list, { id, status })`: спершу `to.name`, потім `name`, без регістру
+- [x] `jira_update_issue` і `jira_bulk_transition_issues` користуються ним обидва
+- [x] `jira_bulk_transition_issues` отримав `transitionFields` і йде через `postTransition`
+- [x] `describeTransitions` — один формат "name -> target (id)" для обох
+- [x] `transitionName` лишається аліасом до нового `status`
 
-### 1.7 Кеш метаданих (закриває R10)
+### 1.7 Кеш метаданих (закриває R10) — ГОТОВО
 
-- [ ] `handleGetIssueTypes` і `handleGetFields` переходять на `fetchIssueTypes` / `fetchFieldIndex`
+- [x] `handleGetIssueTypes` і `handleGetFields` читають через `fetchIssueTypes` / `fetchFieldIndex`
+- [x] Побічно знято мовчазну стелю в 50 типів задач
 
 ### 1.8 Розділення відповідальностей у хендлерах (SRP)
 
