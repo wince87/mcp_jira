@@ -2,7 +2,83 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [3.0.0] - unreleased
+
+Major release. 75 tools (was 53), full MCP protocol surface, and a regression
+suite that did not exist before. See [MIGRATION.md](MIGRATION.md) for every
+externally visible change with before/after examples.
+
+### Breaking
+- **Node 20+** required. Node 18 is end of life and its test runner cannot run this suite.
+- **People are always `{accountId, displayName}`.** In 2.x `assignee` was an object in some
+  tools and a bare display name in others, and `reporter`, comment/worklog/attachment/changelog
+  authors and project/component leads were plain strings. Half-unified shapes are worse than
+  none: the caller still has to remember which tool returns which.
+- **One pagination envelope.** `count` and `isLast` are gone, replaced by `returned` and
+  `hasMore`, plus `startAt`/`total` on offset endpoints and `nextPageToken` on search. `returned`
+  is deliberately not called `total` — `/search/jql` stopped reporting a real total.
+- **One issue list item shape** across `jira_search_issues`, `jira_get_user_issues`,
+  `jira_get_sprint`, `jira_get_epic_issues`, `jira_search_by_filter` and `jira_list_epics`.
+  Nothing was dropped; fields only some of them returned are now on all of them.
+- **`jira_bulk_transition_issues` `succeeded`** is now `{issueKey, transition, to}` objects, so
+  the caller can see which transition actually ran per issue.
+- **`labels` is only sent when provided** instead of always sending `[]`, which Jira rejects on
+  screens without a Labels field.
+
+### Fixed
+- `jira_bulk_transition_issues` matched only `transition.name`, so a target status like
+  "In Progress" never found a transition named "Start work (estimate)" — the same defect fixed
+  in `jira_update_issue` in 2.9 but never applied to bulk. Both now share one resolver.
+- `jira_get_issue` never returned `issuelinks`, while the `jira-dependency-map` prompt told the
+  agent to read blockers from it. Issue links are now returned with the relation phrased from
+  the issue's point of view, plus the link id needed to remove one.
+- No list tool accepted `startAt`, so comments, changelog, worklogs, projects, users, filters,
+  boards, sprints and epics dead-ended at 100 rows.
+- `429` responses were not retried at all, so bulk operations hit the rate limit and failed.
+- `jira_delete_issue` could not delete an issue that has subtasks, and its description did not
+  mention that deletion is irreversible.
+- `jira_create_subtask` hardcoded the issue type `Subtask`, failing on instances that call it
+  `Sub-task` or use a localized name.
+- `jira_create_epic` always sent the classic Epic Name field, which team-managed projects reject.
+- JQL escaping handled quotes but not backslashes, so a trailing backslash could escape the
+  closing quote.
+
+### Added
+- 21 tools: sprint lifecycle (`jira_create_sprint`, `jira_update_sprint`, `jira_delete_sprint`),
+  version lifecycle, component lifecycle, `jira_get_edit_fields`, `jira_bulk_update_issues`,
+  remote links (get/add/delete), `jira_delete_attachment`, `jira_delete_issue_link`,
+  `jira_get_project_statuses`, `jira_list_labels`, `jira_get_my_permissions`,
+  `jira_rank_issues`, `jira_move_to_backlog`.
+- Tool annotations on all 75 tools — 36 read-only, 10 destructive — so clients can auto-approve
+  reads. A test cross-checks every `readOnlyHint` against the recorded HTTP methods.
+- Structured output: `structuredContent` on every success, `outputSchema` on 44 tools built
+  from 13 shared shapes.
+- Prompt arguments on 21 prompts, with `completion/complete` for project keys, issue types,
+  priority ids and sprint states.
+- Resources: `jira://issue/{key}`, `jira://project/{key}`,
+  `jira://project/{key}/create-fields/{issueType}`, `jira://filter/{id}`, `jira://my-open-issues`.
+- `fields`, `expand` and `includeCustomFields` on the six issue-list tools, so reading a custom
+  field across 20 issues is one call instead of 20.
+- `jira-project-admin` prompt (35 total).
+- Rate-limit handling with `Retry-After`, and `JIRA_TIMEOUT_MS`, `JIRA_MAX_RETRIES`,
+  `JIRA_RETRY_BASE_MS`, `JIRA_CONCURRENCY`, `JIRA_FORCE_ENGLISH`.
+- A test suite: 177 tests over a mock Jira covering all 51 endpoints the server calls, contract
+  snapshots for every tool, and 13 security invariant tests. The repo had none before.
+
+### Changed
+- Source split from one 4700-line file into 28 modules by domain. Security validators now live
+  in one place instead of being scattered.
+- Retry policy is asymmetric on purpose: `429` is retried for every method because the request
+  never reached Jira's handler; `5xx` and network errors are retried only for reads, because a
+  write that returned `5xx` may already have been applied.
+- Bulk transitions run `JIRA_CONCURRENCY` requests in parallel and report results in input order.
+- Metadata handlers stopped bypassing the cache added in 2.9, which also lifted a silent 50-item
+  cap on issue types.
+
+
+## [2.9.0] - never published, folded into 3.0.0
+
+Kept for the detail. Everything below shipped as part of 3.0.0; there is no 2.9.0 on npm.
 
 ### Added
 - `jira_get_create_fields(projectKey, issueType)` — the missing second createmeta step. Returns every field on the create screen with `fieldId`, `name`, `required`, `type`, `custom` and `allowedValues`, plus a `requiredFields` shortlist. Previously `jira_get_issue_types` stopped at the type list, so the fields a screen demands could only be guessed at. Total tools: 54.
