@@ -6,9 +6,6 @@
     "startAt": 0,
     "total": 2,
     "hasMore": false,
-    "done": 0,
-    "inProgress": 1,
-    "todo": 1,
     "issues": [
       {
         "key": "TEST-1",
@@ -45,7 +42,10 @@
         "updated": "2026-08-01T09:30:00.000+0000",
         "url": "https://jira.test/browse/TEST-2"
       }
-    ]
+    ],
+    "done": 0,
+    "inProgress": 1,
+    "todo": 1
   },
   "contentTypes": [
     "text"

@@ -1,7 +1,10 @@
 import type { AgileEpic, JiraBoard, JiraIssue, JiraSprint, ToolArgs, ToolResponse } from '../types.js';
-import { agileApi, jiraApi } from '../http.js';
-import { numericId, offsetPage, offsetParams, present, readMaxResults, readPageToken, tokenPage } from '../args.js';
-import { issueListFieldsParam, issueSnapshot, mapIssueList, mapSprint, readIssueListOptions } from '../mappers.js';
+import { agileApi } from '../http.js';
+import { numericId, offsetPage, offsetParams, present } from '../args.js';
+import {
+  issueListFieldsParam, issueSnapshot, mapIssueList, mapSprint, readIssueListOptions, runAgileIssueList,
+  runJqlSearch,
+} from '../mappers.js';
 import { buildJql, equalsClause } from '../jql.js';
 import { createADFDocument } from '../adf.js';
 import { createIssueUrl, createSuccessResponse, resolveProjectKey } from '../responses.js';
@@ -103,18 +106,7 @@ export async function handleListEpics(a: ToolArgs): Promise<ToolResponse> {
     orderBy: 'created DESC',
   });
 
-  const options = readIssueListOptions(a);
-  const params: Record<string, unknown> = { jql, maxResults: readMaxResults(a), fields: issueListFieldsParam(options) };
-  const pageToken = readPageToken(a);
-  if (pageToken) params.nextPageToken = pageToken;
-
-  const response = await jiraApi.get('/search/jql', { params });
-  const epics: JiraIssue[] = response.data.issues ?? [];
-
-  return createSuccessResponse({
-    ...tokenPage(response.data, epics.length),
-    epics: await mapIssueList(epics, options),
-  });
+  return createSuccessResponse(await runJqlSearch(jql, a, 'epics'));
 }
 
 export async function handleGetEpic(a: ToolArgs): Promise<ToolResponse> {
@@ -137,22 +129,15 @@ export async function handleGetEpicIssues(a: ToolArgs): Promise<ToolResponse> {
   const epicKey = validateIssueKey(a.epicKey);
   const options = readIssueListOptions(a);
 
-  const response = await agileApi.get(`/epic/${epicKey}/issue`, {
-    params: { ...offsetParams(a), fields: issueListFieldsParam(options) },
-  });
-
-  const issues: JiraIssue[] = response.data.issues ?? [];
-  const done = issues.filter(i => i.fields.status?.statusCategory?.key === 'done').length;
-  const inProgress = issues.filter(i => i.fields.status?.statusCategory?.key === 'indeterminate').length;
-  const todo = issues.filter(i => i.fields.status?.statusCategory?.key === 'new').length;
+  const { body, issues } = await runAgileIssueList(`/epic/${epicKey}/issue`, a, { epicKey });
+  const countBy = (category: string): number =>
+    issues.filter((i: JiraIssue) => i.fields.status?.statusCategory?.key === category).length;
 
   return createSuccessResponse({
-    epicKey,
-    ...offsetPage(response.data, issues.length, offsetParams(a)),
-    done,
-    inProgress,
-    todo,
-    issues: await mapIssueList(issues, options),
+    ...body,
+    done: countBy('done'),
+    inProgress: countBy('indeterminate'),
+    todo: countBy('new'),
   });
 }
 

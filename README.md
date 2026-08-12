@@ -9,7 +9,7 @@ Model Context Protocol (MCP) server for Jira API integration with automatic Mark
 ## Features
 
 - 75 Jira API tools via MCP protocol
-- 34 pre-baked MCP prompts covering every tool (sprint planning, bug triage, epic health, standup, weekly reports, bulk ops, attachments, watchers, filters, reorg, etc.)
+- 35 pre-baked MCP prompts covering every tool (sprint planning, bug triage, epic health, standup, weekly reports, bulk ops, attachments, watchers, filters, reorg, etc.)
 - Automatic Markdown to ADF conversion (write Markdown, get proper Jira formatting)
 - ADF to Markdown conversion when reading issues and comments
 - Full create screen introspection (`jira_get_create_fields`): required fields, types, allowed values — plus `dryRun` validation and 400 responses enriched with what was missing
@@ -148,7 +148,7 @@ Beyond tools, the server exposes:
 
 ## MCP Prompts
 
-Pre-baked workflows your AI agent can invoke directly (via MCP `prompts/list` + `prompts/get`). Every one of the 75 tools is referenced in at least one prompt.
+Pre-baked workflows your AI agent can invoke directly (via MCP `prompts/list` + `prompts/get`). Every one of the 75 tools is referenced in at least one prompt, and a test keeps that true.
 
 **Formatting & lookup**
 - `jira-formatting-guide` - Markdown formatting rules for Jira (ADF)
@@ -156,6 +156,7 @@ Pre-baked workflows your AI agent can invoke directly (via MCP `prompts/list` + 
 - `jira-changelog-audit` - Audit history of an issue
 - `jira-field-discovery` - Find custom field IDs and enum values
 - `jira-project-overview` - Project snapshot for onboarding
+- `jira-project-admin` - Audit components, versions, statuses and labels before planning
 
 **Planning**
 - `jira-epic-breakdown` - Split an idea into an epic + stories + subtasks

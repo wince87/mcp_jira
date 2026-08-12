@@ -1,7 +1,7 @@
-import type { JiraFilter, JiraIssue, ToolArgs, ToolResponse } from '../types.js';
+import type { JiraFilter, ToolArgs, ToolResponse } from '../types.js';
 import { jiraApi } from '../http.js';
-import { offsetPage, offsetParams, readMaxResults, readPageToken, tokenPage } from '../args.js';
-import { issueListFieldsParam, mapFilter, mapIssueList, readIssueListOptions } from '../mappers.js';
+import { offsetPage, offsetParams } from '../args.js';
+import { mapFilter, runJqlSearch } from '../mappers.js';
 import { createSuccessResponse } from '../responses.js';
 import { sanitizeString, validateAccountId, validateSafeParam } from '../validation.js';
 import { defineTool } from '../registry.js';
@@ -42,21 +42,11 @@ export async function handleSearchByFilter(a: ToolArgs): Promise<ToolResponse> {
   const jql: string = filterResponse.data.jql;
   if (!jql || typeof jql !== 'string') throw new Error(`Filter ${filterId} has no JQL`);
 
-  const options = readIssueListOptions(a);
-  const params: Record<string, unknown> = { jql, maxResults: readMaxResults(a), fields: issueListFieldsParam(options) };
-  const pageToken = readPageToken(a);
-  if (pageToken) params.nextPageToken = pageToken;
-
-  const response = await jiraApi.get('/search/jql', { params });
-  const issues: JiraIssue[] = response.data.issues ?? [];
-
-  return createSuccessResponse({
+  return createSuccessResponse(await runJqlSearch(jql, a, 'issues', {
     filterId,
     filterName: filterResponse.data.name,
     jql,
-    ...tokenPage(response.data, issues.length),
-    issues: await mapIssueList(issues, options),
-  });
+  }));
 }
 
 export const ListFiltersTool = defineTool({

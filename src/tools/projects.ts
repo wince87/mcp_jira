@@ -5,7 +5,9 @@ import { fetchProjectId } from '../meta.js';
 import { mapComponent, mapProject, mapVersion } from '../mappers.js';
 import { offsetPage, offsetParams } from '../args.js';
 import { createSuccessResponse, resolveProjectKey } from '../responses.js';
-import { sanitizeString, validateAccountId, validateAssigneeType, validateDate, validateSafeParam } from '../validation.js';
+import {
+  sanitizeString, validateAccountId, validateAssigneeType, validateDate, validateSafeParam,
+} from '../validation.js';
 import { defineTool } from '../registry.js';
 import { ACK_OUTPUT, COMPONENT_LIST_OUTPUT, VERSION_LIST_OUTPUT } from '../outputs.js';
 import { JIRA_PROJECT_KEY } from '../config.js';

@@ -22,6 +22,59 @@ const ISSUE_KEY_ARG: PromptArgument = {
 };
 
 export const PROMPTS: Record<string, PromptDef> = {
+  'jira-project-admin': {
+    description: 'Audit and fix a project\'s components, versions, statuses and labels before planning work.',
+    arguments: [PROJECT_KEY_ARG],
+    text: `Get a project's shared vocabulary into shape. Do this before bulk work: most create
+failures come from components, versions or labels that do not exist yet.
+
+Step 0 - Check you are allowed to change anything:
+- jira_get_my_permissions with projectKey "<KEY>"
+- ADMINISTER_PROJECTS is required to add or remove components and versions
+- If it is missing, report that and stop; do not attempt the writes
+
+Step 1 - Take stock:
+- jira_get_project_info for lead and project style
+- jira_get_project_components
+- jira_get_project_versions
+- jira_get_project_statuses (statuses differ per issue type; this is what JQL must match)
+- jira_list_labels (instance-wide, so it shows near-duplicates from other teams)
+- jira_get_issue_types then jira_get_create_fields for the types the team actually files
+
+Step 2 - Find the problems:
+- Components with no lead and no issues: dead weight
+- Two components or labels that differ only by case, spacing or plural ("auth" vs "Auth" vs "authentication")
+- Unreleased versions whose releaseDate is in the past: either ship or move them
+- Released versions still being set as fixVersion on new work
+- Mandatory fields on the create screen that nobody fills meaningfully
+
+Step 3 - Fix, smallest change first:
+- Rename rather than recreate: jira_update_component / jira_update_version keep history intact
+- Merge a duplicate component: jira_delete_component with moveIssuesTo pointing at the survivor
+- Merge a duplicate version: jira_delete_version with moveFixIssuesTo and moveAffectedIssuesTo
+- Ship an overdue version: jira_update_version with released=true and a real releaseDate
+- Add what is missing: jira_create_component, jira_create_version
+- Relabel in bulk: jira_bulk_update_issues with addLabels and removeLabels, never labels,
+  because labels replaces the whole list on every issue and destroys ones you never saw
+
+Step 4 - Report:
+## <Project> vocabulary audit
+### Components (<n>)
+- <name> - <issue count> issues, lead <name|none> - <keep | merge into X | delete>
+### Versions (<n>)
+- <name> - released <bool>, releaseDate <date> - <ship | reschedule | merge into X>
+### Labels
+- <label> - <count> - <keep | merge into X>
+### Statuses per issue type
+- <type>: <status> (<category>), ...
+### Actions taken
+- <what changed, with the tool used>
+### Actions needing permission you do not have
+- <what, and who to ask>
+
+Never delete a component or version without moveIssuesTo / moveFixIssuesTo unless the user
+explicitly says the field should simply be cleared.`,
+  },
   'jira-formatting-guide': {
     description: 'Markdown formatting rules for Jira descriptions and comments (auto-converted to ADF).',
     text: `This MCP server automatically converts Markdown to Atlassian Document Format (ADF).
@@ -62,6 +115,8 @@ Step 2 - For each bug, gather context:
 - jira_search_issues for similar/duplicate bugs (by keywords)
 
 Step 3 - Set priority (use jira_update_issue with priority field):
+If an update is rejected, call jira_get_edit_fields to see what this issue's edit screen
+actually accepts. If a pull request or design doc exists, attach it with jira_add_remote_link.
 - Highest: production down, data loss, security
 - High: major feature broken, many users affected
 - Medium: broken for some users, workaround exists
@@ -190,6 +245,10 @@ Step 2 - Find direct blockers (issues that block the target):
 - Filter for linkType where inward = "is blocked by" or "Blocks" (outward direction on the current issue)
 - Collect the blocker keys
 
+Step 2b - If a link is wrong, remove it with jira_delete_issue_link using links[].id.
+Blockers often live outside Jira: jira_get_remote_links shows the pull requests and docs
+attached to an issue, and jira_delete_remote_link clears one that has gone stale.
+
 Step 3 - Recurse (max depth 3):
 - For each blocker, run Step 1 + 2
 - Track visited keys to avoid cycles
@@ -266,7 +325,7 @@ Step 3 - For each sprint, compute:
   (approximation: sum current story points on all sprint issues - note that scope can change mid-sprint)
 - Completed points: sum of story points on issues with statusCategory = done at sprint end
 - Completion rate: completed / committed
-- Issue count: total issues, split by done / carried over
+- Issue totals: how many issues, split by done / carried over
 
 Data sources:
 - jira_get_sprint returns issue list with story points
@@ -419,6 +478,10 @@ Step 4 - Fill toward capacity:
 
 Step 5 - Move to sprint:
 - jira_move_to_sprint with the chosen issueKeys (confirm with user first if >10)
+- jira_rank_issues to put them in the order the team should pick them up
+- jira_move_to_backlog to push anything that no longer fits back out
+- jira_update_sprint with state="active" to start the sprint once it is filled
+  (and later state="closed" to end it; jira_delete_sprint only for a sprint created by mistake)
 
 Step 6 - Report:
 ## Sprint <name> plan
@@ -457,6 +520,9 @@ Step 4 - Verify capacity fit:
 
 Step 5 - Propose assignments:
 For each issue to include: jira_update_issue with fixVersions: ["<version name or id>"]
+For a whole bucket at once: jira_bulk_update_issues with the same fixVersions
+If a version was created by mistake: jira_delete_version with moveFixIssuesTo so its issues
+are repointed rather than silently losing the field
 
 Step 6 - Report plan:
 ## <Version> plan - target <date>
@@ -881,6 +947,10 @@ Step 3 - Download:
   savePath must be inside cwd or user home (sandbox rule)
 - After download, any downstream tool (e.g. image-read, text-read) can open the file locally
 
+Step 3b - Inspect or remove:
+- jira_view_attachment to look at an image inline without downloading it
+- jira_delete_attachment to remove one permanently (confirm with the user first)
+
 Step 4 - Add:
 - Confirm local filePath exists (absolute path)
 - jira_add_attachment with issueKey + filePath
@@ -945,7 +1015,7 @@ Step 5 - Report:
 ## Filter: <name> (id <filterId>)
 Owner: <displayName>
 JQL: <jql>
-Returned: <count> issues (isLast=<bool>)
+Returned: <returned> issues (hasMore=<bool>; page again with startAt or nextPageToken)
 
 ### Issues
 - [KEY](<url>) - summary, status, assignee
@@ -1279,7 +1349,7 @@ Step 2 - Pre-flight checks:
 - jira_get_issue - does the issue exist and what is its state?
 - Incoming links: from jira_get_issue response, examine issuelinks (any issue that blocks/relates to/clones this one)
 - Worklogs present: jira_get_worklogs - deleting loses logged time
-- Comments count: jira_get_comments - losing discussion history
+- Comment volume: jira_get_comments - losing discussion history
 - Attachments: jira_get_attachments - files are deleted too
 - Sub-tasks: if parent, list them
 

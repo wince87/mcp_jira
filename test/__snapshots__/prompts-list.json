@@ -1,5 +1,15 @@
 [
   {
+    "name": "jira-project-admin",
+    "description": "Audit and fix a project's components, versions, statuses and labels before planning work.",
+    "arguments": [
+      {
+        "name": "projectKey",
+        "description": "Project key to work in. Defaults to the configured JIRA_PROJECT_KEY."
+      }
+    ]
+  },
+  {
     "name": "jira-formatting-guide",
     "description": "Markdown formatting rules for Jira descriptions and comments (auto-converted to ADF)."
   },

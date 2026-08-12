@@ -1,13 +1,14 @@
 import type {
-  JiraAttachment, JiraComment, JiraComponent, JiraField, JiraFilter, JiraIssue, JiraIssueFields,
-  JiraIssueLink, JiraProject, JiraSprint, JiraUser, JiraVersion, JiraWorklog,
+  JiraAttachment, JiraComment, JiraComponent, JiraField, JiraFilter, JiraIssue, JiraIssueFields, JiraIssueLink,
+  JiraProject, JiraSprint, JiraUser, JiraVersion, JiraWorklog,
 } from './types.js';
-import { jiraApi } from './http.js';
+import { agileApi, jiraApi } from './http.js';
 import { STORY_POINTS_FIELD } from './config.js';
 import { adfToText } from './adf.js';
 import { createIssueUrl } from './responses.js';
 import { fetchFieldIndex } from './meta.js';
-import { validateFieldSelection } from './validation.js';
+import { validateExpandList, validateFieldSelection } from './validation.js';
+import { offsetPage, offsetParams, present, readMaxResults, readPageToken, tokenPage } from './args.js';
 
 export function namesOf(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
@@ -263,4 +264,50 @@ export function mapProject(project: JiraProject): Record<string, unknown> {
 
 export function mapWatcher(watcher: JiraUser): Record<string, unknown> {
   return { accountId: watcher.accountId, displayName: watcher.displayName, active: watcher.active ?? true };
+}
+
+export async function runJqlSearch(
+  jql: string,
+  a: Record<string, unknown>,
+  collection: string = 'issues',
+  extra: Record<string, unknown> = {},
+): Promise<Record<string, unknown>> {
+  const options = readIssueListOptions(a);
+  const params: Record<string, unknown> = {
+    jql,
+    maxResults: readMaxResults(a),
+    fields: issueListFieldsParam(options),
+  };
+  const pageToken = readPageToken(a);
+  if (pageToken) params.nextPageToken = pageToken;
+  if (present(a.expand)) params.expand = validateExpandList(a.expand).join(',');
+
+  const response = await jiraApi.get('/search/jql', { params });
+  const issues: JiraIssue[] = response.data.issues ?? [];
+
+  return {
+    ...extra,
+    ...tokenPage(response.data, issues.length),
+    [collection]: await mapIssueList(issues, options),
+  };
+}
+
+export async function runAgileIssueList(
+  path: string,
+  a: Record<string, unknown>,
+  extra: Record<string, unknown> = {},
+): Promise<{ body: Record<string, unknown>; issues: JiraIssue[] }> {
+  const options = readIssueListOptions(a);
+  const params = { ...offsetParams(a), fields: issueListFieldsParam(options) };
+  const response = await agileApi.get(path, { params });
+  const issues: JiraIssue[] = response.data.issues ?? [];
+
+  return {
+    issues,
+    body: {
+      ...extra,
+      ...offsetPage(response.data, issues.length, params),
+      issues: await mapIssueList(issues, options),
+    },
+  };
 }

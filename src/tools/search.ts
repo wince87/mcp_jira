@@ -1,35 +1,15 @@
-import type { JiraIssue, ToolArgs, ToolResponse } from '../types.js';
-import { jiraApi } from '../http.js';
-import { present, readMaxResults, readPageToken, tokenPage } from '../args.js';
-import { issueListFieldsParam, mapIssueList, readIssueListOptions } from '../mappers.js';
+import type { ToolArgs, ToolResponse } from '../types.js';
+import { runJqlSearch } from '../mappers.js';
 import { buildJql, equalsClause } from '../jql.js';
 import { createSuccessResponse, resolveProjectKey } from '../responses.js';
-import { validateAccountId, validateExpandList, validateJQL } from '../validation.js';
+import { validateAccountId, validateJQL } from '../validation.js';
 import { defineTool } from '../registry.js';
 import { ISSUE_LIST_OUTPUT } from '../outputs.js';
 import { JIRA_PROJECT_KEY } from '../config.js';
 
 export async function handleSearchIssues(a: ToolArgs): Promise<ToolResponse> {
-  const { nextPageToken } = a;
   const jql = validateJQL(a.jql);
-
-  const options = readIssueListOptions(a);
-  const params: Record<string, unknown> = {
-    jql,
-    maxResults: readMaxResults(a),
-    fields: issueListFieldsParam(options),
-  };
-  const pageToken = readPageToken(a);
-  if (pageToken) params.nextPageToken = pageToken;
-  if (present(a.expand)) params.expand = validateExpandList(a.expand).join(',');
-
-  const response = await jiraApi.get('/search/jql', { params });
-
-  const issues: JiraIssue[] = response.data.issues ?? [];
-  return createSuccessResponse({
-    ...tokenPage(response.data, issues.length),
-    issues: await mapIssueList(issues, options),
-  });
+  return createSuccessResponse(await runJqlSearch(jql, a));
 }
 
 export async function handleGetUserIssues(a: ToolArgs): Promise<ToolResponse> {
@@ -46,18 +26,7 @@ export async function handleGetUserIssues(a: ToolArgs): Promise<ToolResponse> {
     orderBy: 'updated DESC',
   });
 
-  const options = readIssueListOptions(a);
-  const params: Record<string, unknown> = { jql, maxResults: readMaxResults(a), fields: issueListFieldsParam(options) };
-  const pageToken = readPageToken(a);
-  if (pageToken) params.nextPageToken = pageToken;
-
-  const response = await jiraApi.get('/search/jql', { params });
-
-  const userIssues: JiraIssue[] = response.data.issues ?? [];
-  return createSuccessResponse({
-    ...tokenPage(response.data, userIssues.length),
-    issues: await mapIssueList(userIssues, options),
-  });
+  return createSuccessResponse(await runJqlSearch(jql, a));
 }
 
 export const SearchIssuesTool = defineTool({

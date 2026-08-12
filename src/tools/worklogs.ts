@@ -2,7 +2,7 @@ import type { JiraWorklog, ToolArgs, ToolResponse } from '../types.js';
 import { jiraApi } from '../http.js';
 import { mapUser, mapWorklog } from '../mappers.js';
 import { offsetPage, offsetParams } from '../args.js';
-import { adfToText, createADFDocument } from '../adf.js';
+import { createADFDocument } from '../adf.js';
 import { createSuccessResponse } from '../responses.js';
 import { sanitizeString, validateISO8601, validateIssueKey, validateSafeParam } from '../validation.js';
 import { defineTool } from '../registry.js';

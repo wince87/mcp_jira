@@ -1,5 +1,8 @@
 import type { AxiosError } from 'axios';
-import type { CreateMetaField, ImageContent, JiraAttachment, JiraChangelogHistory, JiraIssueFields, JiraRemoteLink, ToolArgs, ToolResponse } from '../types.js';
+import type {
+  CreateMetaField, ImageContent, JiraAttachment, JiraChangelogHistory, JiraIssueFields, JiraRemoteLink,
+  ToolArgs, ToolResponse,
+} from '../types.js';
 import { jiraApi } from '../http.js';
 import { offsetPage, offsetParams, present } from '../args.js';
 import { JIRA_PROJECT_KEY, STORY_POINTS_FIELD } from '../config.js';
@@ -8,8 +11,14 @@ import {
   MAX_INLINE_IMAGE_BYTES, createIssueUrl, createMixedResponse, createSuccessResponse, imageContent,
   isImageMime, resolveProjectKey,
 } from '../responses.js';
-import { sanitizeString, validateAccountId, validateFieldMap, validateFieldSelection, validateHttpUrl, validateIssueKey, validateProjectKey, validateSafeParam } from '../validation.js';
-import { applyOptionalFields, convertDocFields, describeMetaField, dryRunResult, fetchIssueTypes, postIssue, putIssue, resolveIssueTypeValue, resolvePriorityValue, safeCreateMeta } from '../meta.js';
+import {
+  sanitizeString, validateAccountId, validateFieldMap, validateFieldSelection, validateHttpUrl,
+  validateIssueKey, validateProjectKey, validateSafeParam,
+} from '../validation.js';
+import {
+  applyOptionalFields, convertDocFields, describeMetaField, dryRunResult, fetchIssueTypes, postIssue, putIssue,
+  resolveIssueTypeValue, resolvePriorityValue, safeCreateMeta,
+} from '../meta.js';
 import { describeTransitions, fetchTransitions, postTransition, resolveTransition } from '../transitions.js';
 import { issueSnapshot, mapCustomFields, mapIssue, mapUser, namesOf, simplifyFieldValue } from '../mappers.js';
 import { defineTool } from '../registry.js';

@@ -8,7 +8,9 @@ import { JiraDiagnosticError } from '../errors.js';
 import { describeTransitions, fetchTransitions, postTransition, resolveTransition } from '../transitions.js';
 import { createADFDocument } from '../adf.js';
 import { createIssueUrl, createSuccessResponse, resolveProjectKey } from '../responses.js';
-import { sanitizeString, validateFieldMap, validateIssueKey, validateLabels, validateSafeParam } from '../validation.js';
+import {
+  sanitizeString, validateFieldMap, validateIssueKey, validateLabels, validateSafeParam,
+} from '../validation.js';
 import { applyOptionalFields, convertDocFields, putIssue, resolveIssueTypeValue, safeCreateMeta } from '../meta.js';
 import { defineTool } from '../registry.js';
 import { BULK_RESULT_OUTPUT } from '../outputs.js';
