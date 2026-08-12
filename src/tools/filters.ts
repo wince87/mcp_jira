@@ -1,13 +1,14 @@
 import type { JiraIssue, ToolArgs, ToolResponse } from '../types.js';
 import { jiraApi } from '../http.js';
-import { readMaxResults } from '../args.js';
-import { createIssueUrl, createSuccessResponse } from '../responses.js';
-import { sanitizeString, validateAccountId, validateMaxResults, validateSafeParam } from '../validation.js';
+import { offsetPage, offsetParams, readMaxResults, readPageToken, tokenPage } from '../args.js';
+import { ISSUE_LIST_FIELDS, mapIssueSummary } from '../mappers.js';
+import { createSuccessResponse } from '../responses.js';
+import { sanitizeString, validateAccountId, validateSafeParam } from '../validation.js';
 
 export async function handleListFilters(a: ToolArgs): Promise<ToolResponse> {
   const { filterName, accountId, maxResults = 50 } = a;
 
-  const params: Record<string, unknown> = { maxResults: readMaxResults(a), expand: 'description,jql,owner' };
+  const params: Record<string, unknown> = { ...offsetParams(a), expand: 'description,jql,owner' };
   if (filterName !== undefined && filterName !== null) {
     params.filterName = sanitizeString(filterName, 200, 'filterName');
   }
@@ -20,8 +21,7 @@ export async function handleListFilters(a: ToolArgs): Promise<ToolResponse> {
   const filters: JiraFilter[] = response.data.values ?? [];
 
   return createSuccessResponse({
-    total: response.data.total ?? filters.length,
-    isLast: response.data.isLast ?? true,
+    ...offsetPage(response.data, filters.length, params),
     filters: filters.map(f => ({
       id: f.id,
       name: f.name,
@@ -58,12 +58,9 @@ export async function handleSearchByFilter(a: ToolArgs): Promise<ToolResponse> {
   const jql: string = filterResponse.data.jql;
   if (!jql || typeof jql !== 'string') throw new Error(`Filter ${filterId} has no JQL`);
 
-  const params: Record<string, unknown> = {
-    jql,
-    maxResults: readMaxResults(a),
-    fields: 'summary,status,assignee,priority,created,updated,issuetype,labels',
-  };
-  if (typeof nextPageToken === 'string' && nextPageToken) params.nextPageToken = nextPageToken;
+  const params: Record<string, unknown> = { jql, maxResults: readMaxResults(a), fields: ISSUE_LIST_FIELDS };
+  const pageToken = readPageToken(a);
+  if (pageToken) params.nextPageToken = pageToken;
 
   const response = await jiraApi.get('/search/jql', { params });
   const issues: JiraIssue[] = response.data.issues ?? [];
@@ -72,18 +69,7 @@ export async function handleSearchByFilter(a: ToolArgs): Promise<ToolResponse> {
     filterId,
     filterName: filterResponse.data.name,
     jql,
-    count: issues.length,
-    isLast: response.data.isLast ?? true,
-    nextPageToken: response.data.nextPageToken ?? null,
-    issues: issues.map(issue => ({
-      key: issue.key,
-      summary: issue.fields.summary,
-      status: issue.fields.status?.name,
-      assignee: issue.fields.assignee?.displayName ?? null,
-      priority: issue.fields.priority?.name,
-      issueType: issue.fields.issuetype?.name,
-      labels: issue.fields.labels || [],
-      url: createIssueUrl(issue.key),
-    })),
+    ...tokenPage(response.data, issues.length),
+    issues: issues.map(mapIssueSummary),
   });
 }

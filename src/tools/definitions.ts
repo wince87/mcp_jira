@@ -205,6 +205,7 @@ export const TOOL_DEFINITIONS = [
               issueKey: { type: 'string', description: 'Issue key (e.g., TTC-123)' },
               maxResults: { type: 'number', description: 'Maximum number of comments (1-100)', default: 50 },
               orderBy: { type: 'string', description: 'Order by created date: "created" (oldest first) or "-created" (newest first)', default: '-created' },
+              startAt: { type: 'number', description: 'Zero-based index of the first item to return. Use it with the returned startAt/total/hasMore to page beyond the first batch.' },
             },
             required: ['issueKey'],
           },
@@ -216,6 +217,8 @@ export const TOOL_DEFINITIONS = [
             type: 'object' as const,
             properties: {
               issueKey: { type: 'string', description: 'Issue key (e.g., TTC-123)' },
+              startAt: { type: 'number', description: 'Zero-based index of the first item to return. Use it with the returned startAt/total/hasMore to page beyond the first batch.' },
+              maxResults: { type: 'number', description: 'Maximum number of worklog entries (1-100). Omit to let Jira return every entry.' },
             },
             required: ['issueKey'],
           },
@@ -255,6 +258,7 @@ export const TOOL_DEFINITIONS = [
             properties: {
               maxResults: { type: 'number', description: 'Maximum number of results (1-100)', default: 50 },
               query: { type: 'string', description: 'Filter projects by name (partial match)' },
+              startAt: { type: 'number', description: 'Zero-based index of the first item to return. Use it with the returned startAt/total/hasMore to page beyond the first batch.' },
             },
           },
         },
@@ -323,6 +327,7 @@ export const TOOL_DEFINITIONS = [
             properties: {
               query: { type: 'string', description: 'Search query (matches display name and email prefix)' },
               maxResults: { type: 'number', description: 'Maximum number of results (1-100)', default: 10 },
+              startAt: { type: 'number', description: 'Zero-based index of the first item to return. Use it with the returned startAt/total/hasMore to page beyond the first batch.' },
             },
             required: ['query'],
           },
@@ -335,6 +340,7 @@ export const TOOL_DEFINITIONS = [
             properties: {
               issueKey: { type: 'string', description: 'Issue key (e.g., PROJ-123)' },
               maxResults: { type: 'number', description: 'Maximum number of changelog entries (1-100)', default: 50 },
+              startAt: { type: 'number', description: 'Zero-based index of the first item to return. Use it with the returned startAt/total/hasMore to page beyond the first batch.' },
             },
             required: ['issueKey'],
           },
@@ -406,6 +412,7 @@ export const TOOL_DEFINITIONS = [
             properties: {
               projectKey: { type: 'string', description: 'Filter by project key' },
               maxResults: { type: 'number', description: 'Maximum number of results (1-100)', default: 50 },
+              startAt: { type: 'number', description: 'Zero-based index of the first item to return. Use it with the returned startAt/total/hasMore to page beyond the first batch.' },
             },
           },
         },
@@ -418,6 +425,7 @@ export const TOOL_DEFINITIONS = [
               boardId: { type: 'number', description: 'Board ID (use jira_list_boards to find it)' },
               state: { type: 'string', description: 'Filter by state: active, future, closed', default: 'active' },
               maxResults: { type: 'number', description: 'Maximum number of results (1-100)', default: 50 },
+              startAt: { type: 'number', description: 'Zero-based index of the first item to return. Use it with the returned startAt/total/hasMore to page beyond the first batch.' },
             },
             required: ['boardId'],
           },
@@ -430,6 +438,7 @@ export const TOOL_DEFINITIONS = [
             properties: {
               sprintId: { type: 'number', description: 'Sprint ID (use jira_list_sprints to find it)' },
               maxResults: { type: 'number', description: 'Maximum number of issues (1-100)', default: 50 },
+              startAt: { type: 'number', description: 'Zero-based index of the first item to return. Use it with the returned startAt/total/hasMore to page beyond the first batch.' },
             },
             required: ['sprintId'],
           },
@@ -501,6 +510,7 @@ export const TOOL_DEFINITIONS = [
             properties: {
               epicKey: { type: 'string', description: 'Epic issue key' },
               maxResults: { type: 'number', description: 'Maximum results (1-100)', default: 50 },
+              startAt: { type: 'number', description: 'Zero-based index of the first item to return. Use it with the returned startAt/total/hasMore to page beyond the first batch.' },
             },
             required: ['epicKey'],
           },
@@ -514,6 +524,7 @@ export const TOOL_DEFINITIONS = [
               boardId: { type: 'number', description: 'Board ID (from jira_list_boards)' },
               done: { type: 'string', enum: ['true', 'false'], description: 'Filter: "true" for done epics, "false" for active, omit for all' },
               maxResults: { type: 'number', description: 'Maximum results (1-100)', default: 50 },
+              startAt: { type: 'number', description: 'Zero-based index of the first item to return. Use it with the returned startAt/total/hasMore to page beyond the first batch.' },
             },
             required: ['boardId'],
           },
@@ -638,6 +649,7 @@ export const TOOL_DEFINITIONS = [
               filterName: { type: 'string', description: 'Substring to match in filter name' },
               accountId: { type: 'string', description: 'Filter owner accountId (defaults to authenticated user if both name and accountId omitted)' },
               maxResults: { type: 'number', description: 'Maximum results (1-100)', default: 50 },
+              startAt: { type: 'number', description: 'Zero-based index of the first item to return. Use it with the returned startAt/total/hasMore to page beyond the first batch.' },
             },
           },
         },

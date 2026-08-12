@@ -222,6 +222,13 @@ function projectPayload() {
   };
 }
 
+function page(items, query, key) {
+  const startAt = Number(query.startAt ?? 0);
+  const maxResults = Number(query.maxResults ?? 50);
+  const slice = items.slice(startAt, startAt + maxResults);
+  return { [key]: slice, startAt, maxResults, total: items.length, isLast: startAt + slice.length >= items.length };
+}
+
 function issueList(keys) {
   return keys.map(k => ISSUES[k]).filter(Boolean);
 }
@@ -246,7 +253,7 @@ const ROUTES = [
   ['GET', '/rest/api/3/issue/createmeta/:key/issuetypes/:typeId', (p) => [200, { fields: createMetaFields(p.typeId), total: 8, maxResults: 200, startAt: 0 }]],
   ['GET', '/rest/api/3/issue/createmeta/:key/issuetypes', () => [200, { values: ISSUE_TYPES, total: ISSUE_TYPES.length, maxResults: 200, startAt: 0 }]],
 
-  ['GET', '/rest/api/3/project/search', () => [200, { values: [projectPayload()], total: 1, isLast: true }]],
+  ['GET', '/rest/api/3/project/search', (p, q) => [200, page([projectPayload()], q, 'values')]],
   ['GET', '/rest/api/3/project/:key/components', () => [200, COMPONENTS]],
   ['GET', '/rest/api/3/project/:key/versions', () => [200, VERSIONS]],
   ['GET', '/rest/api/3/project/:key', () => [200, projectPayload()]],
@@ -260,7 +267,7 @@ const ROUTES = [
   }],
   ['GET', '/rest/api/3/user/search', () => [200, [USER, OTHER_USER]]],
 
-  ['GET', '/rest/api/3/filter/search', () => [200, { values: FILTERS, total: FILTERS.length, isLast: true }]],
+  ['GET', '/rest/api/3/filter/search', (p, q) => [200, page(FILTERS, q, 'values')]],
   ['GET', '/rest/api/3/filter/:id', (p) => {
     const filter = FILTERS.find(f => f.id === p.id);
     return filter ? [200, filter] : [404, { errorMessages: [`Filter ${p.id} not found`] }];
@@ -271,10 +278,10 @@ const ROUTES = [
     id: p.id, filename: 'screen.png', size: ATTACHMENT_BYTES.length, mimeType: 'image/png', author: USER,
   }]],
 
-  ['GET', '/rest/api/3/issue/:key/changelog', () => [200, { values: CHANGELOG, total: CHANGELOG.length, isLast: true }]],
+  ['GET', '/rest/api/3/issue/:key/changelog', (p, q) => [200, page(CHANGELOG, q, 'values')]],
   ['GET', '/rest/api/3/issue/:key/comment', (p, q) => {
     const ordered = q.orderBy === 'created' ? COMMENTS : [...COMMENTS].reverse();
-    return [200, { comments: ordered, total: COMMENTS.length }];
+    return [200, page(ordered, q, 'comments')];
   }],
   ['GET', '/rest/api/3/issue/:key/editmeta', () => [200, {
     fields: {
@@ -289,7 +296,7 @@ const ROUTES = [
     return [200, { transitions: q.transitionId ? list.filter(t => t.id === q.transitionId) : list }];
   }],
   ['GET', '/rest/api/3/issue/:key/watchers', () => [200, { isWatching: true, watchCount: 1, watchers: [USER] }]],
-  ['GET', '/rest/api/3/issue/:key/worklog', () => [200, { worklogs: WORKLOGS, total: WORKLOGS.length }]],
+  ['GET', '/rest/api/3/issue/:key/worklog', (p, q) => [200, page(WORKLOGS, q, 'worklogs')]],
   ['GET', '/rest/api/3/issue/:key', (p, q) => {
     const issue = ISSUES[p.key];
     return issue ? [200, pick(issue, q.fields)] : [404, { errorMessages: [`Issue ${p.key} does not exist`] }];
@@ -345,23 +352,14 @@ const ROUTES = [
   ['DELETE', '/rest/api/3/issue/:key/worklog/:id', () => [204, null]],
   ['DELETE', '/rest/api/3/issue/:key', () => [204, null]],
 
-  ['GET', '/rest/agile/1.0/board/:boardId/epic', () => [200, {
-    values: [{ id: 10100, key: 'TEST-100', name: 'Auth', summary: 'Auth epic', done: false, color: { key: 'color_1' } }],
-    total: 1, isLast: true,
-  }]],
-  ['GET', '/rest/agile/1.0/board/:boardId/sprint', (p, q) => [200, {
-    values: SPRINTS.filter(s => !q.state || s.state === q.state), total: 1, isLast: true,
-  }]],
-  ['GET', '/rest/agile/1.0/board', () => [200, { values: BOARDS, total: BOARDS.length, isLast: true }]],
-  ['GET', '/rest/agile/1.0/epic/:key/issue', (p, q) => [200, {
-    issues: issueList(['TEST-1', 'TEST-2']).map(i => pick(i, q.fields)), total: 2,
-  }]],
+  ['GET', '/rest/agile/1.0/board/:boardId/epic', (p, q) => [200, page([{ id: 10100, key: 'TEST-100', name: 'Auth', summary: 'Auth epic', done: false, color: { key: 'color_1' } }], q, 'values')]],
+  ['GET', '/rest/agile/1.0/board/:boardId/sprint', (p, q) => [200, page(SPRINTS.filter(s => !q.state || s.state === q.state), q, 'values')]],
+  ['GET', '/rest/agile/1.0/board', (p, q) => [200, page(BOARDS, q, 'values')]],
+  ['GET', '/rest/agile/1.0/epic/:key/issue', (p, q) => [200, page(issueList(['TEST-1', 'TEST-2']).map(i => pick(i, q.fields)), q, 'issues')]],
   ['GET', '/rest/agile/1.0/epic/:key', () => [200, {
     id: 10100, key: 'TEST-100', name: 'Auth', summary: 'Auth epic', done: false, color: { key: 'color_1' },
   }]],
-  ['GET', '/rest/agile/1.0/sprint/:id/issue', (p, q) => [200, {
-    issues: issueList(['TEST-1', 'TEST-2']).map(i => pick(i, q.fields)), total: 2,
-  }]],
+  ['GET', '/rest/agile/1.0/sprint/:id/issue', (p, q) => [200, page(issueList(['TEST-1', 'TEST-2']).map(i => pick(i, q.fields)), q, 'issues')]],
   ['GET', '/rest/agile/1.0/sprint/:id', (p) => [200, SPRINTS.find(s => String(s.id) === p.id) ?? SPRINTS[0]]],
   ['POST', '/rest/agile/1.0/epic/none/issue', () => [204, null]],
   ['POST', '/rest/agile/1.0/epic/:key/issue', () => [204, null]],

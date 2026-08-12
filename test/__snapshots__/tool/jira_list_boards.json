@@ -1,7 +1,10 @@
 {
   "isError": false,
   "data": {
+    "returned": 1,
+    "startAt": 0,
     "total": 1,
+    "hasMore": false,
     "boards": [
       {
         "id": 1,

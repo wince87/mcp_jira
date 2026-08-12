@@ -1,6 +1,9 @@
 {
   "isError": false,
   "data": {
+    "returned": 2,
+    "startAt": 0,
+    "hasMore": false,
     "users": [
       {
         "accountId": "5b10a2844c20165700ede21g",
@@ -26,8 +29,8 @@
       "method": "GET",
       "path": "/rest/api/3/user/search",
       "query": {
-        "query": "vova",
-        "maxResults": "10"
+        "maxResults": "10",
+        "query": "vova"
       }
     }
   ]

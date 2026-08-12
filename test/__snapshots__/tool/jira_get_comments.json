@@ -2,7 +2,10 @@
   "isError": false,
   "data": {
     "issueKey": "TEST-1",
+    "returned": 2,
+    "startAt": 0,
     "total": 2,
+    "hasMore": false,
     "comments": [
       {
         "id": "30002",

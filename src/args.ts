@@ -34,25 +34,38 @@ export function optionalText(a: ToolArgs, name: string, maxLength: number = 1000
   return present(a[name]) ? sanitizeString(a[name], maxLength, name) : null;
 }
 
-export function offsetParams(a: ToolArgs, fallbackMaxResults: number = 50): Record<string, unknown> {
-  const params: Record<string, unknown> = { maxResults: readMaxResults(a, fallbackMaxResults) };
+export function offsetParams(a: ToolArgs, fallbackMaxResults: number | null = 50): Record<string, unknown> {
+  const params: Record<string, unknown> = {};
+  if (fallbackMaxResults !== null || present(a.maxResults)) {
+    params.maxResults = readMaxResults(a, fallbackMaxResults ?? 50);
+  }
   const startAt = readStartAt(a);
   if (startAt !== null) params.startAt = startAt;
   return params;
 }
 
-export function offsetPage(response: { startAt?: number; maxResults?: number; total?: number; isLast?: boolean }, returned: number, requested: Record<string, unknown>): Record<string, unknown> {
+interface OffsetResponse {
+  startAt?: number;
+  maxResults?: number;
+  total?: number;
+  isLast?: boolean;
+}
+
+export function offsetPage(response: OffsetResponse, returned: number, requested: Record<string, unknown>): Record<string, unknown> {
   const startAt = response.startAt ?? (requested.startAt as number | undefined) ?? 0;
-  const total = response.total;
-  const hasMore = response.isLast !== undefined
+  const page: Record<string, unknown> = { returned, startAt };
+  if (typeof response.total === 'number') page.total = response.total;
+  page.hasMore = response.isLast !== undefined
     ? response.isLast === false
-    : total !== undefined ? startAt + returned < total : false;
-  return { startAt, total: total ?? startAt + returned, hasMore };
+    : typeof response.total === 'number'
+      ? startAt + returned < response.total
+      : returned >= (requested.maxResults as number);
+  return page;
 }
 
 export function tokenPage(response: { isLast?: boolean; nextPageToken?: string | null }, returned: number): Record<string, unknown> {
   return {
-    total: returned,
+    returned,
     nextPageToken: response.nextPageToken ?? null,
     hasMore: response.isLast === false || Boolean(response.nextPageToken),
   };

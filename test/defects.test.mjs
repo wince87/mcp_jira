@@ -61,7 +61,7 @@ test('B2: get_issue returns issue links', { todo: 'fixed in phase 3.4' }, async 
   assert.equal(result.data.links[0].direction, 'inward');
 });
 
-test('B3: assignee has one shape across every list tool', { todo: 'fixed in phase 5' }, async () => {
+test('B3: assignee has one shape across every list tool', async () => {
   const shapes = {};
   for (const [tool, args, key] of [
     ['jira_search_issues', { jql: 'project = TEST' }, 'issues'],
@@ -81,16 +81,30 @@ test('B3: assignee has one shape across every list tool', { todo: 'fixed in phas
   assert.equal(distinct.size, 1, `assignee must have one shape everywhere, got ${JSON.stringify(shapes)}`);
 });
 
-test('B4: comments can be paged past the first 100', { todo: 'fixed in phase 2' }, async () => {
-  await server.call('jira_get_comments', { issueKey: 'TEST-1', startAt: 100 });
-  const request = mock.requests.find(r => r.path === '/rest/api/3/issue/TEST-1/comment');
-  assert.equal(request.query.startAt, '100', 'startAt must reach the Jira API');
+test('B4: comments page by startAt and report whether more remain', async () => {
+  const first = await server.call('jira_get_comments', { issueKey: 'TEST-1', maxResults: 1, orderBy: 'created' });
+  assert.equal(first.data.returned, 1);
+  assert.equal(first.data.startAt, 0);
+  assert.equal(first.data.total, 2);
+  assert.equal(first.data.hasMore, true, 'a second comment exists, so hasMore must be true');
+  assert.equal(first.data.comments[0].id, '30001');
+
+  mock.reset();
+  const second = await server.call('jira_get_comments', { issueKey: 'TEST-1', maxResults: 1, startAt: 1, orderBy: 'created' });
+  assert.equal(mock.requests[0].query.startAt, '1', 'startAt must reach the Jira API');
+  assert.equal(second.data.comments[0].id, '30002', 'the second page must return the next comment, not the first again');
+  assert.equal(second.data.hasMore, false);
 });
 
-test('B4: changelog can be paged past the first 100', { todo: 'fixed in phase 2' }, async () => {
+test('B4: changelog accepts startAt', async () => {
   await server.call('jira_get_changelog', { issueKey: 'TEST-1', startAt: 100 });
   const request = mock.requests.find(r => r.path === '/rest/api/3/issue/TEST-1/changelog');
   assert.equal(request.query.startAt, '100', 'startAt must reach the Jira API');
+});
+
+test('B4: startAt is rejected when it is not a non-negative integer', async () => {
+  const result = await server.call('jira_get_comments', { issueKey: 'TEST-1', startAt: -1 });
+  assert.equal(result.isError, true);
 });
 
 test('B5: a 429 is retried after Retry-After', { todo: 'fixed in phase 2' }, async () => {
@@ -105,4 +119,17 @@ test('B5: a write is not retried on 5xx', { todo: 'fixed in phase 2' }, async ()
   await server.call('jira_create_issue', { summary: 'x', description: 'y' });
   const creates = mock.requests.filter(r => r.method === 'POST' && r.path === '/rest/api/3/issue');
   assert.equal(creates.length, 1, 'retrying a create on 5xx risks a duplicate issue');
+});
+
+test('worklogs are not silently capped when maxResults is omitted', async () => {
+  await server.call('jira_get_worklogs', { issueKey: 'TEST-1' });
+  const request = mock.requests.find(r => r.path === '/rest/api/3/issue/TEST-1/worklog');
+  assert.equal(request.query.maxResults, undefined, 'omitting maxResults must let Jira return every worklog, as before 3.0');
+});
+
+test('worklogs still accept an explicit page window', async () => {
+  await server.call('jira_get_worklogs', { issueKey: 'TEST-1', maxResults: 10, startAt: 5 });
+  const request = mock.requests.find(r => r.path === '/rest/api/3/issue/TEST-1/worklog');
+  assert.equal(request.query.maxResults, '10');
+  assert.equal(request.query.startAt, '5');
 });

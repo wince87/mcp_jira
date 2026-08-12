@@ -1,8 +1,10 @@
 {
   "isError": false,
   "data": {
+    "returned": 1,
+    "startAt": 0,
     "total": 1,
-    "isLast": true,
+    "hasMore": false,
     "filters": [
       {
         "id": "1000",

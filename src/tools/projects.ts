@@ -1,8 +1,8 @@
 import type { JiraComponent, JiraProject, JiraVersion, ToolArgs, ToolResponse } from '../types.js';
 import { jiraApi } from '../http.js';
-import { readMaxResults } from '../args.js';
+import { offsetPage, offsetParams } from '../args.js';
 import { createSuccessResponse, resolveProjectKey } from '../responses.js';
-import { sanitizeString, validateMaxResults } from '../validation.js';
+import { sanitizeString } from '../validation.js';
 
 export async function handleGetProjectInfo(a: ToolArgs): Promise<ToolResponse> {
   const projectKey = resolveProjectKey(a);
@@ -18,13 +18,13 @@ export async function handleGetProjectInfo(a: ToolArgs): Promise<ToolResponse> {
 
 export async function handleListProjects(a: ToolArgs): Promise<ToolResponse> {
   const { query } = a;
-  const params: Record<string, unknown> = { maxResults: readMaxResults(a) };
+  const params: Record<string, unknown> = offsetParams(a);
   if (query) params.query = sanitizeString(query, 200, 'query');
 
   const response = await jiraApi.get('/project/search', { params });
   const projects: JiraProject[] = response.data.values ?? [];
   return createSuccessResponse({
-    total: response.data.total ?? projects.length,
+    ...offsetPage(response.data, projects.length, params),
     projects: projects.map(p => ({ key: p.key, name: p.name, projectTypeKey: p.projectTypeKey, style: p.style, lead: p.lead?.displayName })),
   });
 }

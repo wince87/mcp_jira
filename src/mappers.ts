@@ -1,4 +1,4 @@
-import type { JiraField, JiraIssueFields } from './types.js';
+import type { JiraField, JiraIssue, JiraIssueFields, JiraUser } from './types.js';
 import { jiraApi } from './http.js';
 import { STORY_POINTS_FIELD } from './config.js';
 import { adfToText } from './adf.js';
@@ -24,6 +24,35 @@ export function simplifyFieldValue(value: unknown): unknown {
   return value;
 }
 
+export const ISSUE_LIST_FIELDS = [
+  'summary', 'status', 'assignee', 'priority', 'issuetype', 'parent', 'labels', 'created', 'updated',
+  STORY_POINTS_FIELD,
+].join(',');
+
+export function mapUser(user: JiraUser | null | undefined): Record<string, unknown> | null {
+  if (!user) return null;
+  return { accountId: user.accountId, displayName: user.displayName };
+}
+
+export function mapIssueSummary(issue: JiraIssue): Record<string, unknown> {
+  const f = issue.fields ?? {};
+  return {
+    key: issue.key,
+    summary: f.summary,
+    status: f.status?.name,
+    statusCategory: f.status?.statusCategory?.key,
+    assignee: mapUser(f.assignee),
+    priority: f.priority?.name,
+    issueType: f.issuetype?.name,
+    parent: f.parent?.key ?? null,
+    labels: f.labels || [],
+    storyPoints: f[STORY_POINTS_FIELD] ?? null,
+    created: f.created,
+    updated: f.updated,
+    url: createIssueUrl(issue.key),
+  };
+}
+
 export function mapIssue(data: { key: string; fields?: JiraIssueFields }): Record<string, unknown> {
   const f = data.fields ?? {};
   return {
@@ -31,14 +60,15 @@ export function mapIssue(data: { key: string; fields?: JiraIssueFields }): Recor
     summary: f.summary,
     description: adfToText(f.description),
     status: f.status?.name,
+    statusCategory: f.status?.statusCategory?.key,
     resolution: (f.resolution as { name?: string } | null | undefined)?.name ?? null,
-    assignee: f.assignee ? { displayName: f.assignee.displayName, accountId: f.assignee.accountId } : null,
-    reporter: f.reporter?.displayName,
+    assignee: mapUser(f.assignee),
+    reporter: mapUser(f.reporter),
     priority: f.priority?.name,
     issueType: f.issuetype?.name,
     labels: f.labels || [],
     storyPoints: f[STORY_POINTS_FIELD],
-    parent: f.parent?.key,
+    parent: f.parent?.key ?? null,
     components: namesOf(f.components),
     versions: namesOf(f.versions),
     fixVersions: namesOf(f.fixVersions),

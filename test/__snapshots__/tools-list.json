@@ -642,6 +642,10 @@
           "type": "string",
           "description": "Order by created date: \"created\" (oldest first) or \"-created\" (newest first)",
           "default": "-created"
+        },
+        "startAt": {
+          "type": "number",
+          "description": "Zero-based index of the first item to return. Use it with the returned startAt/total/hasMore to page beyond the first batch."
         }
       },
       "required": [
@@ -660,6 +664,14 @@
         "issueKey": {
           "type": "string",
           "description": "Issue key (e.g., TTC-123)"
+        },
+        "startAt": {
+          "type": "number",
+          "description": "Zero-based index of the first item to return. Use it with the returned startAt/total/hasMore to page beyond the first batch."
+        },
+        "maxResults": {
+          "type": "number",
+          "description": "Maximum number of worklog entries (1-100). Omit to let Jira return every entry."
         }
       },
       "required": [
@@ -741,6 +753,10 @@
         "query": {
           "type": "string",
           "description": "Filter projects by name (partial match)"
+        },
+        "startAt": {
+          "type": "number",
+          "description": "Zero-based index of the first item to return. Use it with the returned startAt/total/hasMore to page beyond the first batch."
         }
       }
     },
@@ -858,6 +874,10 @@
           "type": "number",
           "description": "Maximum number of results (1-100)",
           "default": 10
+        },
+        "startAt": {
+          "type": "number",
+          "description": "Zero-based index of the first item to return. Use it with the returned startAt/total/hasMore to page beyond the first batch."
         }
       },
       "required": [
@@ -881,6 +901,10 @@
           "type": "number",
           "description": "Maximum number of changelog entries (1-100)",
           "default": 50
+        },
+        "startAt": {
+          "type": "number",
+          "description": "Zero-based index of the first item to return. Use it with the returned startAt/total/hasMore to page beyond the first batch."
         }
       },
       "required": [
@@ -1159,6 +1183,10 @@
           "type": "number",
           "description": "Maximum number of results (1-100)",
           "default": 50
+        },
+        "startAt": {
+          "type": "number",
+          "description": "Zero-based index of the first item to return. Use it with the returned startAt/total/hasMore to page beyond the first batch."
         }
       }
     },
@@ -1184,6 +1212,10 @@
           "type": "number",
           "description": "Maximum number of results (1-100)",
           "default": 50
+        },
+        "startAt": {
+          "type": "number",
+          "description": "Zero-based index of the first item to return. Use it with the returned startAt/total/hasMore to page beyond the first batch."
         }
       },
       "required": [
@@ -1207,6 +1239,10 @@
           "type": "number",
           "description": "Maximum number of issues (1-100)",
           "default": 50
+        },
+        "startAt": {
+          "type": "number",
+          "description": "Zero-based index of the first item to return. Use it with the returned startAt/total/hasMore to page beyond the first batch."
         }
       },
       "required": [
@@ -1343,6 +1379,10 @@
           "type": "number",
           "description": "Maximum results (1-100)",
           "default": 50
+        },
+        "startAt": {
+          "type": "number",
+          "description": "Zero-based index of the first item to return. Use it with the returned startAt/total/hasMore to page beyond the first batch."
         }
       },
       "required": [
@@ -1374,6 +1414,10 @@
           "type": "number",
           "description": "Maximum results (1-100)",
           "default": 50
+        },
+        "startAt": {
+          "type": "number",
+          "description": "Zero-based index of the first item to return. Use it with the returned startAt/total/hasMore to page beyond the first batch."
         }
       },
       "required": [
@@ -1667,6 +1711,10 @@
           "type": "number",
           "description": "Maximum results (1-100)",
           "default": 50
+        },
+        "startAt": {
+          "type": "number",
+          "description": "Zero-based index of the first item to return. Use it with the returned startAt/total/hasMore to page beyond the first batch."
         }
       }
     },

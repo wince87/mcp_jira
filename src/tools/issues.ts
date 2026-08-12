@@ -3,7 +3,7 @@ import type {
   JiraAttachment, JiraChangelogHistory, JiraIssueFields, ImageContent, ToolArgs, ToolResponse,
 } from '../types.js';
 import { jiraApi } from '../http.js';
-import { readMaxResults } from '../args.js';
+import { offsetPage, offsetParams } from '../args.js';
 import { JIRA_PROJECT_KEY, STORY_POINTS_FIELD } from '../config.js';
 import { collectMediaIds, createADFDocument } from '../adf.js';
 import {
@@ -11,8 +11,7 @@ import {
   isImageMime, resolveProjectKey,
 } from '../responses.js';
 import {
-  sanitizeString, validateAccountId, validateFieldMap, validateIssueKey, validateMaxResults,
-  validateProjectKey, validateSafeParam,
+  sanitizeString, validateAccountId, validateFieldMap, validateIssueKey, validateProjectKey, validateSafeParam,
 } from '../validation.js';
 import {
   applyOptionalFields, convertDocFields, dryRunResult, fetchIssueTypes, postIssue, putIssue,
@@ -313,14 +312,13 @@ export async function handleLinkIssues(a: ToolArgs): Promise<ToolResponse> {
 export async function handleGetChangelog(a: ToolArgs): Promise<ToolResponse> {
   const issueKey = validateIssueKey(a.issueKey);
 
-  const response = await jiraApi.get(`/issue/${issueKey}/changelog`, {
-    params: { maxResults: readMaxResults(a) },
-  });
+  const params = offsetParams(a);
+  const response = await jiraApi.get(`/issue/${issueKey}/changelog`, { params });
 
   const histories: JiraChangelogHistory[] = response.data.values ?? [];
   return createSuccessResponse({
     issueKey,
-    total: response.data.total ?? histories.length,
+    ...offsetPage(response.data, histories.length, params),
     histories: histories.map(h => ({
       id: h.id,
       author: h.author?.displayName,

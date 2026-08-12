@@ -1,5 +1,6 @@
 import type { JiraWorklog, ToolArgs, ToolResponse } from '../types.js';
 import { jiraApi } from '../http.js';
+import { offsetPage, offsetParams } from '../args.js';
 import { adfToText, createADFDocument } from '../adf.js';
 import { createSuccessResponse } from '../responses.js';
 import { sanitizeString, validateISO8601, validateIssueKey, validateSafeParam } from '../validation.js';
@@ -19,11 +20,12 @@ export async function handleAddWorklog(a: ToolArgs): Promise<ToolResponse> {
 
 export async function handleGetWorklogs(a: ToolArgs): Promise<ToolResponse> {
   const issueKey = validateIssueKey(a.issueKey);
-  const response = await jiraApi.get(`/issue/${issueKey}/worklog`);
+  const params = offsetParams(a, null);
+  const response = await jiraApi.get(`/issue/${issueKey}/worklog`, { params });
   const worklogs: JiraWorklog[] = response.data.worklogs ?? [];
   return createSuccessResponse({
     issueKey,
-    total: response.data.total ?? worklogs.length,
+    ...offsetPage(response.data, worklogs.length, params),
     worklogs: worklogs.map(w => ({
       id: w.id,
       author: w.author?.displayName,

@@ -1,9 +1,10 @@
 import type { JiraIssue, ToolArgs, ToolResponse } from '../types.js';
 import { jiraApi } from '../http.js';
+import { readMaxResults, readPageToken, tokenPage } from '../args.js';
+import { ISSUE_LIST_FIELDS, mapIssueSummary } from '../mappers.js';
 import { buildJql, equalsClause } from '../jql.js';
-import { readMaxResults } from '../args.js';
-import { createIssueUrl, createSuccessResponse, resolveProjectKey } from '../responses.js';
-import { sanitizeString, validateAccountId, validateJQL, validateMaxResults } from '../validation.js';
+import { createSuccessResponse, resolveProjectKey } from '../responses.js';
+import { validateAccountId, validateJQL } from '../validation.js';
 
 export async function handleSearchIssues(a: ToolArgs): Promise<ToolResponse> {
   const { nextPageToken } = a;
@@ -12,28 +13,17 @@ export async function handleSearchIssues(a: ToolArgs): Promise<ToolResponse> {
   const params: Record<string, unknown> = {
     jql,
     maxResults: readMaxResults(a),
-    fields: 'summary,status,assignee,priority,created,updated,issuetype,parent,labels',
+    fields: ISSUE_LIST_FIELDS,
   };
-  if (nextPageToken) params.nextPageToken = nextPageToken;
+  const pageToken = readPageToken(a);
+  if (pageToken) params.nextPageToken = pageToken;
 
   const response = await jiraApi.get('/search/jql', { params });
 
   const issues: JiraIssue[] = response.data.issues ?? [];
   return createSuccessResponse({
-    count: issues.length,
-    isLast: response.data.isLast ?? true,
-    nextPageToken: response.data.nextPageToken ?? null,
-    issues: issues.map(issue => ({
-      key: issue.key,
-      summary: issue.fields.summary,
-      status: issue.fields.status?.name,
-      assignee: issue.fields.assignee ? { displayName: issue.fields.assignee.displayName, accountId: issue.fields.assignee.accountId } : null,
-      priority: issue.fields.priority?.name,
-      issueType: issue.fields.issuetype?.name,
-      labels: issue.fields.labels || [],
-      parent: issue.fields.parent?.key,
-      url: createIssueUrl(issue.key),
-    })),
+    ...tokenPage(response.data, issues.length),
+    issues: issues.map(mapIssueSummary),
   });
 }
 
@@ -51,28 +41,15 @@ export async function handleGetUserIssues(a: ToolArgs): Promise<ToolResponse> {
     orderBy: 'updated DESC',
   });
 
-  const response = await jiraApi.get('/search/jql', {
-    params: {
-      jql,
-      maxResults: readMaxResults(a),
-      fields: 'summary,status,priority,created,updated,issuetype,labels',
-    },
-  });
+  const params: Record<string, unknown> = { jql, maxResults: readMaxResults(a), fields: ISSUE_LIST_FIELDS };
+  const pageToken = readPageToken(a);
+  if (pageToken) params.nextPageToken = pageToken;
+
+  const response = await jiraApi.get('/search/jql', { params });
 
   const userIssues: JiraIssue[] = response.data.issues ?? [];
   return createSuccessResponse({
-    count: userIssues.length,
-    isLast: response.data.isLast ?? true,
-    nextPageToken: response.data.nextPageToken ?? null,
-    issues: userIssues.map(issue => ({
-      key: issue.key,
-      summary: issue.fields.summary,
-      status: issue.fields.status?.name,
-      priority: issue.fields.priority?.name,
-      issueType: issue.fields.issuetype?.name,
-      labels: issue.fields.labels || [],
-      updated: issue.fields.updated,
-      url: createIssueUrl(issue.key),
-    })),
+    ...tokenPage(response.data, userIssues.length),
+    issues: userIssues.map(mapIssueSummary),
   });
 }

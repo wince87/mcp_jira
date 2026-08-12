@@ -5,18 +5,23 @@
     "summary": "Broken login",
     "description": "Login fails on retry",
     "status": "To Do",
+    "statusCategory": "new",
     "resolution": null,
     "assignee": {
-      "displayName": "Vova Press",
-      "accountId": "5b10a2844c20165700ede21g"
+      "accountId": "5b10a2844c20165700ede21g",
+      "displayName": "Vova Press"
     },
-    "reporter": "Olena Q",
+    "reporter": {
+      "accountId": "5b10a2844c20165700ede21h",
+      "displayName": "Olena Q"
+    },
     "priority": "Високий",
     "issueType": "Помилка",
     "labels": [
       "regression"
     ],
     "storyPoints": 3,
+    "parent": null,
     "components": [
       "Auth"
     ],

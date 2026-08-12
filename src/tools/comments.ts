@@ -1,9 +1,9 @@
 import type { JiraComment, ToolArgs, ToolResponse } from '../types.js';
 import { jiraApi } from '../http.js';
-import { readMaxResults } from '../args.js';
+import { offsetPage, offsetParams } from '../args.js';
 import { adfToText, createADFDocument } from '../adf.js';
 import { createSuccessResponse } from '../responses.js';
-import { validateIssueKey, validateMaxResults, validateSafeParam } from '../validation.js';
+import { validateIssueKey, validateSafeParam } from '../validation.js';
 
 export async function handleAddComment(a: ToolArgs): Promise<ToolResponse> {
   validateIssueKey(a.issueKey);
@@ -30,11 +30,12 @@ export async function handleGetComments(a: ToolArgs): Promise<ToolResponse> {
   const issueKey = validateIssueKey(a.issueKey);
 
   const validatedOrderBy = orderBy === 'created' ? 'created' : '-created';
-  const response = await jiraApi.get(`/issue/${issueKey}/comment`, { params: { maxResults: readMaxResults(a), orderBy: validatedOrderBy } });
+  const params = { ...offsetParams(a), orderBy: validatedOrderBy };
+  const response = await jiraApi.get(`/issue/${issueKey}/comment`, { params });
   const comments: JiraComment[] = response.data.comments ?? [];
   return createSuccessResponse({
     issueKey,
-    total: response.data.total ?? comments.length,
+    ...offsetPage(response.data, comments.length, params),
     comments: comments.map(c => ({
       id: c.id,
       author: c.author?.displayName,
