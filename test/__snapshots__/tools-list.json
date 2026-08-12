@@ -1,293 +1,22 @@
 [
   {
-    "name": "jira_create_issue",
-    "description": "Create a new Jira issue. Description supports Markdown (auto-converted to ADF). To create an Epic use jira_create_epic. Call jira_get_create_fields(projectKey, issueType) first when the screen is unknown — it returns every field with required, type and allowedValues, which removes the guesswork (Bug screens commonly require Affects versions and other mandatory fields). Optional fields are only sent when provided, so nothing is rejected for not being on the screen. On a 400 the response carries missingRequired and allowedValues. Set dryRun to validate the payload without creating anything.",
-    "inputSchema": {
-      "type": "object",
-      "properties": {
-        "summary": {
-          "type": "string",
-          "description": "Issue summary/title"
-        },
-        "description": {
-          "type": "string",
-          "description": "Issue description in Markdown. Use [KEY](url) for clickable issue links."
-        },
-        "issueType": {
-          "type": "string",
-          "description": "Issue type name or id. Names are localized on non-English instances; a name is resolved to an id automatically. Call jira_get_issue_types for the definitive list.",
-          "default": "Task"
-        },
-        "priority": {
-          "type": "string",
-          "description": "Priority id (preferred) or name. Names are localized on non-English instances and only the canonical English name works — pass the id from jira_get_priorities or jira_get_create_fields. A localized name is matched against the allowed values and converted to an id automatically."
-        },
-        "storyPoints": {
-          "type": "number",
-          "description": "Story points estimate (0-1000)"
-        },
-        "projectKey": {
-          "type": "string",
-          "description": "Project key (defaults to configured JIRA_PROJECT_KEY)"
-        },
-        "parent": {
-          "type": "string",
-          "description": "Parent issue key — the epic for a story, or the parent for a subtask (e.g. \"PROJ-12\")."
-        },
-        "labels": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "description": "Labels. Sent only when provided."
-        },
-        "versions": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "description": "Affects versions, by name or numeric id (ids are used verbatim). Required on many Bug screens. List them with jira_get_project_versions."
-        },
-        "fixVersions": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "description": "Fix versions, by name or numeric id. List them with jira_get_project_versions."
-        },
-        "components": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "description": "Components, by name or numeric id. List them with jira_get_project_components."
-        },
-        "assignee": {
-          "type": "string",
-          "description": "Assignee accountId (not email). Resolve via jira_search_users or jira_get_myself."
-        },
-        "reporter": {
-          "type": "string",
-          "description": "Reporter accountId (not email). Requires the Modify Reporter permission."
-        },
-        "dueDate": {
-          "type": "string",
-          "description": "Due date as YYYY-MM-DD."
-        },
-        "timetracking": {
-          "type": "object",
-          "properties": {
-            "originalEstimate": {
-              "type": "string",
-              "description": "Jira duration, e.g. \"3h 30m\", \"2d\"."
-            },
-            "remainingEstimate": {
-              "type": "string",
-              "description": "Jira duration, e.g. \"1h\"."
-            }
-          },
-          "description": "Time tracking estimates."
-        },
-        "customFields": {
-          "type": "object",
-          "additionalProperties": true,
-          "description": "Custom field values keyed by field ID (customfield_NNNNN). Use the shape the field expects: single-select { \"id\": \"10001\" } or { \"value\": \"X\" }; multi-select [ { \"id\": \"10001\" } ]; user { \"accountId\": \"...\" }; text \"string\". Rich-text (schema.type \"doc\") fields accept a plain Markdown string and are converted to ADF automatically. Call jira_get_create_fields for ids and allowed values."
-        },
-        "customFieldsMarkdown": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "string"
-          },
-          "description": "Rich-text custom fields keyed by field ID, values as Markdown strings converted to ADF. Use when the field type is \"doc\" and you want the conversion to be explicit."
-        },
-        "dryRun": {
-          "type": "boolean",
-          "description": "When true, validate the payload against the create screen and return missingRequired / invalidValues / fieldsNotOnScreen without creating the issue.",
-          "default": false
-        }
-      },
-      "required": [
-        "summary",
-        "description"
-      ]
-    },
-    "annotations": null,
-    "outputSchema": null
-  },
-  {
-    "name": "jira_get_issue",
-    "description": "Get details of a Jira issue. The default response includes status, resolution, assignee, priority, labels, story points, parent, components, versions, fixVersions, dueDate and timetracking. Set includeCustomFields to also get every populated custom field with its human-readable name (rich-text ones rendered as Markdown), or pass fields to select an exact set. Set includeImages to return embedded/attached images inline.",
+    "name": "jira_add_attachment",
+    "description": "Attach a local file to a Jira issue.",
     "inputSchema": {
       "type": "object",
       "properties": {
         "issueKey": {
           "type": "string",
-          "description": "Issue key (e.g., TTC-123)"
+          "description": "Issue key (e.g., PROJ-123)"
         },
-        "fields": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "description": "Exact field IDs to return (passed to the Jira ?fields= parameter), e.g. [\"summary\", \"versions\", \"customfield_10122\"] or [\"*all\"]. When set, the response returns a raw fields map instead of the default shape."
-        },
-        "includeCustomFields": {
-          "type": "boolean",
-          "description": "When true, add a customFields map of every populated customfield_NNNNN with { name, type, value }. Rich-text (doc) fields are converted to Markdown.",
-          "default": false
-        },
-        "includeImages": {
-          "type": "boolean",
-          "description": "When true, return up to 10 image attachments (image/*, each <=5MB) as inline images, embedded-in-description ones first. Default false.",
-          "default": false
+        "filePath": {
+          "type": "string",
+          "description": "Absolute path to the file to attach"
         }
       },
       "required": [
-        "issueKey"
-      ]
-    },
-    "annotations": null,
-    "outputSchema": null
-  },
-  {
-    "name": "jira_search_issues",
-    "description": "Search for Jira issues using JQL. Uses token-based pagination — pass nextPageToken from previous response to get next page.",
-    "inputSchema": {
-      "type": "object",
-      "properties": {
-        "jql": {
-          "type": "string",
-          "description": "JQL query string"
-        },
-        "nextPageToken": {
-          "type": "string",
-          "description": "Pagination token from previous search response"
-        },
-        "maxResults": {
-          "type": "number",
-          "description": "Maximum number of results (1-100)",
-          "default": 50
-        }
-      },
-      "required": [
-        "jql"
-      ]
-    },
-    "annotations": null,
-    "outputSchema": null
-  },
-  {
-    "name": "jira_update_issue",
-    "description": "Update fields and/or status of an issue. status is matched against the target status of each available transition first (so \"In Progress\" works even when the transition is named \"Start work\"), then against transition names, case-insensitively. Use transitionId for an exact transition and transitionFields when the transition screen requires input (e.g. an estimate) — jira_list_transitions with includeFields lists what each one needs. On a 400 the response carries missingRequired and allowedValues.",
-    "inputSchema": {
-      "type": "object",
-      "properties": {
-        "issueKey": {
-          "type": "string",
-          "description": "Issue key to update"
-        },
-        "summary": {
-          "type": "string",
-          "description": "New summary"
-        },
-        "description": {
-          "type": "string",
-          "description": "New description in Markdown. Use [KEY](url) for clickable issue links."
-        },
-        "status": {
-          "type": "string",
-          "description": "Target status name (e.g. \"In Progress\", \"To Do\") or transition name. Matched on the transition target status first, then the transition name, case-insensitively."
-        },
-        "transitionId": {
-          "type": "string",
-          "description": "Exact transition id from jira_list_transitions. Takes precedence over status."
-        },
-        "transitionFields": {
-          "type": "object",
-          "additionalProperties": true,
-          "description": "Fields required by the transition screen, keyed by field ID (e.g. { \"customfield_10016\": 3, \"resolution\": { \"id\": \"10000\" } }). Call jira_list_transitions with includeFields to see what a transition requires."
-        },
-        "priority": {
-          "type": "string",
-          "description": "Priority id (preferred) or name. Names are localized on non-English instances and only the canonical English name works — pass the id from jira_get_priorities or jira_get_create_fields. A localized name is matched against the allowed values and converted to an id automatically."
-        },
-        "storyPoints": {
-          "type": "number",
-          "description": "Story points estimate (0-1000)"
-        },
-        "parent": {
-          "type": "string",
-          "description": "New parent issue key (epic or parent task)."
-        },
-        "labels": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "description": "Labels. Sent only when provided."
-        },
-        "versions": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "description": "Affects versions, by name or numeric id (ids are used verbatim). Required on many Bug screens. List them with jira_get_project_versions."
-        },
-        "fixVersions": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "description": "Fix versions, by name or numeric id. List them with jira_get_project_versions."
-        },
-        "components": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "description": "Components, by name or numeric id. List them with jira_get_project_components."
-        },
-        "assignee": {
-          "type": "string",
-          "description": "Assignee accountId (not email). Resolve via jira_search_users or jira_get_myself."
-        },
-        "reporter": {
-          "type": "string",
-          "description": "Reporter accountId (not email). Requires the Modify Reporter permission."
-        },
-        "dueDate": {
-          "type": "string",
-          "description": "Due date as YYYY-MM-DD."
-        },
-        "timetracking": {
-          "type": "object",
-          "properties": {
-            "originalEstimate": {
-              "type": "string",
-              "description": "Jira duration, e.g. \"3h 30m\", \"2d\"."
-            },
-            "remainingEstimate": {
-              "type": "string",
-              "description": "Jira duration, e.g. \"1h\"."
-            }
-          },
-          "description": "Time tracking estimates."
-        },
-        "customFields": {
-          "type": "object",
-          "additionalProperties": true,
-          "description": "Custom field values keyed by field ID (customfield_NNNNN). Use the shape the field expects: single-select { \"id\": \"10001\" } or { \"value\": \"X\" }; multi-select [ { \"id\": \"10001\" } ]; user { \"accountId\": \"...\" }; text \"string\". Rich-text (schema.type \"doc\") fields accept a plain Markdown string and are converted to ADF automatically. Call jira_get_create_fields for ids and allowed values."
-        },
-        "customFieldsMarkdown": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "string"
-          },
-          "description": "Rich-text custom fields keyed by field ID, values as Markdown strings converted to ADF. Use when the field type is \"doc\" and you want the conversion to be explicit."
-        }
-      },
-      "required": [
-        "issueKey"
+        "issueKey",
+        "filePath"
       ]
     },
     "annotations": null,
@@ -317,236 +46,34 @@
     "outputSchema": null
   },
   {
-    "name": "jira_update_comment",
-    "description": "Update an existing comment on a Jira issue. Supports standard Markdown, automatically converted to ADF.",
+    "name": "jira_add_issues_to_epic",
+    "description": "Link one or more issues to an epic. Uses Agile API bulk move.",
     "inputSchema": {
       "type": "object",
       "properties": {
-        "issueKey": {
+        "epicKey": {
           "type": "string",
-          "description": "Issue key (e.g., PROJ-123)"
+          "description": "Target epic key"
         },
-        "commentId": {
-          "type": "string",
-          "description": "Comment ID (use jira_get_comments to find it)"
-        },
-        "comment": {
-          "type": "string",
-          "description": "Updated comment text in Markdown."
-        }
-      },
-      "required": [
-        "issueKey",
-        "commentId",
-        "comment"
-      ]
-    },
-    "annotations": null,
-    "outputSchema": null
-  },
-  {
-    "name": "jira_delete_comment",
-    "description": "Delete a comment from a Jira issue.",
-    "inputSchema": {
-      "type": "object",
-      "properties": {
-        "issueKey": {
-          "type": "string",
-          "description": "Issue key (e.g., PROJ-123)"
-        },
-        "commentId": {
-          "type": "string",
-          "description": "Comment ID (use jira_get_comments to find it)"
-        }
-      },
-      "required": [
-        "issueKey",
-        "commentId"
-      ]
-    },
-    "annotations": null,
-    "outputSchema": null
-  },
-  {
-    "name": "jira_link_issues",
-    "description": "Create a link between two issues. The inward side uses the linkType.inward phrasing (\"is blocked by\", \"duplicates\"), the outward side uses linkType.outward (\"blocks\", \"is duplicated by\"). If unsure which linkType names exist in this instance, call jira_get_link_types. Call sequentially (2-3 at a time) to avoid permission prompt storms in Claude Code.",
-    "inputSchema": {
-      "type": "object",
-      "properties": {
-        "inwardIssue": {
-          "type": "string",
-          "description": "Issue key on the inward side (the one that \"is blocked by\" / \"duplicates\" the other)"
-        },
-        "outwardIssue": {
-          "type": "string",
-          "description": "Issue key on the outward side (the one that \"blocks\" / \"is duplicated by\" the inward one)"
-        },
-        "linkType": {
-          "type": "string",
-          "description": "Link type name. Common: Relates, Blocks, Duplicate, Cloners. Call jira_get_link_types for instance-specific list.",
-          "default": "Relates"
-        }
-      },
-      "required": [
-        "inwardIssue",
-        "outwardIssue"
-      ]
-    },
-    "annotations": null,
-    "outputSchema": null
-  },
-  {
-    "name": "jira_get_project_info",
-    "description": "Get project information",
-    "inputSchema": {
-      "type": "object",
-      "properties": {
-        "projectKey": {
-          "type": "string",
-          "description": "Project key",
-          "default": "TEST"
-        }
-      }
-    },
-    "annotations": null,
-    "outputSchema": null
-  },
-  {
-    "name": "jira_delete_issue",
-    "description": "Delete a Jira issue",
-    "inputSchema": {
-      "type": "object",
-      "properties": {
-        "issueKey": {
-          "type": "string",
-          "description": "Issue key to delete (e.g., TTC-123)"
-        }
-      },
-      "required": [
-        "issueKey"
-      ]
-    },
-    "annotations": null,
-    "outputSchema": null
-  },
-  {
-    "name": "jira_create_subtask",
-    "description": "Create a subtask under a parent issue. Description supports standard Markdown, automatically converted to ADF. The subtask issue type is discovered from the project (handles \"Sub-task\" vs \"Subtask\" and localized names) unless issueType is given.",
-    "inputSchema": {
-      "type": "object",
-      "properties": {
-        "parentKey": {
-          "type": "string",
-          "description": "Parent issue key (e.g., TTC-261)"
-        },
-        "summary": {
-          "type": "string",
-          "description": "Subtask summary/title"
-        },
-        "description": {
-          "type": "string",
-          "description": "Subtask description in Markdown. Use [KEY](url) for clickable issue links."
-        },
-        "issueType": {
-          "type": "string",
-          "description": "Subtask issue type name or id. Defaults to the project's subtask type."
-        },
-        "priority": {
-          "type": "string",
-          "description": "Priority id (preferred) or name. Names are localized on non-English instances and only the canonical English name works — pass the id from jira_get_priorities or jira_get_create_fields. A localized name is matched against the allowed values and converted to an id automatically."
-        },
-        "storyPoints": {
-          "type": "number",
-          "description": "Story points estimate (0-1000)"
-        },
-        "projectKey": {
-          "type": "string",
-          "description": "Project key (defaults to configured JIRA_PROJECT_KEY)"
-        },
-        "labels": {
+        "issueKeys": {
           "type": "array",
           "items": {
             "type": "string"
           },
-          "description": "Labels. Sent only when provided."
-        },
-        "versions": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "description": "Affects versions, by name or numeric id (ids are used verbatim). Required on many Bug screens. List them with jira_get_project_versions."
-        },
-        "fixVersions": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "description": "Fix versions, by name or numeric id. List them with jira_get_project_versions."
-        },
-        "components": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "description": "Components, by name or numeric id. List them with jira_get_project_components."
-        },
-        "assignee": {
-          "type": "string",
-          "description": "Assignee accountId (not email). Resolve via jira_search_users or jira_get_myself."
-        },
-        "reporter": {
-          "type": "string",
-          "description": "Reporter accountId (not email). Requires the Modify Reporter permission."
-        },
-        "dueDate": {
-          "type": "string",
-          "description": "Due date as YYYY-MM-DD."
-        },
-        "timetracking": {
-          "type": "object",
-          "properties": {
-            "originalEstimate": {
-              "type": "string",
-              "description": "Jira duration, e.g. \"3h 30m\", \"2d\"."
-            },
-            "remainingEstimate": {
-              "type": "string",
-              "description": "Jira duration, e.g. \"1h\"."
-            }
-          },
-          "description": "Time tracking estimates."
-        },
-        "customFields": {
-          "type": "object",
-          "additionalProperties": true,
-          "description": "Custom field values keyed by field ID (customfield_NNNNN). Use the shape the field expects: single-select { \"id\": \"10001\" } or { \"value\": \"X\" }; multi-select [ { \"id\": \"10001\" } ]; user { \"accountId\": \"...\" }; text \"string\". Rich-text (schema.type \"doc\") fields accept a plain Markdown string and are converted to ADF automatically. Call jira_get_create_fields for ids and allowed values."
-        },
-        "customFieldsMarkdown": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "string"
-          },
-          "description": "Rich-text custom fields keyed by field ID, values as Markdown strings converted to ADF. Use when the field type is \"doc\" and you want the conversion to be explicit."
-        },
-        "dryRun": {
-          "type": "boolean",
-          "description": "When true, validate against the create screen and return what is missing without creating the subtask.",
-          "default": false
+          "description": "Array of issue keys to attach to the epic"
         }
       },
       "required": [
-        "parentKey",
-        "summary",
-        "description"
+        "epicKey",
+        "issueKeys"
       ]
     },
     "annotations": null,
     "outputSchema": null
   },
   {
-    "name": "jira_assign_issue",
-    "description": "Assign or unassign a user. Jira uses accountId (not email or username). To find accountId: call jira_search_users by name/email, or jira_get_myself for the current user. Pass null accountId to unassign.",
+    "name": "jira_add_watcher",
+    "description": "Subscribe a user to watch an issue (receive notifications on changes).",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -555,34 +82,8 @@
           "description": "Issue key (e.g., PROJ-123)"
         },
         "accountId": {
-          "type": [
-            "string",
-            "null"
-          ],
-          "description": "Atlassian accountId of the assignee (opaque string like \"5b10a2844c20165700ede21g\"), or null to unassign. Get via jira_search_users or jira_get_myself."
-        }
-      },
-      "required": [
-        "issueKey"
-      ]
-    },
-    "annotations": null,
-    "outputSchema": null
-  },
-  {
-    "name": "jira_list_transitions",
-    "description": "Get available status transitions for a Jira issue. Each entry has the transition id and name plus the target status under \"to\" — a workflow can name a transition \"Start work\" while its target status is \"In Progress\". Set includeFields to also get the fields each transition screen accepts, with required flags and allowed values, for passing via jira_update_issue transitionFields.",
-    "inputSchema": {
-      "type": "object",
-      "properties": {
-        "issueKey": {
           "type": "string",
-          "description": "Issue key (e.g., TTC-123)"
-        },
-        "includeFields": {
-          "type": "boolean",
-          "description": "When true, expand each transition with its screen fields (fieldId, name, required, type, allowedValues) and a requiredFields shortlist.",
-          "default": false
+          "description": "Atlassian accountId of the user to add as watcher. Omit to add the authenticated user."
         }
       },
       "required": [
@@ -624,66 +125,8 @@
     "outputSchema": null
   },
   {
-    "name": "jira_get_comments",
-    "description": "Get comments from a Jira issue.",
-    "inputSchema": {
-      "type": "object",
-      "properties": {
-        "issueKey": {
-          "type": "string",
-          "description": "Issue key (e.g., TTC-123)"
-        },
-        "maxResults": {
-          "type": "number",
-          "description": "Maximum number of comments (1-100)",
-          "default": 50
-        },
-        "orderBy": {
-          "type": "string",
-          "description": "Order by created date: \"created\" (oldest first) or \"-created\" (newest first)",
-          "default": "-created"
-        },
-        "startAt": {
-          "type": "number",
-          "description": "Zero-based index of the first item to return. Use it with the returned startAt/total/hasMore to page beyond the first batch."
-        }
-      },
-      "required": [
-        "issueKey"
-      ]
-    },
-    "annotations": null,
-    "outputSchema": null
-  },
-  {
-    "name": "jira_get_worklogs",
-    "description": "Get worklog entries from a Jira issue.",
-    "inputSchema": {
-      "type": "object",
-      "properties": {
-        "issueKey": {
-          "type": "string",
-          "description": "Issue key (e.g., TTC-123)"
-        },
-        "startAt": {
-          "type": "number",
-          "description": "Zero-based index of the first item to return. Use it with the returned startAt/total/hasMore to page beyond the first batch."
-        },
-        "maxResults": {
-          "type": "number",
-          "description": "Maximum number of worklog entries (1-100). Omit to let Jira return every entry."
-        }
-      },
-      "required": [
-        "issueKey"
-      ]
-    },
-    "annotations": null,
-    "outputSchema": null
-  },
-  {
-    "name": "jira_update_worklog",
-    "description": "Update an existing worklog entry on a Jira issue. All fields except issueKey/worklogId are optional - omit to leave unchanged.",
+    "name": "jira_assign_issue",
+    "description": "Assign or unassign a user. Jira uses accountId (not email or username). To find accountId: call jira_search_users by name/email, or jira_get_myself for the current user. Pass null accountId to unassign.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -691,255 +134,16 @@
           "type": "string",
           "description": "Issue key (e.g., PROJ-123)"
         },
-        "worklogId": {
-          "type": "string",
-          "description": "Worklog ID (use jira_get_worklogs to find it)"
-        },
-        "timeSpent": {
-          "type": "string",
-          "description": "New duration in Jira format (\"2h 30m\", \"1d\", \"45m\"). Optional."
-        },
-        "comment": {
-          "type": "string",
-          "description": "New comment in Markdown. Optional."
-        },
-        "started": {
-          "type": "string",
-          "description": "New start time as ISO 8601 with millis and offset, e.g. \"2024-01-15T09:00:00.000+0000\". Optional."
-        }
-      },
-      "required": [
-        "issueKey",
-        "worklogId"
-      ]
-    },
-    "annotations": null,
-    "outputSchema": null
-  },
-  {
-    "name": "jira_delete_worklog",
-    "description": "Delete a worklog entry from a Jira issue. Permanent.",
-    "inputSchema": {
-      "type": "object",
-      "properties": {
-        "issueKey": {
-          "type": "string",
-          "description": "Issue key (e.g., PROJ-123)"
-        },
-        "worklogId": {
-          "type": "string",
-          "description": "Worklog ID (use jira_get_worklogs to find it)"
-        }
-      },
-      "required": [
-        "issueKey",
-        "worklogId"
-      ]
-    },
-    "annotations": null,
-    "outputSchema": null
-  },
-  {
-    "name": "jira_list_projects",
-    "description": "List all accessible Jira projects.",
-    "inputSchema": {
-      "type": "object",
-      "properties": {
-        "maxResults": {
-          "type": "number",
-          "description": "Maximum number of results (1-100)",
-          "default": 50
-        },
-        "query": {
-          "type": "string",
-          "description": "Filter projects by name (partial match)"
-        },
-        "startAt": {
-          "type": "number",
-          "description": "Zero-based index of the first item to return. Use it with the returned startAt/total/hasMore to page beyond the first batch."
-        }
-      }
-    },
-    "annotations": null,
-    "outputSchema": null
-  },
-  {
-    "name": "jira_get_project_components",
-    "description": "Get components of a Jira project.",
-    "inputSchema": {
-      "type": "object",
-      "properties": {
-        "projectKey": {
-          "type": "string",
-          "description": "Project key (defaults to configured JIRA_PROJECT_KEY)"
-        }
-      }
-    },
-    "annotations": null,
-    "outputSchema": null
-  },
-  {
-    "name": "jira_get_project_versions",
-    "description": "Get versions (releases) of a Jira project.",
-    "inputSchema": {
-      "type": "object",
-      "properties": {
-        "projectKey": {
-          "type": "string",
-          "description": "Project key (defaults to configured JIRA_PROJECT_KEY)"
-        }
-      }
-    },
-    "annotations": null,
-    "outputSchema": null
-  },
-  {
-    "name": "jira_get_fields",
-    "description": "Get all available Jira fields. Useful for finding custom field IDs.",
-    "inputSchema": {
-      "type": "object",
-      "properties": {}
-    },
-    "annotations": null,
-    "outputSchema": null
-  },
-  {
-    "name": "jira_get_issue_types",
-    "description": "Get all available issue types for a project. Names are rendered in the Jira account language — prefer the id when passing a type on. For the fields a given type requires, call jira_get_create_fields.",
-    "inputSchema": {
-      "type": "object",
-      "properties": {
-        "projectKey": {
-          "type": "string",
-          "description": "Project key (defaults to configured JIRA_PROJECT_KEY)"
-        }
-      }
-    },
-    "annotations": null,
-    "outputSchema": null
-  },
-  {
-    "name": "jira_get_create_fields",
-    "description": "Get the create screen definition for one issue type: every field with fieldId, name, required, type and allowedValues, plus a requiredFields shortlist. This is the second createmeta step (jira_get_issue_types is the first) and it is what tells you which fields are mandatory and which values they accept. Call it before jira_create_issue on an unfamiliar project or issue type instead of guessing.",
-    "inputSchema": {
-      "type": "object",
-      "properties": {
-        "projectKey": {
-          "type": "string",
-          "description": "Project key (defaults to configured JIRA_PROJECT_KEY)"
-        },
-        "issueType": {
-          "type": "string",
-          "description": "Issue type name or id (e.g. \"Bug\" or \"10004\"). Names are matched case-insensitively and work with localized names."
-        }
-      },
-      "required": [
-        "issueType"
-      ]
-    },
-    "annotations": null,
-    "outputSchema": null
-  },
-  {
-    "name": "jira_get_priorities",
-    "description": "Get all available issue priorities. Returns id first: the name is rendered in the Jira account language and Jira only accepts the canonical English name or the id on create/update, so pass the id.",
-    "inputSchema": {
-      "type": "object",
-      "properties": {}
-    },
-    "annotations": null,
-    "outputSchema": null
-  },
-  {
-    "name": "jira_get_link_types",
-    "description": "Get all available issue link types.",
-    "inputSchema": {
-      "type": "object",
-      "properties": {}
-    },
-    "annotations": null,
-    "outputSchema": null
-  },
-  {
-    "name": "jira_search_users",
-    "description": "Search for Jira users by name or email. Returns accountId needed for jira_assign_issue.",
-    "inputSchema": {
-      "type": "object",
-      "properties": {
-        "query": {
-          "type": "string",
-          "description": "Search query (matches display name and email prefix)"
-        },
-        "maxResults": {
-          "type": "number",
-          "description": "Maximum number of results (1-100)",
-          "default": 10
-        },
-        "startAt": {
-          "type": "number",
-          "description": "Zero-based index of the first item to return. Use it with the returned startAt/total/hasMore to page beyond the first batch."
-        }
-      },
-      "required": [
-        "query"
-      ]
-    },
-    "annotations": null,
-    "outputSchema": null
-  },
-  {
-    "name": "jira_get_changelog",
-    "description": "Get the change history of a Jira issue (who changed what and when).",
-    "inputSchema": {
-      "type": "object",
-      "properties": {
-        "issueKey": {
-          "type": "string",
-          "description": "Issue key (e.g., PROJ-123)"
-        },
-        "maxResults": {
-          "type": "number",
-          "description": "Maximum number of changelog entries (1-100)",
-          "default": 50
-        },
-        "startAt": {
-          "type": "number",
-          "description": "Zero-based index of the first item to return. Use it with the returned startAt/total/hasMore to page beyond the first batch."
-        }
-      },
-      "required": [
-        "issueKey"
-      ]
-    },
-    "annotations": null,
-    "outputSchema": null
-  },
-  {
-    "name": "jira_get_user_issues",
-    "description": "Get all issues assigned to a specific user.",
-    "inputSchema": {
-      "type": "object",
-      "properties": {
         "accountId": {
-          "type": "string",
-          "description": "Atlassian account ID of the user"
-        },
-        "projectKey": {
-          "type": "string",
-          "description": "Filter by project key (defaults to configured JIRA_PROJECT_KEY)"
-        },
-        "maxResults": {
-          "type": "number",
-          "description": "Maximum number of results (1-100)",
-          "default": 50
-        },
-        "status": {
-          "type": "string",
-          "description": "Filter by status (e.g., \"In Progress\")"
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Atlassian accountId of the assignee (opaque string like \"5b10a2844c20165700ede21g\"), or null to unassign. Get via jira_search_users or jira_get_myself."
         }
       },
       "required": [
-        "accountId"
+        "issueKey"
       ]
     },
     "annotations": null,
@@ -1066,6 +270,48 @@
     "outputSchema": null
   },
   {
+    "name": "jira_bulk_transition_issues",
+    "description": "Apply the same status transition to multiple issues. Iterates client-side; failures are collected per issue and returned. status is matched against each transition target status first, then transition names, case-insensitively — so \"In Progress\" works even where the transition is called \"Start work\". Use transitionFields when the transition screen requires input.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "issueKeys": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Array of issue keys to transition"
+        },
+        "transitionId": {
+          "type": "string",
+          "description": "Exact transition ID from jira_list_transitions. Takes precedence over status."
+        },
+        "status": {
+          "type": "string",
+          "description": "Target status name (e.g. \"In Progress\") or transition name. Resolved per issue."
+        },
+        "transitionName": {
+          "type": "string",
+          "description": "Deprecated alias for status, kept for compatibility."
+        },
+        "transitionFields": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Fields required by the transition screen, keyed by field ID. Call jira_list_transitions with includeFields to see what a transition requires."
+        },
+        "comment": {
+          "type": "string",
+          "description": "Optional comment added during the transition (Markdown)"
+        }
+      },
+      "required": [
+        "issueKeys"
+      ]
+    },
+    "annotations": null,
+    "outputSchema": null
+  },
+  {
     "name": "jira_clone_issue",
     "description": "Clone an existing Jira issue with a new summary. Copies issue type, description, labels, priority, story points, components and versions from the source. Custom fields are NOT copied — supply any the target screen requires via customFields. Any field passed explicitly overrides the copied value.",
     "inputSchema": {
@@ -1164,311 +410,6 @@
       },
       "required": [
         "issueKey"
-      ]
-    },
-    "annotations": null,
-    "outputSchema": null
-  },
-  {
-    "name": "jira_list_boards",
-    "description": "List all Scrum/Kanban boards.",
-    "inputSchema": {
-      "type": "object",
-      "properties": {
-        "projectKey": {
-          "type": "string",
-          "description": "Filter by project key"
-        },
-        "maxResults": {
-          "type": "number",
-          "description": "Maximum number of results (1-100)",
-          "default": 50
-        },
-        "startAt": {
-          "type": "number",
-          "description": "Zero-based index of the first item to return. Use it with the returned startAt/total/hasMore to page beyond the first batch."
-        }
-      }
-    },
-    "annotations": null,
-    "outputSchema": null
-  },
-  {
-    "name": "jira_list_sprints",
-    "description": "List sprints for a board.",
-    "inputSchema": {
-      "type": "object",
-      "properties": {
-        "boardId": {
-          "type": "number",
-          "description": "Board ID (use jira_list_boards to find it)"
-        },
-        "state": {
-          "type": "string",
-          "description": "Filter by state: active, future, closed",
-          "default": "active"
-        },
-        "maxResults": {
-          "type": "number",
-          "description": "Maximum number of results (1-100)",
-          "default": 50
-        },
-        "startAt": {
-          "type": "number",
-          "description": "Zero-based index of the first item to return. Use it with the returned startAt/total/hasMore to page beyond the first batch."
-        }
-      },
-      "required": [
-        "boardId"
-      ]
-    },
-    "annotations": null,
-    "outputSchema": null
-  },
-  {
-    "name": "jira_get_sprint",
-    "description": "Get details of a sprint including all issues in it.",
-    "inputSchema": {
-      "type": "object",
-      "properties": {
-        "sprintId": {
-          "type": "number",
-          "description": "Sprint ID (use jira_list_sprints to find it)"
-        },
-        "maxResults": {
-          "type": "number",
-          "description": "Maximum number of issues (1-100)",
-          "default": 50
-        },
-        "startAt": {
-          "type": "number",
-          "description": "Zero-based index of the first item to return. Use it with the returned startAt/total/hasMore to page beyond the first batch."
-        }
-      },
-      "required": [
-        "sprintId"
-      ]
-    },
-    "annotations": null,
-    "outputSchema": null
-  },
-  {
-    "name": "jira_move_to_sprint",
-    "description": "Move one or more issues to a sprint.",
-    "inputSchema": {
-      "type": "object",
-      "properties": {
-        "sprintId": {
-          "type": "number",
-          "description": "Sprint ID (use jira_list_sprints to find it)"
-        },
-        "issueKeys": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "description": "Array of issue keys to move (e.g., [\"PROJ-1\", \"PROJ-2\"])"
-        }
-      },
-      "required": [
-        "sprintId",
-        "issueKeys"
-      ]
-    },
-    "annotations": null,
-    "outputSchema": null
-  },
-  {
-    "name": "jira_get_attachments",
-    "description": "Get list of attachments on a Jira issue.",
-    "inputSchema": {
-      "type": "object",
-      "properties": {
-        "issueKey": {
-          "type": "string",
-          "description": "Issue key (e.g., PROJ-123)"
-        }
-      },
-      "required": [
-        "issueKey"
-      ]
-    },
-    "annotations": null,
-    "outputSchema": null
-  },
-  {
-    "name": "jira_add_attachment",
-    "description": "Attach a local file to a Jira issue.",
-    "inputSchema": {
-      "type": "object",
-      "properties": {
-        "issueKey": {
-          "type": "string",
-          "description": "Issue key (e.g., PROJ-123)"
-        },
-        "filePath": {
-          "type": "string",
-          "description": "Absolute path to the file to attach"
-        }
-      },
-      "required": [
-        "issueKey",
-        "filePath"
-      ]
-    },
-    "annotations": null,
-    "outputSchema": null
-  },
-  {
-    "name": "jira_list_epics",
-    "description": "List all epics in a project via JQL (issuetype = Epic).",
-    "inputSchema": {
-      "type": "object",
-      "properties": {
-        "projectKey": {
-          "type": "string",
-          "description": "Project key (defaults to JIRA_PROJECT_KEY)"
-        },
-        "status": {
-          "type": "string",
-          "description": "Filter by status name (e.g., \"In Progress\", \"Done\")"
-        },
-        "maxResults": {
-          "type": "number",
-          "description": "Maximum results (1-100)",
-          "default": 50
-        },
-        "nextPageToken": {
-          "type": "string",
-          "description": "Pagination token from previous response"
-        }
-      }
-    },
-    "annotations": null,
-    "outputSchema": null
-  },
-  {
-    "name": "jira_get_epic",
-    "description": "Get epic details via Agile API (name, summary, color, done status).",
-    "inputSchema": {
-      "type": "object",
-      "properties": {
-        "epicKey": {
-          "type": "string",
-          "description": "Epic issue key (e.g., PROJ-100)"
-        }
-      },
-      "required": [
-        "epicKey"
-      ]
-    },
-    "annotations": null,
-    "outputSchema": null
-  },
-  {
-    "name": "jira_get_epic_issues",
-    "description": "Get all child issues linked to an epic.",
-    "inputSchema": {
-      "type": "object",
-      "properties": {
-        "epicKey": {
-          "type": "string",
-          "description": "Epic issue key"
-        },
-        "maxResults": {
-          "type": "number",
-          "description": "Maximum results (1-100)",
-          "default": 50
-        },
-        "startAt": {
-          "type": "number",
-          "description": "Zero-based index of the first item to return. Use it with the returned startAt/total/hasMore to page beyond the first batch."
-        }
-      },
-      "required": [
-        "epicKey"
-      ]
-    },
-    "annotations": null,
-    "outputSchema": null
-  },
-  {
-    "name": "jira_get_board_epics",
-    "description": "List epics on a Scrum/Kanban board, optionally filtered by done status.",
-    "inputSchema": {
-      "type": "object",
-      "properties": {
-        "boardId": {
-          "type": "number",
-          "description": "Board ID (from jira_list_boards)"
-        },
-        "done": {
-          "type": "string",
-          "enum": [
-            "true",
-            "false"
-          ],
-          "description": "Filter: \"true\" for done epics, \"false\" for active, omit for all"
-        },
-        "maxResults": {
-          "type": "number",
-          "description": "Maximum results (1-100)",
-          "default": 50
-        },
-        "startAt": {
-          "type": "number",
-          "description": "Zero-based index of the first item to return. Use it with the returned startAt/total/hasMore to page beyond the first batch."
-        }
-      },
-      "required": [
-        "boardId"
-      ]
-    },
-    "annotations": null,
-    "outputSchema": null
-  },
-  {
-    "name": "jira_add_issues_to_epic",
-    "description": "Link one or more issues to an epic. Uses Agile API bulk move.",
-    "inputSchema": {
-      "type": "object",
-      "properties": {
-        "epicKey": {
-          "type": "string",
-          "description": "Target epic key"
-        },
-        "issueKeys": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "description": "Array of issue keys to attach to the epic"
-        }
-      },
-      "required": [
-        "epicKey",
-        "issueKeys"
-      ]
-    },
-    "annotations": null,
-    "outputSchema": null
-  },
-  {
-    "name": "jira_remove_issue_from_epic",
-    "description": "Remove issues from their current epic (unlink).",
-    "inputSchema": {
-      "type": "object",
-      "properties": {
-        "issueKeys": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "description": "Array of issue keys to detach from their epic"
-        }
-      },
-      "required": [
-        "issueKeys"
       ]
     },
     "annotations": null,
@@ -1580,18 +521,238 @@
     "outputSchema": null
   },
   {
-    "name": "jira_get_myself",
-    "description": "Get the authenticated user (accountId, displayName, email, timezone, locale). Useful to know who the MCP server is acting as.",
+    "name": "jira_create_issue",
+    "description": "Create a new Jira issue. Description supports Markdown (auto-converted to ADF). To create an Epic use jira_create_epic. Call jira_get_create_fields(projectKey, issueType) first when the screen is unknown — it returns every field with required, type and allowedValues, which removes the guesswork (Bug screens commonly require Affects versions and other mandatory fields). Optional fields are only sent when provided, so nothing is rejected for not being on the screen. On a 400 the response carries missingRequired and allowedValues. Set dryRun to validate the payload without creating anything.",
     "inputSchema": {
       "type": "object",
-      "properties": {}
+      "properties": {
+        "summary": {
+          "type": "string",
+          "description": "Issue summary/title"
+        },
+        "description": {
+          "type": "string",
+          "description": "Issue description in Markdown. Use [KEY](url) for clickable issue links."
+        },
+        "issueType": {
+          "type": "string",
+          "description": "Issue type name or id. Names are localized on non-English instances; a name is resolved to an id automatically. Call jira_get_issue_types for the definitive list.",
+          "default": "Task"
+        },
+        "priority": {
+          "type": "string",
+          "description": "Priority id (preferred) or name. Names are localized on non-English instances and only the canonical English name works — pass the id from jira_get_priorities or jira_get_create_fields. A localized name is matched against the allowed values and converted to an id automatically."
+        },
+        "storyPoints": {
+          "type": "number",
+          "description": "Story points estimate (0-1000)"
+        },
+        "projectKey": {
+          "type": "string",
+          "description": "Project key (defaults to configured JIRA_PROJECT_KEY)"
+        },
+        "parent": {
+          "type": "string",
+          "description": "Parent issue key — the epic for a story, or the parent for a subtask (e.g. \"PROJ-12\")."
+        },
+        "labels": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Labels. Sent only when provided."
+        },
+        "versions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Affects versions, by name or numeric id (ids are used verbatim). Required on many Bug screens. List them with jira_get_project_versions."
+        },
+        "fixVersions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Fix versions, by name or numeric id. List them with jira_get_project_versions."
+        },
+        "components": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Components, by name or numeric id. List them with jira_get_project_components."
+        },
+        "assignee": {
+          "type": "string",
+          "description": "Assignee accountId (not email). Resolve via jira_search_users or jira_get_myself."
+        },
+        "reporter": {
+          "type": "string",
+          "description": "Reporter accountId (not email). Requires the Modify Reporter permission."
+        },
+        "dueDate": {
+          "type": "string",
+          "description": "Due date as YYYY-MM-DD."
+        },
+        "timetracking": {
+          "type": "object",
+          "properties": {
+            "originalEstimate": {
+              "type": "string",
+              "description": "Jira duration, e.g. \"3h 30m\", \"2d\"."
+            },
+            "remainingEstimate": {
+              "type": "string",
+              "description": "Jira duration, e.g. \"1h\"."
+            }
+          },
+          "description": "Time tracking estimates."
+        },
+        "customFields": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Custom field values keyed by field ID (customfield_NNNNN). Use the shape the field expects: single-select { \"id\": \"10001\" } or { \"value\": \"X\" }; multi-select [ { \"id\": \"10001\" } ]; user { \"accountId\": \"...\" }; text \"string\". Rich-text (schema.type \"doc\") fields accept a plain Markdown string and are converted to ADF automatically. Call jira_get_create_fields for ids and allowed values."
+        },
+        "customFieldsMarkdown": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Rich-text custom fields keyed by field ID, values as Markdown strings converted to ADF. Use when the field type is \"doc\" and you want the conversion to be explicit."
+        },
+        "dryRun": {
+          "type": "boolean",
+          "description": "When true, validate the payload against the create screen and return missingRequired / invalidValues / fieldsNotOnScreen without creating the issue.",
+          "default": false
+        }
+      },
+      "required": [
+        "summary",
+        "description"
+      ]
     },
     "annotations": null,
     "outputSchema": null
   },
   {
-    "name": "jira_add_watcher",
-    "description": "Subscribe a user to watch an issue (receive notifications on changes).",
+    "name": "jira_create_subtask",
+    "description": "Create a subtask under a parent issue. Description supports standard Markdown, automatically converted to ADF. The subtask issue type is discovered from the project (handles \"Sub-task\" vs \"Subtask\" and localized names) unless issueType is given.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "parentKey": {
+          "type": "string",
+          "description": "Parent issue key (e.g., TTC-261)"
+        },
+        "summary": {
+          "type": "string",
+          "description": "Subtask summary/title"
+        },
+        "description": {
+          "type": "string",
+          "description": "Subtask description in Markdown. Use [KEY](url) for clickable issue links."
+        },
+        "issueType": {
+          "type": "string",
+          "description": "Subtask issue type name or id. Defaults to the project's subtask type."
+        },
+        "priority": {
+          "type": "string",
+          "description": "Priority id (preferred) or name. Names are localized on non-English instances and only the canonical English name works — pass the id from jira_get_priorities or jira_get_create_fields. A localized name is matched against the allowed values and converted to an id automatically."
+        },
+        "storyPoints": {
+          "type": "number",
+          "description": "Story points estimate (0-1000)"
+        },
+        "projectKey": {
+          "type": "string",
+          "description": "Project key (defaults to configured JIRA_PROJECT_KEY)"
+        },
+        "labels": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Labels. Sent only when provided."
+        },
+        "versions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Affects versions, by name or numeric id (ids are used verbatim). Required on many Bug screens. List them with jira_get_project_versions."
+        },
+        "fixVersions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Fix versions, by name or numeric id. List them with jira_get_project_versions."
+        },
+        "components": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Components, by name or numeric id. List them with jira_get_project_components."
+        },
+        "assignee": {
+          "type": "string",
+          "description": "Assignee accountId (not email). Resolve via jira_search_users or jira_get_myself."
+        },
+        "reporter": {
+          "type": "string",
+          "description": "Reporter accountId (not email). Requires the Modify Reporter permission."
+        },
+        "dueDate": {
+          "type": "string",
+          "description": "Due date as YYYY-MM-DD."
+        },
+        "timetracking": {
+          "type": "object",
+          "properties": {
+            "originalEstimate": {
+              "type": "string",
+              "description": "Jira duration, e.g. \"3h 30m\", \"2d\"."
+            },
+            "remainingEstimate": {
+              "type": "string",
+              "description": "Jira duration, e.g. \"1h\"."
+            }
+          },
+          "description": "Time tracking estimates."
+        },
+        "customFields": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Custom field values keyed by field ID (customfield_NNNNN). Use the shape the field expects: single-select { \"id\": \"10001\" } or { \"value\": \"X\" }; multi-select [ { \"id\": \"10001\" } ]; user { \"accountId\": \"...\" }; text \"string\". Rich-text (schema.type \"doc\") fields accept a plain Markdown string and are converted to ADF automatically. Call jira_get_create_fields for ids and allowed values."
+        },
+        "customFieldsMarkdown": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Rich-text custom fields keyed by field ID, values as Markdown strings converted to ADF. Use when the field type is \"doc\" and you want the conversion to be explicit."
+        },
+        "dryRun": {
+          "type": "boolean",
+          "description": "When true, validate against the create screen and return what is missing without creating the subtask.",
+          "default": false
+        }
+      },
+      "required": [
+        "parentKey",
+        "summary",
+        "description"
+      ]
+    },
+    "annotations": null,
+    "outputSchema": null
+  },
+  {
+    "name": "jira_delete_comment",
+    "description": "Delete a comment from a Jira issue.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -1599,54 +760,55 @@
           "type": "string",
           "description": "Issue key (e.g., PROJ-123)"
         },
-        "accountId": {
+        "commentId": {
           "type": "string",
-          "description": "Atlassian accountId of the user to add as watcher. Omit to add the authenticated user."
-        }
-      },
-      "required": [
-        "issueKey"
-      ]
-    },
-    "annotations": null,
-    "outputSchema": null
-  },
-  {
-    "name": "jira_remove_watcher",
-    "description": "Unsubscribe a user from watching an issue.",
-    "inputSchema": {
-      "type": "object",
-      "properties": {
-        "issueKey": {
-          "type": "string",
-          "description": "Issue key"
-        },
-        "accountId": {
-          "type": "string",
-          "description": "Atlassian accountId to remove. Required."
+          "description": "Comment ID (use jira_get_comments to find it)"
         }
       },
       "required": [
         "issueKey",
-        "accountId"
+        "commentId"
       ]
     },
     "annotations": null,
     "outputSchema": null
   },
   {
-    "name": "jira_get_watchers",
-    "description": "List all watchers on an issue.",
+    "name": "jira_delete_issue",
+    "description": "Delete a Jira issue",
     "inputSchema": {
       "type": "object",
       "properties": {
         "issueKey": {
           "type": "string",
-          "description": "Issue key"
+          "description": "Issue key to delete (e.g., TTC-123)"
         }
       },
       "required": [
         "issueKey"
+      ]
+    },
+    "annotations": null,
+    "outputSchema": null
+  },
+  {
+    "name": "jira_delete_worklog",
+    "description": "Delete a worklog entry from a Jira issue. Permanent.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "issueKey": {
+          "type": "string",
+          "description": "Issue key (e.g., PROJ-123)"
+        },
+        "worklogId": {
+          "type": "string",
+          "description": "Worklog ID (use jira_get_worklogs to find it)"
+        }
+      },
+      "required": [
+        "issueKey",
+        "worklogId"
       ]
     },
     "annotations": null,
@@ -1676,19 +838,516 @@
     "outputSchema": null
   },
   {
-    "name": "jira_view_attachment",
-    "description": "Fetch an image attachment and return it inline so the model can see it (no file written). Image attachments only (mimeType image/*), capped at 5MB. For non-images or larger files use jira_download_attachment. Get the attachmentId from jira_get_attachments.",
+    "name": "jira_get_attachments",
+    "description": "Get list of attachments on a Jira issue.",
     "inputSchema": {
       "type": "object",
       "properties": {
-        "attachmentId": {
+        "issueKey": {
           "type": "string",
-          "description": "Attachment ID (from jira_get_attachments)"
+          "description": "Issue key (e.g., PROJ-123)"
         }
       },
       "required": [
-        "attachmentId"
+        "issueKey"
       ]
+    },
+    "annotations": null,
+    "outputSchema": null
+  },
+  {
+    "name": "jira_get_board_epics",
+    "description": "List epics on a Scrum/Kanban board, optionally filtered by done status.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "boardId": {
+          "type": "number",
+          "description": "Board ID (from jira_list_boards)"
+        },
+        "done": {
+          "type": "string",
+          "enum": [
+            "true",
+            "false"
+          ],
+          "description": "Filter: \"true\" for done epics, \"false\" for active, omit for all"
+        },
+        "maxResults": {
+          "type": "number",
+          "description": "Maximum results (1-100)",
+          "default": 50
+        },
+        "startAt": {
+          "type": "number",
+          "description": "Zero-based index of the first item to return. Use it with the returned startAt/total/hasMore to page beyond the first batch."
+        }
+      },
+      "required": [
+        "boardId"
+      ]
+    },
+    "annotations": null,
+    "outputSchema": null
+  },
+  {
+    "name": "jira_get_changelog",
+    "description": "Get the change history of a Jira issue (who changed what and when).",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "issueKey": {
+          "type": "string",
+          "description": "Issue key (e.g., PROJ-123)"
+        },
+        "maxResults": {
+          "type": "number",
+          "description": "Maximum number of changelog entries (1-100)",
+          "default": 50
+        },
+        "startAt": {
+          "type": "number",
+          "description": "Zero-based index of the first item to return. Use it with the returned startAt/total/hasMore to page beyond the first batch."
+        }
+      },
+      "required": [
+        "issueKey"
+      ]
+    },
+    "annotations": null,
+    "outputSchema": null
+  },
+  {
+    "name": "jira_get_comments",
+    "description": "Get comments from a Jira issue.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "issueKey": {
+          "type": "string",
+          "description": "Issue key (e.g., TTC-123)"
+        },
+        "maxResults": {
+          "type": "number",
+          "description": "Maximum number of comments (1-100)",
+          "default": 50
+        },
+        "orderBy": {
+          "type": "string",
+          "description": "Order by created date: \"created\" (oldest first) or \"-created\" (newest first)",
+          "default": "-created"
+        },
+        "startAt": {
+          "type": "number",
+          "description": "Zero-based index of the first item to return. Use it with the returned startAt/total/hasMore to page beyond the first batch."
+        }
+      },
+      "required": [
+        "issueKey"
+      ]
+    },
+    "annotations": null,
+    "outputSchema": null
+  },
+  {
+    "name": "jira_get_create_fields",
+    "description": "Get the create screen definition for one issue type: every field with fieldId, name, required, type and allowedValues, plus a requiredFields shortlist. This is the second createmeta step (jira_get_issue_types is the first) and it is what tells you which fields are mandatory and which values they accept. Call it before jira_create_issue on an unfamiliar project or issue type instead of guessing.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "projectKey": {
+          "type": "string",
+          "description": "Project key (defaults to configured JIRA_PROJECT_KEY)"
+        },
+        "issueType": {
+          "type": "string",
+          "description": "Issue type name or id (e.g. \"Bug\" or \"10004\"). Names are matched case-insensitively and work with localized names."
+        }
+      },
+      "required": [
+        "issueType"
+      ]
+    },
+    "annotations": null,
+    "outputSchema": null
+  },
+  {
+    "name": "jira_get_epic",
+    "description": "Get epic details via Agile API (name, summary, color, done status).",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "epicKey": {
+          "type": "string",
+          "description": "Epic issue key (e.g., PROJ-100)"
+        }
+      },
+      "required": [
+        "epicKey"
+      ]
+    },
+    "annotations": null,
+    "outputSchema": null
+  },
+  {
+    "name": "jira_get_epic_issues",
+    "description": "Get all child issues linked to an epic.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "epicKey": {
+          "type": "string",
+          "description": "Epic issue key"
+        },
+        "maxResults": {
+          "type": "number",
+          "description": "Maximum results (1-100)",
+          "default": 50
+        },
+        "startAt": {
+          "type": "number",
+          "description": "Zero-based index of the first item to return. Use it with the returned startAt/total/hasMore to page beyond the first batch."
+        }
+      },
+      "required": [
+        "epicKey"
+      ]
+    },
+    "annotations": null,
+    "outputSchema": null
+  },
+  {
+    "name": "jira_get_fields",
+    "description": "Get all available Jira fields. Useful for finding custom field IDs.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {}
+    },
+    "annotations": null,
+    "outputSchema": null
+  },
+  {
+    "name": "jira_get_filter",
+    "description": "Get a saved filter by ID, including its JQL, description, and owner.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "filterId": {
+          "type": "string",
+          "description": "Numeric filter ID"
+        }
+      },
+      "required": [
+        "filterId"
+      ]
+    },
+    "annotations": null,
+    "outputSchema": null
+  },
+  {
+    "name": "jira_get_issue",
+    "description": "Get details of a Jira issue. The default response includes status, resolution, assignee, priority, labels, story points, parent, components, versions, fixVersions, dueDate and timetracking. Set includeCustomFields to also get every populated custom field with its human-readable name (rich-text ones rendered as Markdown), or pass fields to select an exact set. Set includeImages to return embedded/attached images inline.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "issueKey": {
+          "type": "string",
+          "description": "Issue key (e.g., TTC-123)"
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Exact field IDs to return (passed to the Jira ?fields= parameter), e.g. [\"summary\", \"versions\", \"customfield_10122\"] or [\"*all\"]. When set, the response returns a raw fields map instead of the default shape."
+        },
+        "includeCustomFields": {
+          "type": "boolean",
+          "description": "When true, add a customFields map of every populated customfield_NNNNN with { name, type, value }. Rich-text (doc) fields are converted to Markdown.",
+          "default": false
+        },
+        "includeImages": {
+          "type": "boolean",
+          "description": "When true, return up to 10 image attachments (image/*, each <=5MB) as inline images, embedded-in-description ones first. Default false.",
+          "default": false
+        }
+      },
+      "required": [
+        "issueKey"
+      ]
+    },
+    "annotations": null,
+    "outputSchema": null
+  },
+  {
+    "name": "jira_get_issue_types",
+    "description": "Get all available issue types for a project. Names are rendered in the Jira account language — prefer the id when passing a type on. For the fields a given type requires, call jira_get_create_fields.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "projectKey": {
+          "type": "string",
+          "description": "Project key (defaults to configured JIRA_PROJECT_KEY)"
+        }
+      }
+    },
+    "annotations": null,
+    "outputSchema": null
+  },
+  {
+    "name": "jira_get_link_types",
+    "description": "Get all available issue link types.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {}
+    },
+    "annotations": null,
+    "outputSchema": null
+  },
+  {
+    "name": "jira_get_myself",
+    "description": "Get the authenticated user (accountId, displayName, email, timezone, locale). Useful to know who the MCP server is acting as.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {}
+    },
+    "annotations": null,
+    "outputSchema": null
+  },
+  {
+    "name": "jira_get_priorities",
+    "description": "Get all available issue priorities. Returns id first: the name is rendered in the Jira account language and Jira only accepts the canonical English name or the id on create/update, so pass the id.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {}
+    },
+    "annotations": null,
+    "outputSchema": null
+  },
+  {
+    "name": "jira_get_project_components",
+    "description": "Get components of a Jira project.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "projectKey": {
+          "type": "string",
+          "description": "Project key (defaults to configured JIRA_PROJECT_KEY)"
+        }
+      }
+    },
+    "annotations": null,
+    "outputSchema": null
+  },
+  {
+    "name": "jira_get_project_info",
+    "description": "Get project information",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "projectKey": {
+          "type": "string",
+          "description": "Project key",
+          "default": "TEST"
+        }
+      }
+    },
+    "annotations": null,
+    "outputSchema": null
+  },
+  {
+    "name": "jira_get_project_versions",
+    "description": "Get versions (releases) of a Jira project.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "projectKey": {
+          "type": "string",
+          "description": "Project key (defaults to configured JIRA_PROJECT_KEY)"
+        }
+      }
+    },
+    "annotations": null,
+    "outputSchema": null
+  },
+  {
+    "name": "jira_get_sprint",
+    "description": "Get details of a sprint including all issues in it.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "sprintId": {
+          "type": "number",
+          "description": "Sprint ID (use jira_list_sprints to find it)"
+        },
+        "maxResults": {
+          "type": "number",
+          "description": "Maximum number of issues (1-100)",
+          "default": 50
+        },
+        "startAt": {
+          "type": "number",
+          "description": "Zero-based index of the first item to return. Use it with the returned startAt/total/hasMore to page beyond the first batch."
+        }
+      },
+      "required": [
+        "sprintId"
+      ]
+    },
+    "annotations": null,
+    "outputSchema": null
+  },
+  {
+    "name": "jira_get_user_issues",
+    "description": "Get all issues assigned to a specific user.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "accountId": {
+          "type": "string",
+          "description": "Atlassian account ID of the user"
+        },
+        "projectKey": {
+          "type": "string",
+          "description": "Filter by project key (defaults to configured JIRA_PROJECT_KEY)"
+        },
+        "maxResults": {
+          "type": "number",
+          "description": "Maximum number of results (1-100)",
+          "default": 50
+        },
+        "status": {
+          "type": "string",
+          "description": "Filter by status (e.g., \"In Progress\")"
+        }
+      },
+      "required": [
+        "accountId"
+      ]
+    },
+    "annotations": null,
+    "outputSchema": null
+  },
+  {
+    "name": "jira_get_watchers",
+    "description": "List all watchers on an issue.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "issueKey": {
+          "type": "string",
+          "description": "Issue key"
+        }
+      },
+      "required": [
+        "issueKey"
+      ]
+    },
+    "annotations": null,
+    "outputSchema": null
+  },
+  {
+    "name": "jira_get_worklogs",
+    "description": "Get worklog entries from a Jira issue.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "issueKey": {
+          "type": "string",
+          "description": "Issue key (e.g., TTC-123)"
+        },
+        "startAt": {
+          "type": "number",
+          "description": "Zero-based index of the first item to return. Use it with the returned startAt/total/hasMore to page beyond the first batch."
+        },
+        "maxResults": {
+          "type": "number",
+          "description": "Maximum number of worklog entries (1-100). Omit to let Jira return every entry."
+        }
+      },
+      "required": [
+        "issueKey"
+      ]
+    },
+    "annotations": null,
+    "outputSchema": null
+  },
+  {
+    "name": "jira_link_issues",
+    "description": "Create a link between two issues. The inward side uses the linkType.inward phrasing (\"is blocked by\", \"duplicates\"), the outward side uses linkType.outward (\"blocks\", \"is duplicated by\"). If unsure which linkType names exist in this instance, call jira_get_link_types. Call sequentially (2-3 at a time) to avoid permission prompt storms in Claude Code.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "inwardIssue": {
+          "type": "string",
+          "description": "Issue key on the inward side (the one that \"is blocked by\" / \"duplicates\" the other)"
+        },
+        "outwardIssue": {
+          "type": "string",
+          "description": "Issue key on the outward side (the one that \"blocks\" / \"is duplicated by\" the inward one)"
+        },
+        "linkType": {
+          "type": "string",
+          "description": "Link type name. Common: Relates, Blocks, Duplicate, Cloners. Call jira_get_link_types for instance-specific list.",
+          "default": "Relates"
+        }
+      },
+      "required": [
+        "inwardIssue",
+        "outwardIssue"
+      ]
+    },
+    "annotations": null,
+    "outputSchema": null
+  },
+  {
+    "name": "jira_list_boards",
+    "description": "List all Scrum/Kanban boards.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "projectKey": {
+          "type": "string",
+          "description": "Filter by project key"
+        },
+        "maxResults": {
+          "type": "number",
+          "description": "Maximum number of results (1-100)",
+          "default": 50
+        },
+        "startAt": {
+          "type": "number",
+          "description": "Zero-based index of the first item to return. Use it with the returned startAt/total/hasMore to page beyond the first batch."
+        }
+      }
+    },
+    "annotations": null,
+    "outputSchema": null
+  },
+  {
+    "name": "jira_list_epics",
+    "description": "List all epics in a project via JQL (issuetype = Epic).",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "projectKey": {
+          "type": "string",
+          "description": "Project key (defaults to JIRA_PROJECT_KEY)"
+        },
+        "status": {
+          "type": "string",
+          "description": "Filter by status name (e.g., \"In Progress\", \"Done\")"
+        },
+        "maxResults": {
+          "type": "number",
+          "description": "Maximum results (1-100)",
+          "default": 50
+        },
+        "nextPageToken": {
+          "type": "string",
+          "description": "Pagination token from previous response"
+        }
+      }
     },
     "annotations": null,
     "outputSchema": null
@@ -1722,18 +1381,149 @@
     "outputSchema": null
   },
   {
-    "name": "jira_get_filter",
-    "description": "Get a saved filter by ID, including its JQL, description, and owner.",
+    "name": "jira_list_projects",
+    "description": "List all accessible Jira projects.",
     "inputSchema": {
       "type": "object",
       "properties": {
-        "filterId": {
+        "maxResults": {
+          "type": "number",
+          "description": "Maximum number of results (1-100)",
+          "default": 50
+        },
+        "query": {
           "type": "string",
-          "description": "Numeric filter ID"
+          "description": "Filter projects by name (partial match)"
+        },
+        "startAt": {
+          "type": "number",
+          "description": "Zero-based index of the first item to return. Use it with the returned startAt/total/hasMore to page beyond the first batch."
+        }
+      }
+    },
+    "annotations": null,
+    "outputSchema": null
+  },
+  {
+    "name": "jira_list_sprints",
+    "description": "List sprints for a board.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "boardId": {
+          "type": "number",
+          "description": "Board ID (use jira_list_boards to find it)"
+        },
+        "state": {
+          "type": "string",
+          "description": "Filter by state: active, future, closed",
+          "default": "active"
+        },
+        "maxResults": {
+          "type": "number",
+          "description": "Maximum number of results (1-100)",
+          "default": 50
+        },
+        "startAt": {
+          "type": "number",
+          "description": "Zero-based index of the first item to return. Use it with the returned startAt/total/hasMore to page beyond the first batch."
         }
       },
       "required": [
-        "filterId"
+        "boardId"
+      ]
+    },
+    "annotations": null,
+    "outputSchema": null
+  },
+  {
+    "name": "jira_list_transitions",
+    "description": "Get available status transitions for a Jira issue. Each entry has the transition id and name plus the target status under \"to\" — a workflow can name a transition \"Start work\" while its target status is \"In Progress\". Set includeFields to also get the fields each transition screen accepts, with required flags and allowed values, for passing via jira_update_issue transitionFields.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "issueKey": {
+          "type": "string",
+          "description": "Issue key (e.g., TTC-123)"
+        },
+        "includeFields": {
+          "type": "boolean",
+          "description": "When true, expand each transition with its screen fields (fieldId, name, required, type, allowedValues) and a requiredFields shortlist.",
+          "default": false
+        }
+      },
+      "required": [
+        "issueKey"
+      ]
+    },
+    "annotations": null,
+    "outputSchema": null
+  },
+  {
+    "name": "jira_move_to_sprint",
+    "description": "Move one or more issues to a sprint.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "sprintId": {
+          "type": "number",
+          "description": "Sprint ID (use jira_list_sprints to find it)"
+        },
+        "issueKeys": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Array of issue keys to move (e.g., [\"PROJ-1\", \"PROJ-2\"])"
+        }
+      },
+      "required": [
+        "sprintId",
+        "issueKeys"
+      ]
+    },
+    "annotations": null,
+    "outputSchema": null
+  },
+  {
+    "name": "jira_remove_issue_from_epic",
+    "description": "Remove issues from their current epic (unlink).",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "issueKeys": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Array of issue keys to detach from their epic"
+        }
+      },
+      "required": [
+        "issueKeys"
+      ]
+    },
+    "annotations": null,
+    "outputSchema": null
+  },
+  {
+    "name": "jira_remove_watcher",
+    "description": "Unsubscribe a user from watching an issue.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "issueKey": {
+          "type": "string",
+          "description": "Issue key"
+        },
+        "accountId": {
+          "type": "string",
+          "description": "Atlassian accountId to remove. Required."
+        }
+      },
+      "required": [
+        "issueKey",
+        "accountId"
       ]
     },
     "annotations": null,
@@ -1767,42 +1557,252 @@
     "outputSchema": null
   },
   {
-    "name": "jira_bulk_transition_issues",
-    "description": "Apply the same status transition to multiple issues. Iterates client-side; failures are collected per issue and returned. status is matched against each transition target status first, then transition names, case-insensitively — so \"In Progress\" works even where the transition is called \"Start work\". Use transitionFields when the transition screen requires input.",
+    "name": "jira_search_issues",
+    "description": "Search for Jira issues using JQL. Uses token-based pagination — pass nextPageToken from previous response to get next page.",
     "inputSchema": {
       "type": "object",
       "properties": {
-        "issueKeys": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "description": "Array of issue keys to transition"
-        },
-        "transitionId": {
+        "jql": {
           "type": "string",
-          "description": "Exact transition ID from jira_list_transitions. Takes precedence over status."
+          "description": "JQL query string"
+        },
+        "nextPageToken": {
+          "type": "string",
+          "description": "Pagination token from previous search response"
+        },
+        "maxResults": {
+          "type": "number",
+          "description": "Maximum number of results (1-100)",
+          "default": 50
+        }
+      },
+      "required": [
+        "jql"
+      ]
+    },
+    "annotations": null,
+    "outputSchema": null
+  },
+  {
+    "name": "jira_search_users",
+    "description": "Search for Jira users by name or email. Returns accountId needed for jira_assign_issue.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string",
+          "description": "Search query (matches display name and email prefix)"
+        },
+        "maxResults": {
+          "type": "number",
+          "description": "Maximum number of results (1-100)",
+          "default": 10
+        },
+        "startAt": {
+          "type": "number",
+          "description": "Zero-based index of the first item to return. Use it with the returned startAt/total/hasMore to page beyond the first batch."
+        }
+      },
+      "required": [
+        "query"
+      ]
+    },
+    "annotations": null,
+    "outputSchema": null
+  },
+  {
+    "name": "jira_update_comment",
+    "description": "Update an existing comment on a Jira issue. Supports standard Markdown, automatically converted to ADF.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "issueKey": {
+          "type": "string",
+          "description": "Issue key (e.g., PROJ-123)"
+        },
+        "commentId": {
+          "type": "string",
+          "description": "Comment ID (use jira_get_comments to find it)"
+        },
+        "comment": {
+          "type": "string",
+          "description": "Updated comment text in Markdown."
+        }
+      },
+      "required": [
+        "issueKey",
+        "commentId",
+        "comment"
+      ]
+    },
+    "annotations": null,
+    "outputSchema": null
+  },
+  {
+    "name": "jira_update_issue",
+    "description": "Update fields and/or status of an issue. status is matched against the target status of each available transition first (so \"In Progress\" works even when the transition is named \"Start work\"), then against transition names, case-insensitively. Use transitionId for an exact transition and transitionFields when the transition screen requires input (e.g. an estimate) — jira_list_transitions with includeFields lists what each one needs. On a 400 the response carries missingRequired and allowedValues.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "issueKey": {
+          "type": "string",
+          "description": "Issue key to update"
+        },
+        "summary": {
+          "type": "string",
+          "description": "New summary"
+        },
+        "description": {
+          "type": "string",
+          "description": "New description in Markdown. Use [KEY](url) for clickable issue links."
         },
         "status": {
           "type": "string",
-          "description": "Target status name (e.g. \"In Progress\") or transition name. Resolved per issue."
+          "description": "Target status name (e.g. \"In Progress\", \"To Do\") or transition name. Matched on the transition target status first, then the transition name, case-insensitively."
         },
-        "transitionName": {
+        "transitionId": {
           "type": "string",
-          "description": "Deprecated alias for status, kept for compatibility."
+          "description": "Exact transition id from jira_list_transitions. Takes precedence over status."
         },
         "transitionFields": {
           "type": "object",
           "additionalProperties": true,
-          "description": "Fields required by the transition screen, keyed by field ID. Call jira_list_transitions with includeFields to see what a transition requires."
+          "description": "Fields required by the transition screen, keyed by field ID (e.g. { \"customfield_10016\": 3, \"resolution\": { \"id\": \"10000\" } }). Call jira_list_transitions with includeFields to see what a transition requires."
         },
-        "comment": {
+        "priority": {
           "type": "string",
-          "description": "Optional comment added during the transition (Markdown)"
+          "description": "Priority id (preferred) or name. Names are localized on non-English instances and only the canonical English name works — pass the id from jira_get_priorities or jira_get_create_fields. A localized name is matched against the allowed values and converted to an id automatically."
+        },
+        "storyPoints": {
+          "type": "number",
+          "description": "Story points estimate (0-1000)"
+        },
+        "parent": {
+          "type": "string",
+          "description": "New parent issue key (epic or parent task)."
+        },
+        "labels": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Labels. Sent only when provided."
+        },
+        "versions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Affects versions, by name or numeric id (ids are used verbatim). Required on many Bug screens. List them with jira_get_project_versions."
+        },
+        "fixVersions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Fix versions, by name or numeric id. List them with jira_get_project_versions."
+        },
+        "components": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Components, by name or numeric id. List them with jira_get_project_components."
+        },
+        "assignee": {
+          "type": "string",
+          "description": "Assignee accountId (not email). Resolve via jira_search_users or jira_get_myself."
+        },
+        "reporter": {
+          "type": "string",
+          "description": "Reporter accountId (not email). Requires the Modify Reporter permission."
+        },
+        "dueDate": {
+          "type": "string",
+          "description": "Due date as YYYY-MM-DD."
+        },
+        "timetracking": {
+          "type": "object",
+          "properties": {
+            "originalEstimate": {
+              "type": "string",
+              "description": "Jira duration, e.g. \"3h 30m\", \"2d\"."
+            },
+            "remainingEstimate": {
+              "type": "string",
+              "description": "Jira duration, e.g. \"1h\"."
+            }
+          },
+          "description": "Time tracking estimates."
+        },
+        "customFields": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Custom field values keyed by field ID (customfield_NNNNN). Use the shape the field expects: single-select { \"id\": \"10001\" } or { \"value\": \"X\" }; multi-select [ { \"id\": \"10001\" } ]; user { \"accountId\": \"...\" }; text \"string\". Rich-text (schema.type \"doc\") fields accept a plain Markdown string and are converted to ADF automatically. Call jira_get_create_fields for ids and allowed values."
+        },
+        "customFieldsMarkdown": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Rich-text custom fields keyed by field ID, values as Markdown strings converted to ADF. Use when the field type is \"doc\" and you want the conversion to be explicit."
         }
       },
       "required": [
-        "issueKeys"
+        "issueKey"
+      ]
+    },
+    "annotations": null,
+    "outputSchema": null
+  },
+  {
+    "name": "jira_update_worklog",
+    "description": "Update an existing worklog entry on a Jira issue. All fields except issueKey/worklogId are optional - omit to leave unchanged.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "issueKey": {
+          "type": "string",
+          "description": "Issue key (e.g., PROJ-123)"
+        },
+        "worklogId": {
+          "type": "string",
+          "description": "Worklog ID (use jira_get_worklogs to find it)"
+        },
+        "timeSpent": {
+          "type": "string",
+          "description": "New duration in Jira format (\"2h 30m\", \"1d\", \"45m\"). Optional."
+        },
+        "comment": {
+          "type": "string",
+          "description": "New comment in Markdown. Optional."
+        },
+        "started": {
+          "type": "string",
+          "description": "New start time as ISO 8601 with millis and offset, e.g. \"2024-01-15T09:00:00.000+0000\". Optional."
+        }
+      },
+      "required": [
+        "issueKey",
+        "worklogId"
+      ]
+    },
+    "annotations": null,
+    "outputSchema": null
+  },
+  {
+    "name": "jira_view_attachment",
+    "description": "Fetch an image attachment and return it inline so the model can see it (no file written). Image attachments only (mimeType image/*), capped at 5MB. For non-images or larger files use jira_download_attachment. Get the attachmentId from jira_get_attachments.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "attachmentId": {
+          "type": "string",
+          "description": "Attachment ID (from jira_get_attachments)"
+        }
+      },
+      "required": [
+        "attachmentId"
       ]
     },
     "annotations": null,

@@ -101,9 +101,11 @@ test('every registered tool has a contract case', async () => {
   assert.deepStrictEqual(uncovered, [], `Tools without a contract case: ${uncovered.join(', ')}`);
 });
 
-test('tools/list shape is stable', async () => {
+test('tools/list shape is stable regardless of declaration order', async () => {
   const { tools } = await server.listTools();
-  matchSnapshot('tools-list', tools.map(t => ({
+  assert.equal(new Set(tools.map(t => t.name)).size, tools.length, 'tool names must be unique');
+  const sorted = [...tools].sort((a, b) => a.name.localeCompare(b.name));
+  matchSnapshot('tools-list', sorted.map(t => ({
     name: t.name,
     description: t.description,
     inputSchema: t.inputSchema,
