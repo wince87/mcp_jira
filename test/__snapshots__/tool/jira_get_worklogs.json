@@ -1,0 +1,26 @@
+{
+  "isError": false,
+  "data": {
+    "issueKey": "TEST-1",
+    "total": 1,
+    "worklogs": [
+      {
+        "id": "40001",
+        "author": "Vova Press",
+        "timeSpent": "2h",
+        "timeSpentSeconds": 7200,
+        "started": "2026-08-01T09:00:00.000+0000",
+        "comment": "Investigated"
+      }
+    ]
+  },
+  "contentTypes": [
+    "text"
+  ],
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/rest/api/3/issue/TEST-1/worklog"
+    }
+  ]
+}

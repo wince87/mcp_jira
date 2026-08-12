@@ -1,0 +1,49 @@
+{
+  "isError": false,
+  "data": {
+    "epicKey": "TEST-100",
+    "total": 2,
+    "done": 0,
+    "inProgress": 1,
+    "todo": 1,
+    "issues": [
+      {
+        "key": "TEST-1",
+        "summary": "Broken login",
+        "status": "To Do",
+        "statusCategory": "new",
+        "assignee": "Vova Press",
+        "priority": "Високий",
+        "issueType": "Помилка",
+        "labels": [
+          "regression"
+        ],
+        "url": "https://jira.test/browse/TEST-1"
+      },
+      {
+        "key": "TEST-2",
+        "summary": "Blocker task",
+        "status": "In Progress",
+        "statusCategory": "indeterminate",
+        "assignee": null,
+        "priority": "Середній",
+        "issueType": "Task",
+        "labels": [],
+        "url": "https://jira.test/browse/TEST-2"
+      }
+    ]
+  },
+  "contentTypes": [
+    "text"
+  ],
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/rest/agile/1.0/epic/TEST-100/issue",
+      "query": {
+        "maxResults": "50",
+        "fields": "summary,status,assignee,priority,issuetype,labels"
+      }
+    }
+  ]
+}

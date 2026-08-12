@@ -1,0 +1,37 @@
+{
+  "isError": false,
+  "data": {
+    "success": true,
+    "message": "Issue TEST-1 updated successfully",
+    "url": "https://jira.test/browse/TEST-1"
+  },
+  "contentTypes": [
+    "text"
+  ],
+  "requests": [
+    {
+      "method": "PUT",
+      "path": "/rest/api/3/issue/TEST-1",
+      "body": {
+        "fields": {
+          "summary": "Renamed",
+          "description": {
+            "type": "doc",
+            "version": 1,
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "New body"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

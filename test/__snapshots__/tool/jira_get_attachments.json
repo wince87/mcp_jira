@@ -1,0 +1,30 @@
+{
+  "isError": false,
+  "data": {
+    "issueKey": "TEST-1",
+    "total": 1,
+    "attachments": [
+      {
+        "id": "9001",
+        "filename": "screen.png",
+        "size": 1024,
+        "mimeType": "image/png",
+        "created": "2026-08-01T11:00:00.000+0000",
+        "author": "Vova Press",
+        "url": "https://mock/attachment/content/9001"
+      }
+    ]
+  },
+  "contentTypes": [
+    "text"
+  ],
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/rest/api/3/issue/TEST-1",
+      "query": {
+        "fields": "attachment"
+      }
+    }
+  ]
+}

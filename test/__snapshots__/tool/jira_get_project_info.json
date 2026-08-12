@@ -1,0 +1,19 @@
+{
+  "isError": false,
+  "data": {
+    "key": "TEST",
+    "name": "Test project",
+    "description": "Mock project",
+    "lead": "Vova Press",
+    "url": "https://mock/browse/TEST"
+  },
+  "contentTypes": [
+    "text"
+  ],
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/rest/api/3/project/TEST"
+    }
+  ]
+}

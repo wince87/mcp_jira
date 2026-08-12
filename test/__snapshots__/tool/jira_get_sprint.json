@@ -1,0 +1,53 @@
+{
+  "isError": false,
+  "data": {
+    "id": 10,
+    "name": "Sprint 1",
+    "state": "active",
+    "startDate": "2026-08-01T00:00:00.000Z",
+    "endDate": "2026-08-14T00:00:00.000Z",
+    "goal": "Ship auth",
+    "total": 2,
+    "issues": [
+      {
+        "key": "TEST-1",
+        "summary": "Broken login",
+        "status": "To Do",
+        "assignee": "Vova Press",
+        "priority": "Високий",
+        "issueType": "Помилка",
+        "labels": [
+          "regression"
+        ],
+        "url": "https://jira.test/browse/TEST-1"
+      },
+      {
+        "key": "TEST-2",
+        "summary": "Blocker task",
+        "status": "In Progress",
+        "assignee": null,
+        "priority": "Середній",
+        "issueType": "Task",
+        "labels": [],
+        "url": "https://jira.test/browse/TEST-2"
+      }
+    ]
+  },
+  "contentTypes": [
+    "text"
+  ],
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/rest/agile/1.0/sprint/10"
+    },
+    {
+      "method": "GET",
+      "path": "/rest/agile/1.0/sprint/10/issue",
+      "query": {
+        "maxResults": "50",
+        "fields": "summary,status,assignee,priority,issuetype,labels"
+      }
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "isError": false,
+  "data": {
+    "success": true,
+    "epicKey": "TEST-100",
+    "added": [
+      "TEST-1"
+    ]
+  },
+  "contentTypes": [
+    "text"
+  ],
+  "requests": [
+    {
+      "method": "POST",
+      "path": "/rest/agile/1.0/epic/TEST-100/issue",
+      "body": {
+        "issues": [
+          "TEST-1"
+        ]
+      }
+    }
+  ]
+}

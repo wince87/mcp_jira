@@ -1,0 +1,34 @@
+{
+  "isError": false,
+  "data": {
+    "total": 1,
+    "isLast": true,
+    "filters": [
+      {
+        "id": "1000",
+        "name": "My open bugs",
+        "description": "Open bugs",
+        "jql": "project = TEST AND issuetype = Bug",
+        "owner": {
+          "accountId": "5b10a2844c20165700ede21g",
+          "displayName": "Vova Press"
+        },
+        "favourite": true,
+        "favouritedCount": 2
+      }
+    ]
+  },
+  "contentTypes": [
+    "text"
+  ],
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/rest/api/3/filter/search",
+      "query": {
+        "maxResults": "50",
+        "expand": "description,jql,owner"
+      }
+    }
+  ]
+}

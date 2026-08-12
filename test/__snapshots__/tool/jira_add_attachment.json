@@ -1,0 +1,24 @@
+{
+  "isError": false,
+  "data": {
+    "success": true,
+    "attachments": [
+      {
+        "id": "9002",
+        "filename": "upload.txt",
+        "size": 12,
+        "mimeType": "text/plain",
+        "url": "https://mock/attachment/content/9002"
+      }
+    ]
+  },
+  "contentTypes": [
+    "text"
+  ],
+  "requests": [
+    {
+      "method": "POST",
+      "path": "/rest/api/3/issue/TEST-1/attachments"
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "isError": false,
+  "data": {
+    "count": 1,
+    "isLast": true,
+    "nextPageToken": null,
+    "epics": [
+      {
+        "key": "TEST-100",
+        "summary": "Auth epic",
+        "status": "To Do",
+        "priority": "Високий",
+        "labels": [
+          "epic"
+        ],
+        "created": "2026-07-01T09:00:00.000+0000",
+        "updated": "2026-08-01T09:00:00.000+0000",
+        "url": "https://jira.test/browse/TEST-100"
+      }
+    ]
+  },
+  "contentTypes": [
+    "text"
+  ],
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/rest/api/3/search/jql",
+      "query": {
+        "jql": "project = \"TEST\" AND issuetype = Epic ORDER BY created DESC",
+        "maxResults": "50",
+        "fields": "summary,status,priority,created,updated,labels"
+      }
+    }
+  ]
+}

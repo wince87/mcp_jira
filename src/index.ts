@@ -176,6 +176,35 @@ interface JiraField {
   schema?: { type?: string; custom?: string };
 }
 
+interface CreateMetaAllowedValue {
+  id?: string;
+  value?: string;
+  name?: string;
+  key?: string;
+}
+
+interface CreateMetaField {
+  fieldId?: string;
+  key?: string;
+  name?: string;
+  required?: boolean;
+  hasDefaultValue?: boolean;
+  schema?: { type?: string; custom?: string; items?: string; system?: string };
+  allowedValues?: CreateMetaAllowedValue[];
+  autoCompleteUrl?: string;
+}
+
+interface CreateMetaResult {
+  issueType: JiraIssueType;
+  fields: CreateMetaField[];
+}
+
+interface MetaValidationReport {
+  missingRequired: { fieldId: string; name?: string; type?: string; allowedValues?: unknown }[];
+  invalidValues: { fieldId: string; name?: string; sent: unknown; allowedValues?: unknown }[];
+  unknownFields: string[];
+}
+
 interface JiraComponent {
   id?: string;
   name?: string;
@@ -329,6 +358,64 @@ function validateCustomFields(fields: unknown): Record<string, unknown> {
   return result;
 }
 
+function validateFieldMap(fields: unknown, paramName: string): Record<string, unknown> {
+  if (typeof fields !== 'object' || fields === null || Array.isArray(fields)) {
+    throw new Error(`${paramName} must be an object mapping field IDs to values`);
+  }
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(fields)) {
+    if (!/^[a-zA-Z][a-zA-Z0-9_]{0,63}$/.test(key)) {
+      throw new Error(`Invalid field key "${key}" in ${paramName}: must be a field ID like "customfield_10011" or "resolution"`);
+    }
+    if (value === undefined) {
+      throw new Error(`Field "${key}" in ${paramName} has undefined value`);
+    }
+    result[key] = value;
+  }
+  return result;
+}
+
+function validateReferenceList(input: unknown, fieldName: string): Record<string, string>[] {
+  if (!Array.isArray(input)) {
+    throw new Error(`${fieldName} must be an array of names or numeric ids`);
+  }
+  return input.map((item, index) => {
+    const value = sanitizeString(item, 255, `${fieldName}[${index}]`);
+    const reference: Record<string, string> = {};
+    if (/^\d+$/.test(value)) {
+      reference.id = value;
+    } else {
+      reference.name = value;
+    }
+    return reference;
+  });
+}
+
+function validateDate(value: unknown, fieldName: string): string {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    throw new Error(`Invalid ${fieldName}: must be a date in YYYY-MM-DD format`);
+  }
+  return value;
+}
+
+function validateTimetracking(value: unknown): Record<string, string> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new Error('timetracking must be an object with originalEstimate and/or remainingEstimate');
+  }
+  const input = value as Record<string, unknown>;
+  const result: Record<string, string> = {};
+  if (input.originalEstimate !== undefined && input.originalEstimate !== null) {
+    result.originalEstimate = sanitizeString(input.originalEstimate, 50, 'timetracking.originalEstimate');
+  }
+  if (input.remainingEstimate !== undefined && input.remainingEstimate !== null) {
+    result.remainingEstimate = sanitizeString(input.remainingEstimate, 50, 'timetracking.remainingEstimate');
+  }
+  if (Object.keys(result).length === 0) {
+    throw new Error('timetracking requires originalEstimate and/or remainingEstimate');
+  }
+  return result;
+}
+
 function validateAccountId(id: unknown): string {
   if (!id || typeof id !== 'string') {
     throw new Error('Invalid accountId: must be a string');
@@ -412,16 +499,24 @@ function resolveProjectKey(a: Record<string, unknown>): string {
   return a?.projectKey ? validateProjectKey(a.projectKey) : JIRA_PROJECT_KEY;
 }
 
+class JiraDiagnosticError extends Error {
+  constructor(readonly original: unknown, readonly diagnostics: Record<string, unknown>) {
+    super(original instanceof Error ? original.message : String(original));
+    this.name = 'JiraDiagnosticError';
+  }
+}
+
 function handleError(error: unknown): ToolResponse {
   const isDevelopment = process.env.NODE_ENV === 'development';
-  const axiosError = error as AxiosError<{ errorMessages?: string[]; errors?: Record<string, string> }>;
+  const source = error instanceof JiraDiagnosticError ? error.original : error;
+  const axiosError = source as AxiosError<{ errorMessages?: string[]; errors?: Record<string, string> }>;
 
   const jiraErrors = axiosError.response?.data?.errorMessages;
   const jiraFieldErrors = axiosError.response?.data?.errors;
 
   const errorResponse: Record<string, unknown> = {
     error: 'Operation failed',
-    message: (error instanceof Error ? error.message : undefined) || 'An unexpected error occurred',
+    message: (source instanceof Error ? source.message : undefined) || 'An unexpected error occurred',
   };
 
   if (jiraErrors?.length) {
@@ -430,9 +525,12 @@ function handleError(error: unknown): ToolResponse {
   if (jiraFieldErrors && Object.keys(jiraFieldErrors).length > 0) {
     errorResponse.fieldErrors = jiraFieldErrors;
   }
+  if (error instanceof JiraDiagnosticError) {
+    Object.assign(errorResponse, error.diagnostics);
+  }
 
-  if (isDevelopment && error instanceof Error) {
-    errorResponse.stack = error.stack;
+  if (isDevelopment && source instanceof Error) {
+    errorResponse.stack = source.stack;
   }
 
   return {
@@ -463,6 +561,471 @@ const agileApi: AxiosInstance = axios.create({
   headers: { 'Content-Type': 'application/json' },
   ...axiosAuthConfig,
 });
+
+const META_TTL_MS = 5 * 60 * 1000;
+const MAX_ALLOWED_VALUES = 100;
+
+interface CacheEntry<T> {
+  at: number;
+  value: T;
+}
+
+function cacheGet<T>(store: Map<string, CacheEntry<T>>, key: string): T | null {
+  const hit = store.get(key);
+  if (!hit || Date.now() - hit.at > META_TTL_MS) return null;
+  return hit.value;
+}
+
+const issueTypesCache = new Map<string, CacheEntry<JiraIssueType[]>>();
+const createFieldsCache = new Map<string, CacheEntry<CreateMetaField[]>>();
+const fieldIndexCache = new Map<string, CacheEntry<Map<string, JiraField>>>();
+const prioritiesCache = new Map<string, CacheEntry<JiraPriority[]>>();
+
+async function fetchIssueTypes(projectKey: string): Promise<JiraIssueType[]> {
+  const cached = cacheGet(issueTypesCache, projectKey);
+  if (cached) return cached;
+  const response = await jiraApi.get(`/issue/createmeta/${projectKey}/issuetypes`, { params: { maxResults: 200 } });
+  const value: JiraIssueType[] = response.data.values ?? [];
+  issueTypesCache.set(projectKey, { at: Date.now(), value });
+  return value;
+}
+
+async function fetchCreateFields(projectKey: string, issueTypeId: string): Promise<CreateMetaField[]> {
+  const cacheKey = `${projectKey}:${issueTypeId}`;
+  const cached = cacheGet(createFieldsCache, cacheKey);
+  if (cached) return cached;
+  const response = await jiraApi.get(`/issue/createmeta/${projectKey}/issuetypes/${issueTypeId}`, { params: { maxResults: 200 } });
+  const value: CreateMetaField[] = response.data.fields ?? response.data.values ?? [];
+  createFieldsCache.set(cacheKey, { at: Date.now(), value });
+  return value;
+}
+
+async function fetchFieldIndex(): Promise<Map<string, JiraField>> {
+  const cached = cacheGet(fieldIndexCache, 'all');
+  if (cached) return cached;
+  const response = await jiraApi.get('/field');
+  const fields: JiraField[] = response.data ?? [];
+  const value = new Map<string, JiraField>();
+  for (const field of fields) {
+    if (field.id) value.set(field.id, field);
+  }
+  fieldIndexCache.set('all', { at: Date.now(), value });
+  return value;
+}
+
+async function fetchPriorities(): Promise<JiraPriority[]> {
+  const cached = cacheGet(prioritiesCache, 'all');
+  if (cached) return cached;
+  const response = await jiraApi.get('/priority/search', { params: { maxResults: 100 } });
+  const value: JiraPriority[] = response.data.values ?? [];
+  prioritiesCache.set('all', { at: Date.now(), value });
+  return value;
+}
+
+async function resolveIssueType(projectKey: string, issueType: string): Promise<JiraIssueType | null> {
+  const types = await fetchIssueTypes(projectKey);
+  if (/^\d+$/.test(issueType)) {
+    return types.find(t => t.id === issueType) ?? { id: issueType };
+  }
+  const wanted = issueType.trim().toLowerCase();
+  return types.find(t => (t.name ?? '').trim().toLowerCase() === wanted) ?? null;
+}
+
+async function loadCreateMeta(projectKey: string, issueType: unknown): Promise<CreateMetaResult | null> {
+  if (typeof issueType !== 'string' || !issueType.trim()) return null;
+  const resolved = await resolveIssueType(projectKey, issueType);
+  if (!resolved?.id) return null;
+  return { issueType: resolved, fields: await fetchCreateFields(projectKey, resolved.id) };
+}
+
+async function safeCreateMeta(projectKey: string, issueType: unknown): Promise<CreateMetaResult | null> {
+  try {
+    return await loadCreateMeta(projectKey, issueType);
+  } catch {
+    return null;
+  }
+}
+
+function metaFieldId(field: CreateMetaField): string {
+  return field.fieldId ?? field.key ?? '';
+}
+
+function describeAllowedValues(field: CreateMetaField): unknown {
+  if (!field.allowedValues?.length) return undefined;
+  const values = field.allowedValues.slice(0, MAX_ALLOWED_VALUES).map(v => ({
+    id: v.id,
+    value: v.value ?? v.name ?? v.key,
+  }));
+  return field.allowedValues.length > MAX_ALLOWED_VALUES
+    ? { truncated: true, total: field.allowedValues.length, values }
+    : values;
+}
+
+function matchAllowedValue(allowed: CreateMetaAllowedValue[] | undefined, input: string): CreateMetaAllowedValue | null {
+  if (!allowed?.length) return null;
+  const wanted = input.trim().toLowerCase();
+  return allowed.find(v => [v.id, v.name, v.value, v.key].some(
+    candidate => typeof candidate === 'string' && candidate.trim().toLowerCase() === wanted,
+  )) ?? null;
+}
+
+function valueLabels(value: unknown): string[] {
+  if (typeof value === 'string' || typeof value === 'number') return [String(value)];
+  if (Array.isArray(value)) return value.flatMap(valueLabels);
+  if (value && typeof value === 'object') {
+    const entry = value as Record<string, unknown>;
+    return ['id', 'name', 'value', 'key']
+      .map(k => entry[k])
+      .filter((v): v is string => typeof v === 'string');
+  }
+  return [];
+}
+
+async function resolveIssueTypeValue(issueType: unknown, projectKey: string): Promise<Record<string, string>> {
+  const value = validateSafeParam(issueType, 'issueType');
+  if (/^\d+$/.test(value)) return { id: value };
+  try {
+    const resolved = await resolveIssueType(projectKey, value);
+    if (resolved?.id) return { id: resolved.id };
+  } catch {
+    return { name: value };
+  }
+  return { name: value };
+}
+
+async function resolvePriorityValue(priority: unknown, meta: CreateMetaResult | null): Promise<Record<string, string>> {
+  const value = validateSafeParam(priority, 'priority');
+  if (/^\d+$/.test(value)) return { id: value };
+
+  const metaField = meta?.fields.find(f => metaFieldId(f) === 'priority');
+  const metaMatch = matchAllowedValue(metaField?.allowedValues, value);
+  if (metaMatch?.id) return { id: metaMatch.id };
+
+  try {
+    const priorities = await fetchPriorities();
+    const match = priorities.find(p => (p.name ?? '').trim().toLowerCase() === value.trim().toLowerCase() || p.id === value);
+    if (match?.id) return { id: match.id };
+  } catch {
+    return { name: value };
+  }
+  return { name: value };
+}
+
+async function docFieldIds(keys: string[], meta: CreateMetaResult | null): Promise<Set<string>> {
+  const docs = new Set<string>();
+  const metaById = new Map((meta?.fields ?? []).map(f => [metaFieldId(f), f]));
+  const unresolved: string[] = [];
+
+  for (const key of keys) {
+    const field = metaById.get(key);
+    if (field) {
+      if (field.schema?.type === 'doc') docs.add(key);
+    } else {
+      unresolved.push(key);
+    }
+  }
+
+  if (unresolved.length > 0) {
+    try {
+      const index = await fetchFieldIndex();
+      for (const key of unresolved) {
+        if (index.get(key)?.schema?.type === 'doc') docs.add(key);
+      }
+    } catch {
+      return docs;
+    }
+  }
+  return docs;
+}
+
+async function convertDocFields(fields: Record<string, unknown>, meta: CreateMetaResult | null): Promise<Record<string, unknown>> {
+  const stringKeys = Object.keys(fields).filter(key => typeof fields[key] === 'string');
+  if (stringKeys.length === 0) return fields;
+
+  const docs = await docFieldIds(stringKeys, meta);
+  if (docs.size === 0) return fields;
+
+  const result = { ...fields };
+  for (const key of docs) {
+    result[key] = createADFDocument(result[key]);
+  }
+  return result;
+}
+
+function validateAgainstMeta(fields: Record<string, unknown>, meta: CreateMetaResult): MetaValidationReport {
+  const known = new Map(meta.fields.map(f => [metaFieldId(f), f]));
+
+  const missingRequired = meta.fields
+    .filter(f => f.required === true && f.hasDefaultValue !== true && fields[metaFieldId(f)] === undefined)
+    .map(f => ({
+      fieldId: metaFieldId(f),
+      name: f.name,
+      type: f.schema?.type,
+      allowedValues: describeAllowedValues(f),
+    }));
+
+  const invalidValues: MetaValidationReport['invalidValues'] = [];
+  for (const [fieldId, value] of Object.entries(fields)) {
+    const field = known.get(fieldId);
+    if (!field?.allowedValues?.length) continue;
+    const labels = valueLabels(value);
+    if (labels.length === 0) continue;
+    if (labels.some(label => matchAllowedValue(field.allowedValues, label))) continue;
+    invalidValues.push({ fieldId, name: field.name, sent: value, allowedValues: describeAllowedValues(field) });
+  }
+
+  const unknownFields = Object.keys(fields).filter(key => !known.has(key));
+
+  return { missingRequired, invalidValues, unknownFields };
+}
+
+function collectDiagnostics(fields: Record<string, unknown>, meta: CreateMetaResult, error: unknown, hint: string): Record<string, unknown> | null {
+  const axiosError = error as AxiosError<{ errors?: Record<string, string> }>;
+  const report = validateAgainstMeta(fields, meta);
+  const mentioned = new Set(Object.keys(axiosError.response?.data?.errors ?? {}));
+
+  const allowedValues: Record<string, unknown> = {};
+  for (const field of meta.fields) {
+    const fieldId = metaFieldId(field);
+    if (!mentioned.has(fieldId) && !mentioned.has(field.name ?? '')) continue;
+    const values = describeAllowedValues(field);
+    if (values !== undefined) allowedValues[fieldId] = values;
+  }
+
+  const diagnostics: Record<string, unknown> = {};
+  if (report.missingRequired.length > 0) diagnostics.missingRequired = report.missingRequired;
+  if (report.invalidValues.length > 0) diagnostics.invalidValues = report.invalidValues;
+  if (report.unknownFields.length > 0) diagnostics.fieldsNotOnScreen = report.unknownFields;
+  if (Object.keys(allowedValues).length > 0) diagnostics.allowedValues = allowedValues;
+  if (Object.keys(diagnostics).length === 0) return null;
+
+  diagnostics.hint = hint;
+  return diagnostics;
+}
+
+async function postIssue(projectKey: string, issueType: unknown, fields: Record<string, unknown>): Promise<{ data: { key: string; id?: string } }> {
+  try {
+    return await jiraApi.post('/issue', { fields });
+  } catch (error) {
+    const axiosError = error as AxiosError;
+    if (axiosError.response?.status !== 400) throw error;
+    const meta = await safeCreateMeta(projectKey, issueType);
+    const hint = `Create screen for ${meta?.issueType.name ?? issueType} in ${projectKey}. Call jira_get_create_fields for the full field list; pass ids, not localized names.`;
+    const diagnostics = meta ? collectDiagnostics(fields, meta, error, hint) : null;
+    if (diagnostics) throw new JiraDiagnosticError(error, diagnostics);
+    throw error;
+  }
+}
+
+async function safeEditMeta(issueKey: string): Promise<CreateMetaResult | null> {
+  try {
+    const response = await jiraApi.get(`/issue/${issueKey}/editmeta`);
+    const raw: Record<string, CreateMetaField> = response.data.fields ?? {};
+    return {
+      issueType: { name: issueKey },
+      fields: Object.entries(raw).map(([fieldId, field]) => ({ ...field, fieldId })),
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function putIssue(issueKey: string, fields: Record<string, unknown>): Promise<void> {
+  try {
+    await jiraApi.put(`/issue/${issueKey}`, { fields });
+  } catch (error) {
+    const axiosError = error as AxiosError;
+    if (axiosError.response?.status !== 400) throw error;
+    const meta = await safeEditMeta(issueKey);
+    const hint = `Edit screen for ${issueKey}. Fields listed under fieldsNotOnScreen are not editable on this issue.`;
+    const diagnostics = meta ? collectDiagnostics(fields, meta, error, hint) : null;
+    if (diagnostics) throw new JiraDiagnosticError(error, diagnostics);
+    throw error;
+  }
+}
+
+function describeMetaField(field: CreateMetaField): Record<string, unknown> {
+  return {
+    fieldId: metaFieldId(field),
+    name: field.name,
+    required: field.required === true,
+    type: field.schema?.type,
+    itemsType: field.schema?.items,
+    custom: field.schema?.custom,
+    hasDefaultValue: field.hasDefaultValue === true,
+    allowedValues: describeAllowedValues(field),
+    autoCompleteUrl: field.autoCompleteUrl,
+  };
+}
+
+async function fetchTransitionFields(issueKey: string, transitionId: string): Promise<CreateMetaField[] | null> {
+  try {
+    const response = await jiraApi.get(`/issue/${issueKey}/transitions`, { params: { expand: 'transitions.fields', transitionId } });
+    const transitions: (JiraTransition & { fields?: Record<string, CreateMetaField> })[] = response.data.transitions ?? [];
+    const raw = transitions.find(t => t.id === transitionId)?.fields;
+    if (!raw) return null;
+    return Object.entries(raw).map(([fieldId, field]) => ({ ...field, fieldId }));
+  } catch {
+    return null;
+  }
+}
+
+async function postTransition(issueKey: string, transitionId: string, payload: Record<string, unknown>): Promise<void> {
+  try {
+    await jiraApi.post(`/issue/${issueKey}/transitions`, payload);
+  } catch (error) {
+    const axiosError = error as AxiosError;
+    if (axiosError.response?.status !== 400) throw error;
+    const fields = await fetchTransitionFields(issueKey, transitionId);
+    if (!fields) throw error;
+    const sent = (payload.fields ?? {}) as Record<string, unknown>;
+    const hint = `Transition screen for ${issueKey}. Pass the fields it requires via transitionFields.`;
+    const diagnostics = collectDiagnostics(sent, { issueType: { id: transitionId }, fields }, error, hint) ?? {};
+    diagnostics.transitionFields = fields.map(describeMetaField);
+    throw new JiraDiagnosticError(error, diagnostics);
+  }
+}
+
+async function applyOptionalFields(a: Record<string, unknown>, fields: Record<string, unknown>, meta: CreateMetaResult | null): Promise<void> {
+  if (a.labels !== undefined && a.labels !== null) {
+    fields.labels = validateLabels(a.labels);
+  }
+  if (a.priority !== undefined && a.priority !== null) {
+    fields.priority = await resolvePriorityValue(a.priority, meta);
+  }
+  if (a.storyPoints !== undefined && a.storyPoints !== null) {
+    fields[STORY_POINTS_FIELD] = validateStoryPoints(a.storyPoints);
+  }
+  if (a.versions !== undefined && a.versions !== null) {
+    fields.versions = validateReferenceList(a.versions, 'versions');
+  }
+  if (a.fixVersions !== undefined && a.fixVersions !== null) {
+    fields.fixVersions = validateReferenceList(a.fixVersions, 'fixVersions');
+  }
+  if (a.components !== undefined && a.components !== null) {
+    fields.components = validateReferenceList(a.components, 'components');
+  }
+  if (a.parent !== undefined && a.parent !== null) {
+    fields.parent = { key: validateIssueKey(a.parent) };
+  }
+  if (a.assignee !== undefined && a.assignee !== null) {
+    fields.assignee = { accountId: validateAccountId(a.assignee) };
+  }
+  if (a.reporter !== undefined && a.reporter !== null) {
+    fields.reporter = { accountId: validateAccountId(a.reporter) };
+  }
+  if (a.dueDate !== undefined && a.dueDate !== null) {
+    fields.duedate = validateDate(a.dueDate, 'dueDate');
+  }
+  if (a.timetracking !== undefined && a.timetracking !== null) {
+    fields.timetracking = validateTimetracking(a.timetracking);
+  }
+  if (a.customFields !== undefined && a.customFields !== null) {
+    Object.assign(fields, await convertDocFields(validateCustomFields(a.customFields), meta));
+  }
+  if (a.customFieldsMarkdown !== undefined && a.customFieldsMarkdown !== null) {
+    for (const [key, value] of Object.entries(validateCustomFields(a.customFieldsMarkdown))) {
+      fields[key] = createADFDocument(sanitizeString(value, 32000, key));
+    }
+  }
+}
+
+function dryRunResult(projectKey: string, issueType: unknown, fields: Record<string, unknown>, meta: CreateMetaResult | null): Record<string, unknown> {
+  if (!meta) {
+    return {
+      dryRun: true,
+      valid: null,
+      message: `Create metadata unavailable for issue type "${String(issueType)}" in ${projectKey} (unknown type or no browse permission). Payload was not validated.`,
+      payload: { fields },
+    };
+  }
+  const report = validateAgainstMeta(fields, meta);
+  return {
+    dryRun: true,
+    valid: report.missingRequired.length === 0 && report.invalidValues.length === 0 && report.unknownFields.length === 0,
+    projectKey,
+    issueType: { id: meta.issueType.id, name: meta.issueType.name },
+    missingRequired: report.missingRequired,
+    invalidValues: report.invalidValues,
+    fieldsNotOnScreen: report.unknownFields,
+    payload: { fields },
+  };
+}
+
+function namesOf(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map(item => (item && typeof item === 'object' ? (item as { name?: string }).name : undefined))
+    .filter((name): name is string => typeof name === 'string');
+}
+
+function simplifyFieldValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(simplifyFieldValue);
+  if (value && typeof value === 'object') {
+    const entry = value as Record<string, unknown>;
+    if (entry.type === 'doc') return adfToText(value);
+    if (typeof entry.value === 'string') return entry.value;
+    if (typeof entry.name === 'string') return entry.name;
+    if (typeof entry.displayName === 'string') return entry.displayName;
+  }
+  return value;
+}
+
+function mapIssue(data: { key: string; fields?: JiraIssueFields }): Record<string, unknown> {
+  const f = data.fields ?? {};
+  return {
+    key: data.key,
+    summary: f.summary,
+    description: adfToText(f.description),
+    status: f.status?.name,
+    resolution: (f.resolution as { name?: string } | null | undefined)?.name ?? null,
+    assignee: f.assignee ? { displayName: f.assignee.displayName, accountId: f.assignee.accountId } : null,
+    reporter: f.reporter?.displayName,
+    priority: f.priority?.name,
+    issueType: f.issuetype?.name,
+    labels: f.labels || [],
+    storyPoints: f[STORY_POINTS_FIELD],
+    parent: f.parent?.key,
+    components: namesOf(f.components),
+    versions: namesOf(f.versions),
+    fixVersions: namesOf(f.fixVersions),
+    dueDate: f.duedate ?? null,
+    timetracking: f.timetracking ?? null,
+    created: f.created,
+    updated: f.updated,
+    url: createIssueUrl(data.key),
+  };
+}
+
+async function mapCustomFields(fields: JiraIssueFields): Promise<Record<string, unknown>> {
+  let index: Map<string, JiraField>;
+  try {
+    index = await fetchFieldIndex();
+  } catch {
+    index = new Map<string, JiraField>();
+  }
+
+  const result: Record<string, unknown> = {};
+  for (const [id, value] of Object.entries(fields)) {
+    if (!id.startsWith('customfield_') || value === null || value === undefined) continue;
+    const meta = index.get(id);
+    result[id] = {
+      name: meta?.name ?? id,
+      type: meta?.schema?.type,
+      value: meta?.schema?.type === 'doc' ? adfToText(value) : simplifyFieldValue(value),
+    };
+  }
+  return result;
+}
+
+async function issueSnapshot(issueKey: string): Promise<Record<string, unknown> | null> {
+  try {
+    const response = await jiraApi.get(`/issue/${issueKey}`);
+    return mapIssue(response.data);
+  } catch {
+    return null;
+  }
+}
 
 const server = new Server(
   {
@@ -798,6 +1361,8 @@ Step 3 - Set priority (use jira_update_issue with priority field):
 - Low: edge case, cosmetic
 - Lowest: minor polish
 
+Pass the priority id from jira_get_priorities, not the displayed name - names are localized on non-English instances and Jira rejects them.
+
 Step 4 - Assign:
 - Find owner: jira_search_users by component/team
 - jira_assign_issue with accountId
@@ -847,6 +1412,7 @@ Step 1 - Create the epic:
 
 Step 2 - Identify major pieces of work (stories):
 Typical slices: API / DB / UI / tests / docs / ops
+Before the first create on an unfamiliar project, call jira_get_create_fields(projectKey, issueType) once - it lists which fields the screen requires and which values they accept, so no create fails on a mandatory field.
 For each piece call jira_create_issue with:
   issueType: "Story"
   parent: <epic_key>
@@ -1176,8 +1742,7 @@ Step 4 - Verify capacity fit:
 - If MUST exceeds capacity, flag as overcommit risk
 
 Step 5 - Propose assignments:
-For each issue to include: jira_update_issue or direct fixVersion field update
-(if your MCP instance does not expose fixVersion as a first-class field, use bulk_update via the web UI or extend the tool)
+For each issue to include: jira_update_issue with fixVersions: ["<version name or id>"]
 
 Step 6 - Report plan:
 ## <Version> plan - target <date>
@@ -2086,34 +2651,72 @@ server.setRequestHandler(GetPromptRequestSchema, async (request) => {
   };
 });
 
+const PRIORITY_SCHEMA = {
+  type: 'string',
+  description: 'Priority id (preferred) or name. Names are localized on non-English instances and only the canonical English name works — pass the id from jira_get_priorities or jira_get_create_fields. A localized name is matched against the allowed values and converted to an id automatically.',
+} as const;
+
+const CUSTOM_FIELDS_SCHEMA = {
+  type: 'object',
+  additionalProperties: true,
+  description: 'Custom field values keyed by field ID (customfield_NNNNN). Use the shape the field expects: single-select { "id": "10001" } or { "value": "X" }; multi-select [ { "id": "10001" } ]; user { "accountId": "..." }; text "string". Rich-text (schema.type "doc") fields accept a plain Markdown string and are converted to ADF automatically. Call jira_get_create_fields for ids and allowed values.',
+} as const;
+
+const COMMON_ISSUE_FIELDS_SCHEMA = {
+  labels: { type: 'array', items: { type: 'string' }, description: 'Labels. Sent only when provided.' },
+  versions: { type: 'array', items: { type: 'string' }, description: 'Affects versions, by name or numeric id (ids are used verbatim). Required on many Bug screens. List them with jira_get_project_versions.' },
+  fixVersions: { type: 'array', items: { type: 'string' }, description: 'Fix versions, by name or numeric id. List them with jira_get_project_versions.' },
+  components: { type: 'array', items: { type: 'string' }, description: 'Components, by name or numeric id. List them with jira_get_project_components.' },
+  assignee: { type: 'string', description: 'Assignee accountId (not email). Resolve via jira_search_users or jira_get_myself.' },
+  reporter: { type: 'string', description: 'Reporter accountId (not email). Requires the Modify Reporter permission.' },
+  dueDate: { type: 'string', description: 'Due date as YYYY-MM-DD.' },
+  timetracking: {
+    type: 'object',
+    properties: {
+      originalEstimate: { type: 'string', description: 'Jira duration, e.g. "3h 30m", "2d".' },
+      remainingEstimate: { type: 'string', description: 'Jira duration, e.g. "1h".' },
+    },
+    description: 'Time tracking estimates.',
+  },
+  customFields: CUSTOM_FIELDS_SCHEMA,
+  customFieldsMarkdown: {
+    type: 'object',
+    additionalProperties: { type: 'string' },
+    description: 'Rich-text custom fields keyed by field ID, values as Markdown strings converted to ADF. Use when the field type is "doc" and you want the conversion to be explicit.',
+  },
+} as const;
+
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
     tools: [
       {
         name: 'jira_create_issue',
-        description: 'Create a new Jira issue. Description supports Markdown (auto-converted to ADF). To create an Epic, use jira_create_epic instead (sets Epic Name field). If unsure which issueType or priority values the instance accepts, call jira_get_issue_types and jira_get_priorities first. If the project requires mandatory custom fields (e.g. "Type of Team is required"), pass them via customFields. priority is only sent when provided — omit it on screens that do not expose the Priority field.',
+        description: 'Create a new Jira issue. Description supports Markdown (auto-converted to ADF). To create an Epic use jira_create_epic. Call jira_get_create_fields(projectKey, issueType) first when the screen is unknown — it returns every field with required, type and allowedValues, which removes the guesswork (Bug screens commonly require Affects versions and other mandatory fields). Optional fields are only sent when provided, so nothing is rejected for not being on the screen. On a 400 the response carries missingRequired and allowedValues. Set dryRun to validate the payload without creating anything.',
         inputSchema: {
           type: 'object' as const,
           properties: {
             summary: { type: 'string', description: 'Issue summary/title' },
             description: { type: 'string', description: 'Issue description in Markdown. Use [KEY](url) for clickable issue links.' },
-            issueType: { type: 'string', description: 'Issue type name. Common: Task, Story, Bug, Sub-task. Call jira_get_issue_types for the definitive list.', default: 'Task' },
-            priority: { type: 'string', description: 'Priority name. Common: Highest, High, Medium, Low, Lowest. Optional — omit if the create screen does not expose Priority (Jira rejects fields not on the screen).' },
-            labels: { type: 'array', items: { type: 'string' }, description: 'Labels for the issue' },
+            issueType: { type: 'string', description: 'Issue type name or id. Names are localized on non-English instances; a name is resolved to an id automatically. Call jira_get_issue_types for the definitive list.', default: 'Task' },
+            priority: PRIORITY_SCHEMA,
             storyPoints: { type: 'number', description: 'Story points estimate (0-1000)' },
             projectKey: { type: 'string', description: 'Project key (defaults to configured JIRA_PROJECT_KEY)' },
-            customFields: { type: 'object', additionalProperties: true, description: 'Custom field values keyed by field ID (customfield_NNNNN). Values pass through as-is to the Jira API, so use the shape the field expects: single-select { "value": "X" } or { "id": "10001" }; multi-select [ { "value": "X" } ]; user { "accountId": "..." }; text "string". Example: { "customfield_10122": { "value": "Platform" }, "customfield_10712": { "value": "Search" } }.' },
+            parent: { type: 'string', description: 'Parent issue key — the epic for a story, or the parent for a subtask (e.g. "PROJ-12").' },
+            ...COMMON_ISSUE_FIELDS_SCHEMA,
+            dryRun: { type: 'boolean', description: 'When true, validate the payload against the create screen and return missingRequired / invalidValues / fieldsNotOnScreen without creating the issue.', default: false },
           },
           required: ['summary', 'description'],
         },
       },
       {
         name: 'jira_get_issue',
-        description: 'Get details of a Jira issue. Set includeImages to also return embedded/attached images inline so the model can see them.',
+        description: 'Get details of a Jira issue. The default response includes status, resolution, assignee, priority, labels, story points, parent, components, versions, fixVersions, dueDate and timetracking. Set includeCustomFields to also get every populated custom field with its human-readable name (rich-text ones rendered as Markdown), or pass fields to select an exact set. Set includeImages to return embedded/attached images inline.',
         inputSchema: {
           type: 'object' as const,
           properties: {
             issueKey: { type: 'string', description: 'Issue key (e.g., TTC-123)' },
+            fields: { type: 'array', items: { type: 'string' }, description: 'Exact field IDs to return (passed to the Jira ?fields= parameter), e.g. ["summary", "versions", "customfield_10122"] or ["*all"]. When set, the response returns a raw fields map instead of the default shape.' },
+            includeCustomFields: { type: 'boolean', description: 'When true, add a customFields map of every populated customfield_NNNNN with { name, type, value }. Rich-text (doc) fields are converted to Markdown.', default: false },
             includeImages: { type: 'boolean', description: 'When true, return up to 10 image attachments (image/*, each <=5MB) as inline images, embedded-in-description ones first. Default false.', default: false },
           },
           required: ['issueKey'],
@@ -2134,15 +2737,20 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: 'jira_update_issue',
-        description: 'Update summary/description/status of an issue. For status changes: only transitions available on the issue work (e.g. "To Do" -> "In Progress"). If uncertain which transitions are allowed, call jira_list_transitions first. For changing priority/labels/assignee use jira_update_issue fields, or dedicated tools (jira_assign_issue).',
+        description: 'Update fields and/or status of an issue. status is matched against the target status of each available transition first (so "In Progress" works even when the transition is named "Start work"), then against transition names, case-insensitively. Use transitionId for an exact transition and transitionFields when the transition screen requires input (e.g. an estimate) — jira_list_transitions with includeFields lists what each one needs. On a 400 the response carries missingRequired and allowedValues.',
         inputSchema: {
           type: 'object' as const,
           properties: {
             issueKey: { type: 'string', description: 'Issue key to update' },
             summary: { type: 'string', description: 'New summary' },
             description: { type: 'string', description: 'New description in Markdown. Use [KEY](url) for clickable issue links.' },
-            status: { type: 'string', description: 'New status name (e.g. "In Progress", "Done"). Resolved to transition ID via jira_list_transitions.' },
-            customFields: { type: 'object', additionalProperties: true, description: 'Custom field values keyed by field ID (customfield_NNNNN). Values pass through as-is, so use the shape the field expects: single-select { "value": "X" } or { "id": "10001" }; multi-select [ { "value": "X" } ]; user { "accountId": "..." }; text "string".' },
+            status: { type: 'string', description: 'Target status name (e.g. "In Progress", "To Do") or transition name. Matched on the transition target status first, then the transition name, case-insensitively.' },
+            transitionId: { type: 'string', description: 'Exact transition id from jira_list_transitions. Takes precedence over status.' },
+            transitionFields: { type: 'object', additionalProperties: true, description: 'Fields required by the transition screen, keyed by field ID (e.g. { "customfield_10016": 3, "resolution": { "id": "10000" } }). Call jira_list_transitions with includeFields to see what a transition requires.' },
+            priority: PRIORITY_SCHEMA,
+            storyPoints: { type: 'number', description: 'Story points estimate (0-1000)' },
+            parent: { type: 'string', description: 'New parent issue key (epic or parent task).' },
+            ...COMMON_ISSUE_FIELDS_SCHEMA,
           },
           required: ['issueKey'],
         },
@@ -2220,16 +2828,19 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: 'jira_create_subtask',
-        description: 'Create a subtask under a parent issue. Description supports standard Markdown, automatically converted to ADF.',
+        description: 'Create a subtask under a parent issue. Description supports standard Markdown, automatically converted to ADF. The subtask issue type is discovered from the project (handles "Sub-task" vs "Subtask" and localized names) unless issueType is given.',
         inputSchema: {
           type: 'object' as const,
           properties: {
             parentKey: { type: 'string', description: 'Parent issue key (e.g., TTC-261)' },
             summary: { type: 'string', description: 'Subtask summary/title' },
             description: { type: 'string', description: 'Subtask description in Markdown. Use [KEY](url) for clickable issue links.' },
-            priority: { type: 'string', description: 'Priority (Highest, High, Medium, Low, Lowest). Optional — omit if the create screen does not expose Priority.' },
+            issueType: { type: 'string', description: 'Subtask issue type name or id. Defaults to the project\'s subtask type.' },
+            priority: PRIORITY_SCHEMA,
+            storyPoints: { type: 'number', description: 'Story points estimate (0-1000)' },
             projectKey: { type: 'string', description: 'Project key (defaults to configured JIRA_PROJECT_KEY)' },
-            customFields: { type: 'object', additionalProperties: true, description: 'Mandatory/custom field values keyed by field ID (customfield_NNNNN). Values pass through as-is: single-select { "value": "X" } or { "id": "10001" }; multi-select [ { "value": "X" } ]; user { "accountId": "..." }; text "string".' },
+            ...COMMON_ISSUE_FIELDS_SCHEMA,
+            dryRun: { type: 'boolean', description: 'When true, validate against the create screen and return what is missing without creating the subtask.', default: false },
           },
           required: ['parentKey', 'summary', 'description'],
         },
@@ -2248,11 +2859,12 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: 'jira_list_transitions',
-        description: 'Get available status transitions for a Jira issue.',
+        description: 'Get available status transitions for a Jira issue. Each entry has the transition id and name plus the target status under "to" — a workflow can name a transition "Start work" while its target status is "In Progress". Set includeFields to also get the fields each transition screen accepts, with required flags and allowed values, for passing via jira_update_issue transitionFields.',
         inputSchema: {
           type: 'object' as const,
           properties: {
             issueKey: { type: 'string', description: 'Issue key (e.g., TTC-123)' },
+            includeFields: { type: 'boolean', description: 'When true, expand each transition with its screen fields (fieldId, name, required, type, allowedValues) and a requiredFields shortlist.', default: false },
           },
           required: ['issueKey'],
         },
@@ -2360,7 +2972,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: 'jira_get_issue_types',
-        description: 'Get all available issue types for a project.',
+        description: 'Get all available issue types for a project. Names are rendered in the Jira account language — prefer the id when passing a type on. For the fields a given type requires, call jira_get_create_fields.',
         inputSchema: {
           type: 'object' as const,
           properties: {
@@ -2369,8 +2981,20 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         },
       },
       {
+        name: 'jira_get_create_fields',
+        description: 'Get the create screen definition for one issue type: every field with fieldId, name, required, type and allowedValues, plus a requiredFields shortlist. This is the second createmeta step (jira_get_issue_types is the first) and it is what tells you which fields are mandatory and which values they accept. Call it before jira_create_issue on an unfamiliar project or issue type instead of guessing.',
+        inputSchema: {
+          type: 'object' as const,
+          properties: {
+            projectKey: { type: 'string', description: 'Project key (defaults to configured JIRA_PROJECT_KEY)' },
+            issueType: { type: 'string', description: 'Issue type name or id (e.g. "Bug" or "10004"). Names are matched case-insensitively and work with localized names.' },
+          },
+          required: ['issueType'],
+        },
+      },
+      {
         name: 'jira_get_priorities',
-        description: 'Get all available issue priorities.',
+        description: 'Get all available issue priorities. Returns id first: the name is rendered in the Jira account language and Jira only accepts the canonical English name or the id on create/update, so pass the id.',
         inputSchema: { type: 'object' as const, properties: {} },
       },
       {
@@ -2430,11 +3054,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                 properties: {
                   summary: { type: 'string', description: 'Issue summary/title' },
                   description: { type: 'string', description: 'Issue description in Markdown' },
-                  issueType: { type: 'string', description: 'Issue type (Story, Task, Bug, etc.)', default: 'Task' },
-                  priority: { type: 'string', description: 'Priority (Highest, High, Medium, Low, Lowest). Optional — omit if the create screen does not expose Priority.' },
-                  labels: { type: 'array', items: { type: 'string' } },
+                  issueType: { type: 'string', description: 'Issue type name or id (Story, Task, Bug, etc.). Names are resolved to ids.', default: 'Task' },
+                  priority: PRIORITY_SCHEMA,
                   storyPoints: { type: 'number' },
-                  customFields: { type: 'object', additionalProperties: true, description: 'Mandatory/custom field values keyed by field ID (customfield_NNNNN). Values pass through as-is to the Jira API.' },
+                  parent: { type: 'string', description: 'Parent issue key (epic or parent task).' },
+                  ...COMMON_ISSUE_FIELDS_SCHEMA,
                 },
                 required: ['summary'],
               },
@@ -2446,14 +3070,17 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: 'jira_clone_issue',
-        description: 'Clone an existing Jira issue with a new summary.',
+        description: 'Clone an existing Jira issue with a new summary. Copies issue type, description, labels, priority, story points, components and versions from the source. Custom fields are NOT copied — supply any the target screen requires via customFields. Any field passed explicitly overrides the copied value.',
         inputSchema: {
           type: 'object' as const,
           properties: {
             issueKey: { type: 'string', description: 'Issue key to clone (e.g., PROJ-123)' },
             summary: { type: 'string', description: 'Summary for the cloned issue (defaults to "Clone of <original>")' },
             projectKey: { type: 'string', description: 'Target project key (defaults to same project as source)' },
-            customFields: { type: 'object', additionalProperties: true, description: 'Custom field values keyed by field ID (customfield_NNNNN). Custom fields are NOT auto-copied from the source; supply any the target screen requires here. Values pass through as-is.' },
+            priority: PRIORITY_SCHEMA,
+            storyPoints: { type: 'number', description: 'Story points estimate (0-1000). Overrides the copied value.' },
+            parent: { type: 'string', description: 'Parent issue key (epic or parent task).' },
+            ...COMMON_ISSUE_FIELDS_SCHEMA,
           },
           required: ['issueKey'],
         },
@@ -2617,11 +3244,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           properties: {
             summary: { type: 'string', description: 'Epic summary' },
             description: { type: 'string', description: 'Epic description (Markdown, converted to ADF)' },
-            epicName: { type: 'string', description: 'Short name for classic (company-managed) projects. Defaults to summary.' },
+            epicName: { type: 'string', description: 'Short name for classic (company-managed) projects. Sent only when the create screen actually has the Epic Name field.' },
             projectKey: { type: 'string', description: 'Project key (defaults to JIRA_PROJECT_KEY)' },
-            priority: { type: 'string', description: 'Priority name. Optional — omit if the create screen does not expose Priority.' },
-            labels: { type: 'array', items: { type: 'string' }, description: 'Labels' },
-            customFields: { type: 'object', additionalProperties: true, description: 'Mandatory/custom field values keyed by field ID (customfield_NNNNN). Values pass through as-is: single-select { "value": "X" } or { "id": "10001" }; multi-select [ { "value": "X" } ]; user { "accountId": "..." }; text "string".' },
+            priority: PRIORITY_SCHEMA,
+            ...COMMON_ISSUE_FIELDS_SCHEMA,
+            dryRun: { type: 'boolean', description: 'When true, validate against the create screen and return what is missing without creating the epic.', default: false },
           },
           required: ['summary'],
         },
@@ -2751,65 +3378,73 @@ type ToolArgs = Record<string, unknown>;
 type ToolHandler = (a: ToolArgs) => Promise<ToolResponse>;
 
 async function handleCreateIssue(a: ToolArgs): Promise<ToolResponse> {
-  const { summary, description, issueType = 'Task', priority, labels = [], storyPoints, customFields } = a;
+  const { summary, description, issueType = 'Task' } = a;
   const projectKey = resolveProjectKey(a);
 
   validateSafeParam(issueType, 'issueType');
-  const validatedLabels = validateLabels(labels);
+  const meta = await safeCreateMeta(projectKey, issueType);
 
-  const issueData: JiraIssuePayload = {
-    fields: {
-      project: { key: projectKey },
-      summary: sanitizeString(summary, 500, 'summary'),
-      description: createADFDocument(description),
-      issuetype: { name: issueType },
-      labels: validatedLabels,
-    },
+  const fields: Record<string, unknown> = {
+    project: { key: projectKey },
+    summary: sanitizeString(summary, 500, 'summary'),
+    description: createADFDocument(description),
+    issuetype: await resolveIssueTypeValue(issueType, projectKey),
   };
 
-  if (priority !== undefined && priority !== null) {
-    issueData.fields.priority = { name: validateSafeParam(priority, 'priority') };
+  await applyOptionalFields(a, fields, meta);
+
+  if (a.dryRun === true) {
+    return createSuccessResponse(dryRunResult(projectKey, issueType, fields, meta));
   }
 
-  if (storyPoints !== undefined && storyPoints !== null) {
-    issueData.fields[STORY_POINTS_FIELD] = validateStoryPoints(storyPoints);
-  }
-
-  if (customFields !== undefined && customFields !== null) {
-    Object.assign(issueData.fields, validateCustomFields(customFields));
-  }
-
-  const response = await jiraApi.post('/issue', issueData);
+  const response = await postIssue(projectKey, issueType, fields);
 
   return createSuccessResponse({
     success: true,
     key: response.data.key,
     id: response.data.id,
     url: createIssueUrl(response.data.key),
+    issue: await issueSnapshot(response.data.key),
+  });
+}
+
+function validateFieldSelection(input: unknown): string[] {
+  if (!Array.isArray(input) || input.length === 0) {
+    throw new Error('fields must be a non-empty array of field IDs (e.g. ["summary", "customfield_10122"] or ["*all"])');
+  }
+  if (input.length > 50) {
+    throw new Error('fields accepts at most 50 entries');
+  }
+  return input.map((item, index) => {
+    const value = sanitizeString(item, 64, `fields[${index}]`);
+    if (!/^[*a-zA-Z0-9_-]+$/.test(value)) {
+      throw new Error(`Invalid field ID "${value}": use plain field IDs like "summary", "customfield_10122", "*all"`);
+    }
+    return value;
   });
 }
 
 async function handleGetIssue(a: ToolArgs): Promise<ToolResponse> {
-  validateIssueKey(a.issueKey);
-  const response = await jiraApi.get(`/issue/${a.issueKey}`);
-  const f = response.data.fields;
+  const issueKey = validateIssueKey(a.issueKey);
+  const selection = a.fields !== undefined && a.fields !== null ? validateFieldSelection(a.fields) : null;
 
-  const data = {
-    key: response.data.key,
-    summary: f.summary,
-    description: adfToText(f.description),
-    status: f.status?.name,
-    assignee: f.assignee ? { displayName: f.assignee.displayName, accountId: f.assignee.accountId } : null,
-    reporter: f.reporter?.displayName,
-    priority: f.priority?.name,
-    issueType: f.issuetype?.name,
-    labels: f.labels || [],
-    storyPoints: f[STORY_POINTS_FIELD],
-    parent: f.parent?.key,
-    created: f.created,
-    updated: f.updated,
-    url: createIssueUrl(response.data.key),
-  };
+  const params: Record<string, unknown> = {};
+  if (selection) params.fields = selection.join(',');
+
+  const response = await jiraApi.get(`/issue/${issueKey}`, { params });
+  const f: JiraIssueFields = response.data.fields ?? {};
+
+  const data: Record<string, unknown> = selection
+    ? {
+      key: response.data.key,
+      url: createIssueUrl(response.data.key),
+      fields: Object.fromEntries(Object.entries(f).map(([id, value]) => [id, simplifyFieldValue(value)])),
+    }
+    : mapIssue(response.data);
+
+  if (a.includeCustomFields === true) {
+    data.customFields = await mapCustomFields(f);
+  }
 
   if (a.includeImages !== true) {
     return createSuccessResponse(data);
@@ -2868,48 +3503,57 @@ async function handleSearchIssues(a: ToolArgs): Promise<ToolResponse> {
   });
 }
 
+function findTransition(transitions: JiraTransition[], status: string): JiraTransition | undefined {
+  const wanted = status.trim().toLowerCase();
+  return transitions.find(t => (t.to?.name ?? '').trim().toLowerCase() === wanted)
+    ?? transitions.find(t => (t.name ?? '').trim().toLowerCase() === wanted);
+}
+
 async function handleUpdateIssue(a: ToolArgs): Promise<ToolResponse> {
-  const { summary, description, status, customFields } = a;
+  const { summary, description, status, transitionId, transitionFields } = a;
   const issueKey = validateIssueKey(a.issueKey);
 
-  const updateData: JiraIssuePayload = { fields: {} };
-  let hasFieldUpdates = false;
-
+  const fields: Record<string, unknown> = {};
   if (summary) {
-    updateData.fields.summary = sanitizeString(summary, 500, 'summary');
-    hasFieldUpdates = true;
+    fields.summary = sanitizeString(summary, 500, 'summary');
   }
   if (description) {
-    updateData.fields.description = createADFDocument(description);
-    hasFieldUpdates = true;
+    fields.description = createADFDocument(description);
   }
-  if (customFields !== undefined && customFields !== null) {
-    Object.assign(updateData.fields, validateCustomFields(customFields));
-    hasFieldUpdates = true;
-  }
+  await applyOptionalFields(a, fields, null);
 
+  const hasFieldUpdates = Object.keys(fields).length > 0;
   if (hasFieldUpdates) {
-    await jiraApi.put(`/issue/${issueKey}`, updateData);
+    await putIssue(issueKey, fields);
   }
 
   const warnings: string[] = [];
+  let applied: Record<string, unknown> | null = null;
 
-  if (status) {
-    const transitions = await jiraApi.get(`/issue/${issueKey}/transitions`);
-    const transitionList: JiraTransition[] = transitions.data.transitions ?? [];
-    const transition = transitionList.find(t => t.name === status);
+  if (status || transitionId) {
+    const response = await jiraApi.get(`/issue/${issueKey}/transitions`);
+    const transitionList: JiraTransition[] = response.data.transitions ?? [];
+    const requestedId = transitionId !== undefined && transitionId !== null
+      ? validateSafeParam(transitionId, 'transitionId', 30)
+      : null;
+    const transition = requestedId
+      ? transitionList.find(t => t.id === requestedId)
+      : findTransition(transitionList, sanitizeString(status, 100, 'status'));
 
     if (transition) {
-      await jiraApi.post(`/issue/${issueKey}/transitions`, {
-        transition: { id: transition.id },
-      });
+      const payload: Record<string, unknown> = { transition: { id: transition.id } };
+      if (transitionFields !== undefined && transitionFields !== null) {
+        payload.fields = await convertDocFields(validateFieldMap(transitionFields, 'transitionFields'), null);
+      }
+      await postTransition(issueKey, transition.id, payload);
+      applied = { id: transition.id, name: transition.name, to: transition.to?.name };
     } else {
-      const available = transitionList.map(t => t.name).join(', ');
-      warnings.push(`Transition "${status}" not found. Available transitions: ${available}`);
+      const available = transitionList.map(t => `${t.name} -> ${t.to?.name ?? '?'} (id ${t.id})`).join(', ');
+      warnings.push(`No transition matching "${requestedId ?? status}" on ${issueKey}. Available: ${available}`);
     }
   }
 
-  if (!hasFieldUpdates && !status) {
+  if (!hasFieldUpdates && !status && !transitionId) {
     return createSuccessResponse({ success: false, message: `No updates provided for ${issueKey}` });
   }
 
@@ -2919,6 +3563,9 @@ async function handleUpdateIssue(a: ToolArgs): Promise<ToolResponse> {
     url: createIssueUrl(issueKey),
   };
 
+  if (applied) {
+    result.transition = applied;
+  }
   if (warnings.length > 0) {
     result.warnings = warnings;
   }
@@ -2989,29 +3636,49 @@ async function handleDeleteIssue(a: ToolArgs): Promise<ToolResponse> {
   return createSuccessResponse({ success: true, message: `Issue ${a.issueKey} deleted successfully` });
 }
 
+async function resolveSubtaskTypeName(projectKey: string, requested: unknown): Promise<string> {
+  if (requested !== undefined && requested !== null) {
+    return validateSafeParam(requested, 'issueType');
+  }
+  try {
+    const types = await fetchIssueTypes(projectKey);
+    return types.find(t => t.subtask === true)?.name ?? 'Subtask';
+  } catch {
+    return 'Subtask';
+  }
+}
+
 async function handleCreateSubtask(a: ToolArgs): Promise<ToolResponse> {
-  const { parentKey, summary, description, priority, customFields } = a;
-  validateIssueKey(parentKey);
+  const { parentKey, summary, description } = a;
+  const parent = validateIssueKey(parentKey);
   const projectKey = resolveProjectKey(a);
+  const issueType = await resolveSubtaskTypeName(projectKey, a.issueType);
+  const meta = await safeCreateMeta(projectKey, issueType);
 
   const fields: Record<string, unknown> = {
     project: { key: projectKey },
     summary: sanitizeString(summary, 500, 'summary'),
     description: createADFDocument(description),
-    issuetype: { name: 'Subtask' },
-    parent: { key: parentKey },
+    issuetype: await resolveIssueTypeValue(issueType, projectKey),
   };
 
-  if (priority !== undefined && priority !== null) {
-    fields.priority = { name: validateSafeParam(priority, 'priority') };
-  }
-  if (customFields !== undefined && customFields !== null) {
-    Object.assign(fields, validateCustomFields(customFields));
+  await applyOptionalFields(a, fields, meta);
+  fields.parent = { key: parent };
+
+  if (a.dryRun === true) {
+    return createSuccessResponse(dryRunResult(projectKey, issueType, fields, meta));
   }
 
-  const response = await jiraApi.post('/issue', { fields });
+  const response = await postIssue(projectKey, issueType, fields);
 
-  return createSuccessResponse({ success: true, key: response.data.key, id: response.data.id, parent: parentKey, url: createIssueUrl(response.data.key) });
+  return createSuccessResponse({
+    success: true,
+    key: response.data.key,
+    id: response.data.id,
+    parent,
+    url: createIssueUrl(response.data.key),
+    issue: await issueSnapshot(response.data.key),
+  });
 }
 
 async function handleAssignIssue(a: ToolArgs): Promise<ToolResponse> {
@@ -3027,15 +3694,26 @@ async function handleAssignIssue(a: ToolArgs): Promise<ToolResponse> {
 
 async function handleListTransitions(a: ToolArgs): Promise<ToolResponse> {
   const issueKey = validateIssueKey(a.issueKey);
-  const response = await jiraApi.get(`/issue/${issueKey}/transitions`);
-  const transitions: JiraTransition[] = response.data.transitions ?? [];
+  const includeFields = a.includeFields === true;
+  const params = includeFields ? { expand: 'transitions.fields' } : {};
+  const response = await jiraApi.get(`/issue/${issueKey}/transitions`, { params });
+  const transitions: (JiraTransition & { fields?: Record<string, CreateMetaField> })[] = response.data.transitions ?? [];
+
   return createSuccessResponse({
     issueKey,
-    transitions: transitions.map(t => ({
-      id: t.id,
-      name: t.name,
-      to: { id: t.to?.id, name: t.to?.name, category: t.to?.statusCategory?.name },
-    })),
+    transitions: transitions.map(t => {
+      const entry: Record<string, unknown> = {
+        id: t.id,
+        name: t.name,
+        to: { id: t.to?.id, name: t.to?.name, category: t.to?.statusCategory?.name },
+      };
+      if (includeFields) {
+        const fields = Object.entries(t.fields ?? {}).map(([fieldId, field]) => describeMetaField({ ...field, fieldId }));
+        entry.fields = fields;
+        entry.requiredFields = fields.filter(f => f.required === true).map(f => f.fieldId);
+      }
+      return entry;
+    }),
   });
 }
 
@@ -3178,9 +3856,32 @@ async function handleGetIssueTypes(a: ToolArgs): Promise<ToolResponse> {
 }
 
 async function handleGetPriorities(_a: ToolArgs): Promise<ToolResponse> {
-  const response = await jiraApi.get('/priority/search');
-  const priorities: JiraPriority[] = response.data.values ?? [];
-  return createSuccessResponse({ priorities: priorities.map(p => ({ id: p.id, name: p.name, description: p.description, iconUrl: p.iconUrl })) });
+  const priorities = await fetchPriorities();
+  return createSuccessResponse({
+    note: 'name is rendered in the Jira account language and is NOT accepted on create/update. Pass id.',
+    priorities: priorities.map(p => ({ id: p.id, name: p.name, description: p.description, iconUrl: p.iconUrl })),
+  });
+}
+
+async function handleGetCreateFields(a: ToolArgs): Promise<ToolResponse> {
+  const projectKey = resolveProjectKey(a);
+  const issueType = validateSafeParam(a.issueType, 'issueType');
+
+  const resolved = await resolveIssueType(projectKey, issueType);
+  if (!resolved?.id) {
+    const available = (await fetchIssueTypes(projectKey)).map(t => `${t.name} (id ${t.id})`).join(', ');
+    throw new Error(`Issue type "${issueType}" not found in project ${projectKey}. Available: ${available}`);
+  }
+
+  const fields = await fetchCreateFields(projectKey, resolved.id);
+  const described = fields.map(describeMetaField);
+
+  return createSuccessResponse({
+    projectKey,
+    issueType: { id: resolved.id, name: resolved.name },
+    requiredFields: described.filter(f => f.required === true && f.hasDefaultValue !== true).map(f => f.fieldId),
+    fields: described,
+  });
 }
 
 async function handleGetLinkTypes(_a: ToolArgs): Promise<ToolResponse> {
@@ -3274,26 +3975,19 @@ async function handleBulkCreateIssues(a: ToolArgs): Promise<ToolResponse> {
     throw new Error('Maximum 50 issues per bulk create');
   }
 
-  const issueList: JiraIssuePayload[] = (issues as BulkIssueInput[]).map(issue => {
+  const issueList: JiraIssuePayload[] = [];
+  for (const issue of issues as BulkIssueInput[]) {
     const issueType = validateSafeParam(issue.issueType ?? 'Task', 'issueType');
+    const meta = await safeCreateMeta(projectKey, issueType);
     const fields: Record<string, unknown> = {
       project: { key: projectKey },
       summary: sanitizeString(issue.summary, 500, 'summary'),
       description: createADFDocument(issue.description),
-      issuetype: { name: issueType },
-      labels: Array.isArray(issue.labels) ? validateLabels(issue.labels) : [],
+      issuetype: await resolveIssueTypeValue(issueType, projectKey),
     };
-    if (issue.priority !== undefined && issue.priority !== null) {
-      fields.priority = { name: validateSafeParam(issue.priority, 'priority') };
-    }
-    if (issue.storyPoints !== undefined && issue.storyPoints !== null) {
-      fields[STORY_POINTS_FIELD] = validateStoryPoints(issue.storyPoints);
-    }
-    if (issue.customFields !== undefined && issue.customFields !== null) {
-      Object.assign(fields, validateCustomFields(issue.customFields));
-    }
-    return { fields };
-  });
+    await applyOptionalFields(issue as Record<string, unknown>, fields, meta);
+    issueList.push({ fields });
+  }
 
   const response = await jiraApi.post('/issue/bulk', { issueUpdates: issueList });
 
@@ -3316,27 +4010,33 @@ async function handleCloneIssue(a: ToolArgs): Promise<ToolResponse> {
   const projectKey = a.projectKey ? validateProjectKey(a.projectKey) : f.project?.key ?? JIRA_PROJECT_KEY;
   const summary = a.summary ? sanitizeString(a.summary, 500, 'summary') : `Clone of ${f.summary}`;
 
-  const issueData: JiraIssuePayload = {
-    fields: {
-      project: { key: projectKey },
-      summary,
-      description: f.description ?? createADFDocument(''),
-      issuetype: { name: f.issuetype?.name ?? 'Task' },
-      labels: f.labels || [],
-    },
+  const issueType = f.issuetype?.name ?? 'Task';
+  const meta = await safeCreateMeta(projectKey, issueType);
+
+  const fields: Record<string, unknown> = {
+    project: { key: projectKey },
+    summary,
+    description: f.description ?? createADFDocument(''),
+    issuetype: await resolveIssueTypeValue(issueType, projectKey),
   };
 
+  if (f.labels?.length) {
+    fields.labels = f.labels;
+  }
   if (f.priority?.name) {
-    issueData.fields.priority = { name: f.priority.name };
+    fields.priority = await resolvePriorityValue(f.priority.name, meta);
   }
   if (f[STORY_POINTS_FIELD] !== undefined && f[STORY_POINTS_FIELD] !== null) {
-    issueData.fields[STORY_POINTS_FIELD] = f[STORY_POINTS_FIELD];
+    fields[STORY_POINTS_FIELD] = f[STORY_POINTS_FIELD];
   }
-  if (a.customFields !== undefined && a.customFields !== null) {
-    Object.assign(issueData.fields, validateCustomFields(a.customFields));
+  for (const copied of ['versions', 'fixVersions', 'components'] as const) {
+    const values = namesOf(f[copied]);
+    if (values.length > 0) fields[copied] = values.map(name => ({ name }));
   }
 
-  const response = await jiraApi.post('/issue', issueData);
+  await applyOptionalFields(a, fields, meta);
+
+  const response = await postIssue(projectKey, issueType, fields);
 
   return createSuccessResponse({
     success: true,
@@ -3344,6 +4044,7 @@ async function handleCloneIssue(a: ToolArgs): Promise<ToolResponse> {
     id: response.data.id,
     clonedFrom: issueKey,
     url: createIssueUrl(response.data.key),
+    issue: await issueSnapshot(response.data.key),
   });
 }
 
@@ -3653,40 +4354,40 @@ async function handleRemoveIssueFromEpic(a: ToolArgs): Promise<ToolResponse> {
 }
 
 async function handleCreateEpic(a: ToolArgs): Promise<ToolResponse> {
-  const { summary, description, epicName, priority, labels = [], customFields } = a;
+  const { summary, description, epicName } = a;
   const projectKey = resolveProjectKey(a);
+  const meta = await safeCreateMeta(projectKey, 'Epic');
 
-  const validatedLabels = validateLabels(labels);
   const validatedSummary = sanitizeString(summary, 500, 'summary');
   const resolvedEpicName = epicName !== undefined && epicName !== null
     ? sanitizeString(epicName, 255, 'epicName')
     : validatedSummary.slice(0, 255);
 
-  const issueData: JiraIssuePayload = {
-    fields: {
-      project: { key: projectKey },
-      summary: validatedSummary,
-      description: createADFDocument(description),
-      issuetype: { name: 'Epic' },
-      labels: validatedLabels,
-      customfield_10011: resolvedEpicName,
-    },
+  const fields: Record<string, unknown> = {
+    project: { key: projectKey },
+    summary: validatedSummary,
+    description: createADFDocument(description),
+    issuetype: await resolveIssueTypeValue('Epic', projectKey),
   };
 
-  if (priority !== undefined && priority !== null) {
-    issueData.fields.priority = { name: validateSafeParam(priority, 'priority') };
-  }
-  if (customFields !== undefined && customFields !== null) {
-    Object.assign(issueData.fields, validateCustomFields(customFields));
+  if (!meta || meta.fields.some(f => metaFieldId(f) === 'customfield_10011')) {
+    fields.customfield_10011 = resolvedEpicName;
   }
 
-  const response = await jiraApi.post('/issue', issueData);
+  await applyOptionalFields(a, fields, meta);
+
+  if (a.dryRun === true) {
+    return createSuccessResponse(dryRunResult(projectKey, 'Epic', fields, meta));
+  }
+
+  const response = await postIssue(projectKey, 'Epic', fields);
 
   return createSuccessResponse({
     success: true,
     key: response.data.key,
     id: response.data.id,
     url: createIssueUrl(response.data.key),
+    issue: await issueSnapshot(response.data.key),
   });
 }
 
@@ -3951,6 +4652,7 @@ const toolHandlers: Record<string, ToolHandler> = {
   jira_get_project_versions: handleGetProjectVersions,
   jira_get_fields: handleGetFields,
   jira_get_issue_types: handleGetIssueTypes,
+  jira_get_create_fields: handleGetCreateFields,
   jira_get_priorities: handleGetPriorities,
   jira_get_link_types: handleGetLinkTypes,
   jira_search_users: handleSearchUsers,

@@ -8,11 +8,13 @@ Model Context Protocol (MCP) server for Jira API integration with automatic Mark
 
 ## Features
 
-- 53 Jira API tools via MCP protocol
+- 54 Jira API tools via MCP protocol
 - 34 pre-baked MCP prompts covering every tool (sprint planning, bug triage, epic health, standup, weekly reports, bulk ops, attachments, watchers, filters, reorg, etc.)
 - Automatic Markdown to ADF conversion (write Markdown, get proper Jira formatting)
 - ADF to Markdown conversion when reading issues and comments
-- Custom field support on create/update/clone (set mandatory `customfield_NNNNN` fields)
+- Full create screen introspection (`jira_get_create_fields`): required fields, types, allowed values — plus `dryRun` validation and 400 responses enriched with what was missing
+- Custom field support on create/update/clone (set mandatory `customfield_NNNNN` fields), rich-text ones written as Markdown
+- Works on non-English Jira instances: localized issue type, priority and status names are resolved to ids before sending
 - Image support: view image attachments inline, embed images via Markdown, return embedded images when reading an issue
 - Sprint and board management via Jira Agile API
 - File attachment support
@@ -86,9 +88,40 @@ All description and comment fields accept standard Markdown:
 
 Automatically converted to Atlassian Document Format (ADF).
 
+Rich-text custom fields (`schema.type: "doc"`) also accept Markdown strings — pass them in `customFields`, or in `customFieldsMarkdown` to be explicit.
+
+## Creating issues on an unfamiliar screen
+
+Jira rejects a create when a mandatory field is missing, but its error names neither the field nor the values it accepts. Two calls remove the guesswork:
+
+```
+jira_get_issue_types   { projectKey: "PROJ" }                      -> issue types with ids
+jira_get_create_fields { projectKey: "PROJ", issueType: "Bug" }    -> every field: required, type, allowedValues
+```
+
+Then create, passing ids where the screen offers a fixed set:
+
+```json
+{
+  "summary": "Login fails on retry",
+  "description": "Steps...",
+  "issueType": "Bug",
+  "versions": ["1.4.0"],
+  "components": ["Auth"],
+  "priority": "2",
+  "customFields": { "customfield_10500": "**Check** the retry path" }
+}
+```
+
+Add `"dryRun": true` to validate the payload without creating anything. If a create still fails, the 400 response carries `missingRequired`, `invalidValues` and `allowedValues` for the fields Jira complained about, so the next attempt is informed rather than guessed.
+
+**Non-English instances:** `jira_get_priorities` and `jira_get_issue_types` return names in the account language (`Високий`, `Помилка`), but Jira only accepts the canonical English name or the id. Pass the **id**. Localized names are matched against the screen's allowed values and converted to ids automatically, so they work too — ids just skip the lookup.
+
+**Status changes:** transitions are often named differently from the status they lead to ("Start work (estimate)" -> "In Progress"). `jira_update_issue` matches `status` against the target status first, then the transition name. If a transition screen requires input, list it with `jira_list_transitions { includeFields: true }` and pass the values via `transitionFields`.
+
 ## MCP Prompts
 
-Pre-baked workflows your AI agent can invoke directly (via MCP `prompts/list` + `prompts/get`). Every one of the 50 tools is referenced in at least one prompt.
+Pre-baked workflows your AI agent can invoke directly (via MCP `prompts/list` + `prompts/get`). Every one of the 54 tools is referenced in at least one prompt.
 
 **Formatting & lookup**
 - `jira-formatting-guide` - Markdown formatting rules for Jira (ADF)
@@ -185,7 +218,8 @@ Pre-baked workflows your AI agent can invoke directly (via MCP `prompts/list` + 
 ### Metadata
 - `jira_get_fields` - Get all fields (find custom field IDs)
 - `jira_get_issue_types` - Get issue types for project
-- `jira_get_priorities` - Get available priorities
+- `jira_get_create_fields` - Get the create screen for one issue type: required flags, types, allowed values
+- `jira_get_priorities` - Get available priorities (pass the id, not the localized name)
 - `jira_get_link_types` - Get issue link types
 - `jira_search_users` - Search users by name/email
 - `jira_get_user_issues` - Get all issues assigned to a user

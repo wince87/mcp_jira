@@ -1,0 +1,90 @@
+{
+  "isError": false,
+  "data": {
+    "created": [
+      {
+        "key": "TEST-900",
+        "id": "11000",
+        "url": "https://jira.test/browse/TEST-900"
+      },
+      {
+        "key": "TEST-901",
+        "id": "11001",
+        "url": "https://jira.test/browse/TEST-901"
+      }
+    ],
+    "errors": []
+  },
+  "contentTypes": [
+    "text"
+  ],
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/rest/api/3/issue/createmeta/TEST/issuetypes/10002",
+      "query": {
+        "maxResults": "200"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/rest/api/3/issue/bulk",
+      "body": {
+        "issueUpdates": [
+          {
+            "fields": {
+              "project": {
+                "key": "TEST"
+              },
+              "summary": "Bulk 1",
+              "description": {
+                "type": "doc",
+                "version": 1,
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "One"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "issuetype": {
+                "id": "10001"
+              }
+            }
+          },
+          {
+            "fields": {
+              "project": {
+                "key": "TEST"
+              },
+              "summary": "Bulk 2",
+              "description": {
+                "type": "doc",
+                "version": 1,
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Two"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "issuetype": {
+                "id": "10002"
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

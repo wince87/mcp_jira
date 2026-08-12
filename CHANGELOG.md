@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+- `jira_get_create_fields(projectKey, issueType)` — the missing second createmeta step. Returns every field on the create screen with `fieldId`, `name`, `required`, `type`, `custom` and `allowedValues`, plus a `requiredFields` shortlist. Previously `jira_get_issue_types` stopped at the type list, so the fields a screen demands could only be guessed at. Total tools: 54.
+- First-class create/update fields on `jira_create_issue`, `jira_create_subtask`, `jira_create_epic` and `jira_update_issue`: `versions` (Affects versions), `fixVersions`, `components`, `parent`, `assignee`, `reporter`, `dueDate`, `timetracking`, `labels`. Shaped for the Jira API automatically (`versions: [{name}]` or `[{id}]` for numeric input, `parent: {key}`, `assignee: {accountId}`, `components: [{name}]`). Bug screens that require Affects versions can now be filled through MCP.
+- `dryRun` on `jira_create_issue`, `jira_create_subtask` and `jira_create_epic` — validates the payload against createmeta and returns `missingRequired`, `invalidValues` and `fieldsNotOnScreen` without creating anything.
+- `transitionId` and `transitionFields` on `jira_update_issue`, for workflows whose transition screens require input (e.g. an estimate on "Start work").
+- `includeFields` on `jira_list_transitions` — expands each transition with its screen fields (required flags, types, allowed values) and a `requiredFields` shortlist.
+- `fields` and `includeCustomFields` on `jira_get_issue`. `fields` maps to the Jira `?fields=` parameter; `includeCustomFields` adds a `customFields` map of every populated `customfield_NNNNN` with its human-readable name, type and value (rich-text rendered as Markdown).
+- `customFieldsMarkdown` on all create paths and `jira_update_issue` — Markdown values converted to ADF explicitly.
+- Create tools return the created issue's fields (`issue`), not just `key` and `url`.
+
+### Changed
+- 400 responses from create, update and transition calls are now enriched from createmeta / editmeta / the transition screen: `missingRequired`, `invalidValues`, `allowedValues` for fields named in the error, `fieldsNotOnScreen` and `transitionFields`. Jira's own text names neither the missing fields nor the accepted values, which previously turned one failed call into a guessing loop.
+- `priority` accepts an id or a name. Names are localized on non-English instances while Jira only accepts the canonical English name, so a name is now matched against createmeta allowed values (localized) and the project priority list, and sent as `{id}`. `jira_get_priorities` documents that the id is what to pass.
+- `issueType` accepts an id or a name and is resolved to `{id}` through createmeta, so localized type names work.
+- `jira_update_issue` matches `status` against each transition's **target status** first, then the transition name, case-insensitively. Workflows that name transitions differently from their target statuses ("Start work (estimate)" -> "In Progress") no longer fail to find the transition. The not-found warning now lists `name -> target (id)`.
+- Rich-text custom fields (`schema.type` `doc`, e.g. a "For QA" field) accept a plain Markdown string in `customFields` and are converted to ADF with the same converter used for descriptions and comments.
+- `jira_get_issue` returns `resolution`, `components`, `versions`, `fixVersions`, `dueDate` and `timetracking` by default.
+- `labels` is sent only when provided, instead of always sending `[]` — matches how `priority` was handled in 2.8.0 and avoids rejections on screens without the Labels field.
+- `jira_create_subtask` discovers the project's subtask issue type instead of hardcoding `Subtask`, so instances using `Sub-task` or a localized name work. Accepts an explicit `issueType` to override.
+- `jira_create_epic` sends the classic Epic Name field (`customfield_10011`) only when the create screen actually has it.
+- Createmeta, issue types, field definitions and priorities are cached for 5 minutes, so the added metadata lookups cost at most one round trip per project/issue type.
+
 ## [2.8.0] - 2026-06-15
 
 ### Added

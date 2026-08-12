@@ -1,0 +1,36 @@
+{
+  "isError": false,
+  "data": {
+    "count": 1,
+    "isLast": true,
+    "nextPageToken": null,
+    "issues": [
+      {
+        "key": "TEST-1",
+        "summary": "Broken login",
+        "status": "To Do",
+        "priority": "Високий",
+        "issueType": "Помилка",
+        "labels": [
+          "regression"
+        ],
+        "updated": "2026-08-02T10:00:00.000+0000",
+        "url": "https://jira.test/browse/TEST-1"
+      }
+    ]
+  },
+  "contentTypes": [
+    "text"
+  ],
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/rest/api/3/search/jql",
+      "query": {
+        "jql": "project = \"TEST\" AND assignee = \"5b10a2844c20165700ede21g\" ORDER BY updated DESC",
+        "maxResults": "50",
+        "fields": "summary,status,priority,created,updated,issuetype,labels"
+      }
+    }
+  ]
+}

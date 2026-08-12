@@ -1,0 +1,27 @@
+{
+  "isError": false,
+  "data": {
+    "total": 1,
+    "boards": [
+      {
+        "id": 1,
+        "name": "TEST board",
+        "type": "scrum",
+        "projectKey": "TEST",
+        "projectName": "Test project"
+      }
+    ]
+  },
+  "contentTypes": [
+    "text"
+  ],
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/rest/agile/1.0/board",
+      "query": {
+        "maxResults": "50"
+      }
+    }
+  ]
+}

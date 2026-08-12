@@ -1,0 +1,23 @@
+{
+  "isError": false,
+  "data": {
+    "success": true,
+    "removed": [
+      "TEST-1"
+    ]
+  },
+  "contentTypes": [
+    "text"
+  ],
+  "requests": [
+    {
+      "method": "POST",
+      "path": "/rest/agile/1.0/epic/none/issue",
+      "body": {
+        "issues": [
+          "TEST-1"
+        ]
+      }
+    }
+  ]
+}

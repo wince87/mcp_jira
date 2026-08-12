@@ -1,0 +1,66 @@
+{
+  "isError": false,
+  "data": {
+    "dryRun": true,
+    "valid": false,
+    "projectKey": "TEST",
+    "issueType": {
+      "id": "10004",
+      "name": "Помилка"
+    },
+    "missingRequired": [
+      {
+        "fieldId": "versions",
+        "name": "Affects versions",
+        "type": "array",
+        "allowedValues": [
+          {
+            "id": "10100",
+            "value": "1.0"
+          },
+          {
+            "id": "10101",
+            "value": "1.1"
+          }
+        ]
+      },
+      {
+        "fieldId": "customfield_10500",
+        "name": "For QA",
+        "type": "doc"
+      }
+    ],
+    "invalidValues": [],
+    "fieldsNotOnScreen": [],
+    "payload": {
+      "fields": {
+        "project": {
+          "key": "TEST"
+        },
+        "summary": "Bug report",
+        "description": {
+          "type": "doc",
+          "version": 1,
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Steps"
+                }
+              ]
+            }
+          ]
+        },
+        "issuetype": {
+          "id": "10004"
+        }
+      }
+    }
+  },
+  "contentTypes": [
+    "text"
+  ],
+  "requests": []
+}

@@ -1,0 +1,20 @@
+{
+  "isError": false,
+  "data": {
+    "success": true,
+    "message": "Issue TEST-1 unassigned",
+    "url": "https://jira.test/browse/TEST-1"
+  },
+  "contentTypes": [
+    "text"
+  ],
+  "requests": [
+    {
+      "method": "PUT",
+      "path": "/rest/api/3/issue/TEST-1/assignee",
+      "body": {
+        "accountId": null
+      }
+    }
+  ]
+}

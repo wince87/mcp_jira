@@ -1,0 +1,24 @@
+{
+  "isError": false,
+  "data": {
+    "projectKey": "TEST",
+    "components": [
+      {
+        "id": "10200",
+        "name": "Auth",
+        "description": "Authentication",
+        "lead": "Vova Press",
+        "assigneeType": "PROJECT_LEAD"
+      }
+    ]
+  },
+  "contentTypes": [
+    "text"
+  ],
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/rest/api/3/project/TEST/components"
+    }
+  ]
+}

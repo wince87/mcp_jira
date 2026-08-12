@@ -1,0 +1,33 @@
+{
+  "isError": false,
+  "data": {
+    "success": true,
+    "message": "Comment 30001 updated on TEST-1"
+  },
+  "contentTypes": [
+    "text"
+  ],
+  "requests": [
+    {
+      "method": "PUT",
+      "path": "/rest/api/3/issue/TEST-1/comment/30001",
+      "body": {
+        "body": {
+          "type": "doc",
+          "version": 1,
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Edited"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

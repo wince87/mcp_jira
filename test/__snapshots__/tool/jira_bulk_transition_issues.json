@@ -1,0 +1,26 @@
+{
+  "isError": false,
+  "data": {
+    "total": 1,
+    "succeeded": [
+      "TEST-1"
+    ],
+    "failed": [],
+    "successCount": 1,
+    "failedCount": 0
+  },
+  "contentTypes": [
+    "text"
+  ],
+  "requests": [
+    {
+      "method": "POST",
+      "path": "/rest/api/3/issue/TEST-1/transitions",
+      "body": {
+        "transition": {
+          "id": "21"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "isError": false,
+  "data": {
+    "total": 1,
+    "projects": [
+      {
+        "key": "TEST",
+        "name": "Test project",
+        "projectTypeKey": "software",
+        "style": "classic",
+        "lead": "Vova Press"
+      }
+    ]
+  },
+  "contentTypes": [
+    "text"
+  ],
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/rest/api/3/project/search",
+      "query": {
+        "maxResults": "50"
+      }
+    }
+  ]
+}

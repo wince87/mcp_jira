@@ -1,0 +1,49 @@
+{
+  "isError": false,
+  "data": {
+    "count": 2,
+    "isLast": true,
+    "nextPageToken": null,
+    "issues": [
+      {
+        "key": "TEST-1",
+        "summary": "Broken login",
+        "status": "To Do",
+        "assignee": {
+          "displayName": "Vova Press",
+          "accountId": "5b10a2844c20165700ede21g"
+        },
+        "priority": "Високий",
+        "issueType": "Помилка",
+        "labels": [
+          "regression"
+        ],
+        "url": "https://jira.test/browse/TEST-1"
+      },
+      {
+        "key": "TEST-2",
+        "summary": "Blocker task",
+        "status": "In Progress",
+        "assignee": null,
+        "priority": "Середній",
+        "issueType": "Task",
+        "labels": [],
+        "url": "https://jira.test/browse/TEST-2"
+      }
+    ]
+  },
+  "contentTypes": [
+    "text"
+  ],
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/rest/api/3/search/jql",
+      "query": {
+        "jql": "project = TEST ORDER BY created DESC",
+        "maxResults": "50",
+        "fields": "summary,status,assignee,priority,created,updated,issuetype,parent,labels"
+      }
+    }
+  ]
+}

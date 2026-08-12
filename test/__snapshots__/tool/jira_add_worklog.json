@@ -1,0 +1,37 @@
+{
+  "isError": false,
+  "data": {
+    "success": true,
+    "id": "40002",
+    "issueKey": "TEST-1",
+    "timeSpent": "1h",
+    "author": "Vova Press"
+  },
+  "contentTypes": [
+    "text"
+  ],
+  "requests": [
+    {
+      "method": "POST",
+      "path": "/rest/api/3/issue/TEST-1/worklog",
+      "body": {
+        "timeSpent": "1h",
+        "comment": {
+          "type": "doc",
+          "version": 1,
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Worked"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

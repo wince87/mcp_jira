@@ -1,0 +1,33 @@
+{
+  "isError": false,
+  "data": {
+    "issueKey": "TEST-1",
+    "total": 1,
+    "histories": [
+      {
+        "id": "50001",
+        "author": "Vova Press",
+        "created": "2026-08-02T10:00:00.000+0000",
+        "items": [
+          {
+            "field": "status",
+            "from": "To Do",
+            "to": "In Progress"
+          }
+        ]
+      }
+    ]
+  },
+  "contentTypes": [
+    "text"
+  ],
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/rest/api/3/issue/TEST-1/changelog",
+      "query": {
+        "maxResults": "50"
+      }
+    }
+  ]
+}

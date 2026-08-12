@@ -1,0 +1,20 @@
+{
+  "isError": false,
+  "data": {
+    "success": true,
+    "issueKey": "TEST-1",
+    "accountId": "5b10a2844c20165700ede21g"
+  },
+  "contentTypes": [
+    "text"
+  ],
+  "requests": [
+    {
+      "method": "DELETE",
+      "path": "/rest/api/3/issue/TEST-1/watchers",
+      "query": {
+        "accountId": "5b10a2844c20165700ede21g"
+      }
+    }
+  ]
+}

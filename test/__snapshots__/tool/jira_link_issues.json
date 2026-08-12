@@ -1,0 +1,27 @@
+{
+  "isError": false,
+  "data": {
+    "success": true,
+    "message": "Linked TEST-1 to TEST-2 with type \"Blocks\""
+  },
+  "contentTypes": [
+    "text"
+  ],
+  "requests": [
+    {
+      "method": "POST",
+      "path": "/rest/api/3/issueLink",
+      "body": {
+        "type": {
+          "name": "Blocks"
+        },
+        "inwardIssue": {
+          "key": "TEST-1"
+        },
+        "outwardIssue": {
+          "key": "TEST-2"
+        }
+      }
+    }
+  ]
+}

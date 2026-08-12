@@ -1,0 +1,113 @@
+{
+  "isError": false,
+  "data": {
+    "projectKey": "TEST",
+    "issueType": {
+      "id": "10004",
+      "name": "Помилка"
+    },
+    "requiredFields": [
+      "project",
+      "issuetype",
+      "summary",
+      "versions",
+      "customfield_10500"
+    ],
+    "fields": [
+      {
+        "fieldId": "project",
+        "name": "Project",
+        "required": true,
+        "type": "project",
+        "hasDefaultValue": false
+      },
+      {
+        "fieldId": "issuetype",
+        "name": "Issue Type",
+        "required": true,
+        "type": "issuetype",
+        "hasDefaultValue": false
+      },
+      {
+        "fieldId": "summary",
+        "name": "Summary",
+        "required": true,
+        "type": "string",
+        "hasDefaultValue": false
+      },
+      {
+        "fieldId": "description",
+        "name": "Description",
+        "required": false,
+        "type": "doc",
+        "hasDefaultValue": false
+      },
+      {
+        "fieldId": "labels",
+        "name": "Labels",
+        "required": false,
+        "type": "array",
+        "itemsType": "string",
+        "hasDefaultValue": false
+      },
+      {
+        "fieldId": "priority",
+        "name": "Пріоритет",
+        "required": false,
+        "type": "priority",
+        "hasDefaultValue": true,
+        "allowedValues": [
+          {
+            "id": "1",
+            "value": "Найвищий"
+          },
+          {
+            "id": "2",
+            "value": "Високий"
+          },
+          {
+            "id": "3",
+            "value": "Середній"
+          }
+        ]
+      },
+      {
+        "fieldId": "customfield_10016",
+        "name": "Story point estimate",
+        "required": false,
+        "type": "number",
+        "hasDefaultValue": false
+      },
+      {
+        "fieldId": "versions",
+        "name": "Affects versions",
+        "required": true,
+        "type": "array",
+        "itemsType": "version",
+        "hasDefaultValue": false,
+        "allowedValues": [
+          {
+            "id": "10100",
+            "value": "1.0"
+          },
+          {
+            "id": "10101",
+            "value": "1.1"
+          }
+        ]
+      },
+      {
+        "fieldId": "customfield_10500",
+        "name": "For QA",
+        "required": true,
+        "type": "doc",
+        "custom": "rich-text",
+        "hasDefaultValue": false
+      }
+    ]
+  },
+  "contentTypes": [
+    "text"
+  ],
+  "requests": []
+}

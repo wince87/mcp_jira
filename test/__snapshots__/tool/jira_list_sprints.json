@@ -1,0 +1,29 @@
+{
+  "isError": false,
+  "data": {
+    "total": 1,
+    "sprints": [
+      {
+        "id": 10,
+        "name": "Sprint 1",
+        "state": "active",
+        "startDate": "2026-08-01T00:00:00.000Z",
+        "endDate": "2026-08-14T00:00:00.000Z",
+        "goal": "Ship auth"
+      }
+    ]
+  },
+  "contentTypes": [
+    "text"
+  ],
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/rest/agile/1.0/board/1/sprint",
+      "query": {
+        "state": "active",
+        "maxResults": "50"
+      }
+    }
+  ]
+}

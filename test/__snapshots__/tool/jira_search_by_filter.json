@@ -1,0 +1,53 @@
+{
+  "isError": false,
+  "data": {
+    "filterId": "1000",
+    "filterName": "My open bugs",
+    "jql": "project = TEST AND issuetype = Bug",
+    "count": 2,
+    "isLast": true,
+    "nextPageToken": null,
+    "issues": [
+      {
+        "key": "TEST-1",
+        "summary": "Broken login",
+        "status": "To Do",
+        "assignee": "Vova Press",
+        "priority": "Високий",
+        "issueType": "Помилка",
+        "labels": [
+          "regression"
+        ],
+        "url": "https://jira.test/browse/TEST-1"
+      },
+      {
+        "key": "TEST-2",
+        "summary": "Blocker task",
+        "status": "In Progress",
+        "assignee": null,
+        "priority": "Середній",
+        "issueType": "Task",
+        "labels": [],
+        "url": "https://jira.test/browse/TEST-2"
+      }
+    ]
+  },
+  "contentTypes": [
+    "text"
+  ],
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/rest/api/3/filter/1000"
+    },
+    {
+      "method": "GET",
+      "path": "/rest/api/3/search/jql",
+      "query": {
+        "jql": "project = TEST AND issuetype = Bug",
+        "maxResults": "50",
+        "fields": "summary,status,assignee,priority,created,updated,issuetype,labels"
+      }
+    }
+  ]
+}
