@@ -60,6 +60,7 @@ export async function handleSearchByFilter(a: ToolArgs): Promise<ToolResponse> {
 
 export const ListFiltersTool = defineTool({
   name: 'jira_list_filters',
+  annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   description: 'Search saved Jira filters (by name, owner). Useful to retrieve team-defined JQL queries.',
   inputSchema: {
     type: 'object' as const,
@@ -75,6 +76,7 @@ export const ListFiltersTool = defineTool({
 
 export const GetFilterTool = defineTool({
   name: 'jira_get_filter',
+  annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   description: 'Get a saved filter by ID, including its JQL, description, and owner.',
   inputSchema: {
     type: 'object' as const,
@@ -88,6 +90,7 @@ export const GetFilterTool = defineTool({
 
 export const SearchByFilterTool = defineTool({
   name: 'jira_search_by_filter',
+  annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   description: "Execute a saved filter's JQL and return matching issues.",
   inputSchema: {
     type: 'object' as const,

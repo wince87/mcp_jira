@@ -19,7 +19,12 @@
         "filePath"
       ]
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -63,7 +68,12 @@
         "comment"
       ]
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -89,7 +99,12 @@
         "issueKeys"
       ]
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -129,7 +144,12 @@
         "title"
       ]
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -151,7 +171,12 @@
         "issueKey"
       ]
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -182,7 +207,12 @@
         "timeSpent"
       ]
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -207,7 +237,12 @@
         "issueKey"
       ]
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -327,7 +362,12 @@
         "issues"
       ]
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -369,7 +409,12 @@
         "issueKeys"
       ]
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -482,7 +527,12 @@
         "issueKeys"
       ]
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -586,7 +636,12 @@
         "issueKey"
       ]
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -626,7 +681,12 @@
         "name"
       ]
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -731,7 +791,12 @@
         "summary"
       ]
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -846,7 +911,12 @@
         "description"
       ]
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -881,7 +951,12 @@
         "name"
       ]
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -996,7 +1071,12 @@
         "description"
       ]
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -1035,7 +1115,12 @@
         "name"
       ]
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -1053,7 +1138,12 @@
         "attachmentId"
       ]
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -1076,7 +1166,12 @@
         "commentId"
       ]
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -1098,7 +1193,12 @@
         "componentId"
       ]
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -1121,7 +1221,12 @@
         "issueKey"
       ]
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -1139,7 +1244,12 @@
         "linkId"
       ]
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -1162,7 +1272,12 @@
         "linkId"
       ]
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -1180,7 +1295,12 @@
         "sprintId"
       ]
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -1206,7 +1326,12 @@
         "versionId"
       ]
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -1229,7 +1354,12 @@
         "worklogId"
       ]
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -1252,7 +1382,12 @@
         "savePath"
       ]
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -1270,7 +1405,12 @@
         "issueKey"
       ]
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -1305,7 +1445,12 @@
         "boardId"
       ]
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -1332,7 +1477,12 @@
         "issueKey"
       ]
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -1364,7 +1514,12 @@
         "issueKey"
       ]
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -1386,7 +1541,12 @@
         "issueType"
       ]
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -1404,7 +1564,12 @@
         "issueKey"
       ]
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -1434,7 +1599,12 @@
         "epicKey"
       ]
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -1473,7 +1643,12 @@
         "epicKey"
       ]
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -1483,7 +1658,12 @@
       "type": "object",
       "properties": {}
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -1501,7 +1681,12 @@
         "filterId"
       ]
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -1536,7 +1721,12 @@
         "issueKey"
       ]
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -1551,7 +1741,12 @@
         }
       }
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -1561,7 +1756,12 @@
       "type": "object",
       "properties": {}
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -1587,7 +1787,12 @@
         }
       }
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -1597,7 +1802,12 @@
       "type": "object",
       "properties": {}
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -1607,7 +1817,12 @@
       "type": "object",
       "properties": {}
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -1622,7 +1837,12 @@
         }
       }
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -1638,7 +1858,12 @@
         }
       }
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -1653,7 +1878,12 @@
         }
       }
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -1668,7 +1898,12 @@
         }
       }
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -1686,7 +1921,12 @@
         "issueKey"
       ]
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -1725,7 +1965,12 @@
         "sprintId"
       ]
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -1768,7 +2013,12 @@
         "accountId"
       ]
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -1786,7 +2036,12 @@
         "issueKey"
       ]
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -1812,7 +2067,12 @@
         "issueKey"
       ]
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -1840,7 +2100,12 @@
         "outwardIssue"
       ]
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -1864,7 +2129,12 @@
         }
       }
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -1904,7 +2174,12 @@
         }
       }
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -1932,7 +2207,12 @@
         }
       }
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -1952,7 +2232,12 @@
         }
       }
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -1976,7 +2261,12 @@
         }
       }
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -2008,7 +2298,12 @@
         "boardId"
       ]
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -2031,7 +2326,12 @@
         "issueKey"
       ]
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -2052,7 +2352,12 @@
         "issueKeys"
       ]
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -2078,7 +2383,12 @@
         "issueKeys"
       ]
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -2107,7 +2417,12 @@
         "issueKeys"
       ]
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -2128,7 +2443,12 @@
         "issueKeys"
       ]
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -2151,7 +2471,12 @@
         "accountId"
       ]
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -2190,7 +2515,12 @@
         "filterId"
       ]
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -2236,7 +2566,12 @@
         "jql"
       ]
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -2263,7 +2598,12 @@
         "query"
       ]
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -2312,7 +2652,12 @@
         "comment"
       ]
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -2352,7 +2697,12 @@
         "componentId"
       ]
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -2469,7 +2819,12 @@
         "issueKey"
       ]
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -2512,7 +2867,12 @@
         "sprintId"
       ]
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -2554,7 +2914,12 @@
         "versionId"
       ]
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -2589,7 +2954,12 @@
         "worklogId"
       ]
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
     "outputSchema": null
   },
   {
@@ -2607,7 +2977,12 @@
         "attachmentId"
       ]
     },
-    "annotations": null,
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
     "outputSchema": null
   }
 ]

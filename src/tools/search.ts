@@ -61,6 +61,7 @@ export async function handleGetUserIssues(a: ToolArgs): Promise<ToolResponse> {
 
 export const SearchIssuesTool = defineTool({
   name: 'jira_search_issues',
+  annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   description: 'Search for Jira issues using JQL. Uses token-based pagination — pass nextPageToken from previous response to get next page.',
   inputSchema: {
     type: 'object' as const,
@@ -79,6 +80,7 @@ export const SearchIssuesTool = defineTool({
 
 export const GetUserIssuesTool = defineTool({
   name: 'jira_get_user_issues',
+  annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   description: 'Get all issues assigned to a specific user.',
   inputSchema: {
     type: 'object' as const,

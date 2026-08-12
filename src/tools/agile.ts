@@ -255,6 +255,7 @@ export async function handleCreateEpic(a: ToolArgs): Promise<ToolResponse> {
 
 export const ListBoardsTool = defineTool({
   name: 'jira_list_boards',
+  annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   description: 'List all Scrum/Kanban boards.',
   inputSchema: {
     type: 'object' as const,
@@ -269,6 +270,7 @@ export const ListBoardsTool = defineTool({
 
 export const ListSprintsTool = defineTool({
   name: 'jira_list_sprints',
+  annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   description: 'List sprints for a board.',
   inputSchema: {
     type: 'object' as const,
@@ -285,6 +287,7 @@ export const ListSprintsTool = defineTool({
 
 export const GetSprintTool = defineTool({
   name: 'jira_get_sprint',
+  annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   description: 'Get details of a sprint including all issues in it.',
   inputSchema: {
     type: 'object' as const,
@@ -302,6 +305,7 @@ export const GetSprintTool = defineTool({
 
 export const MoveToSprintTool = defineTool({
   name: 'jira_move_to_sprint',
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   description: 'Move one or more issues to a sprint.',
   inputSchema: {
     type: 'object' as const,
@@ -316,6 +320,7 @@ export const MoveToSprintTool = defineTool({
 
 export const ListEpicsTool = defineTool({
   name: 'jira_list_epics',
+  annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   description: 'List all epics in a project via JQL (issuetype = Epic).',
   inputSchema: {
     type: 'object' as const,
@@ -333,6 +338,7 @@ export const ListEpicsTool = defineTool({
 
 export const GetEpicTool = defineTool({
   name: 'jira_get_epic',
+  annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   description: 'Get epic details via Agile API (name, summary, color, done status).',
   inputSchema: {
     type: 'object' as const,
@@ -348,6 +354,7 @@ export const GetEpicTool = defineTool({
 
 export const GetEpicIssuesTool = defineTool({
   name: 'jira_get_epic_issues',
+  annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   description: 'Get all child issues linked to an epic.',
   inputSchema: {
     type: 'object' as const,
@@ -365,6 +372,7 @@ export const GetEpicIssuesTool = defineTool({
 
 export const GetBoardEpicsTool = defineTool({
   name: 'jira_get_board_epics',
+  annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   description: 'List epics on a Scrum/Kanban board, optionally filtered by done status.',
   inputSchema: {
     type: 'object' as const,
@@ -381,6 +389,7 @@ export const GetBoardEpicsTool = defineTool({
 
 export const AddIssuesToEpicTool = defineTool({
   name: 'jira_add_issues_to_epic',
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   description: 'Link one or more issues to an epic. Uses Agile API bulk move.',
   inputSchema: {
     type: 'object' as const,
@@ -399,6 +408,7 @@ export const AddIssuesToEpicTool = defineTool({
 
 export const RemoveIssueFromEpicTool = defineTool({
   name: 'jira_remove_issue_from_epic',
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   description: 'Remove issues from their current epic (unlink).',
   inputSchema: {
     type: 'object' as const,
@@ -416,6 +426,7 @@ export const RemoveIssueFromEpicTool = defineTool({
 
 export const CreateEpicTool = defineTool({
   name: 'jira_create_epic',
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
   description: 'Create a new epic. Convenience wrapper that sets issueType to Epic.',
   inputSchema: {
     type: 'object' as const,
@@ -480,6 +491,7 @@ export async function handleDeleteSprint(a: ToolArgs): Promise<ToolResponse> {
 
 export const CreateSprintTool = defineTool({
   name: 'jira_create_sprint',
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
   description: 'Create a sprint on a Scrum board. A new sprint starts in the "future" state; use jira_update_sprint with state "active" to start it. Board ids come from jira_list_boards.',
   inputSchema: {
     type: 'object' as const,
@@ -497,6 +509,7 @@ export const CreateSprintTool = defineTool({
 
 export const UpdateSprintTool = defineTool({
   name: 'jira_update_sprint',
+  annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
   description: 'Update a sprint: rename it, set the goal or dates, or move it through the workflow with state ("future" -> "active" -> "closed"). Starting a sprint requires startDate and endDate to be set. Closing a sprint moves unfinished issues to the backlog in Jira, so confirm before setting state to "closed".',
   inputSchema: {
     type: 'object' as const,
@@ -515,6 +528,7 @@ export const UpdateSprintTool = defineTool({
 
 export const DeleteSprintTool = defineTool({
   name: 'jira_delete_sprint',
+  annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
   description: 'Permanently delete a sprint. Issues in it are moved to the backlog. This cannot be undone -- confirm with the user first.',
   inputSchema: {
     type: 'object' as const,
@@ -570,6 +584,7 @@ export async function handleMoveToBacklog(a: ToolArgs): Promise<ToolResponse> {
 
 export const RankIssuesTool = defineTool({
   name: 'jira_rank_issues',
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   description: 'Reorder issues in the backlog or on a board by placing them before or after a reference issue. This is what changes the order sprint planning reads as priority.',
   inputSchema: {
     type: 'object' as const,
@@ -585,6 +600,7 @@ export const RankIssuesTool = defineTool({
 
 export const MoveToBacklogTool = defineTool({
   name: 'jira_move_to_backlog',
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   description: 'Move issues out of their sprint and back to the backlog. The inverse of jira_move_to_sprint.',
   inputSchema: {
     type: 'object' as const,

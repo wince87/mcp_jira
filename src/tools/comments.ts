@@ -72,6 +72,7 @@ export async function handleGetComments(a: ToolArgs): Promise<ToolResponse> {
 
 export const AddCommentTool = defineTool({
   name: 'jira_add_comment',
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
   description: 'Add a comment to a Jira issue. Supports standard Markdown, automatically converted to ADF.',
   inputSchema: {
     type: 'object' as const,
@@ -88,6 +89,7 @@ export const AddCommentTool = defineTool({
 
 export const UpdateCommentTool = defineTool({
   name: 'jira_update_comment',
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   description: 'Update an existing comment on a Jira issue. Supports standard Markdown, automatically converted to ADF.',
   inputSchema: {
     type: 'object' as const,
@@ -105,6 +107,7 @@ export const UpdateCommentTool = defineTool({
 
 export const DeleteCommentTool = defineTool({
   name: 'jira_delete_comment',
+  annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
   description: 'Delete a comment from a Jira issue.',
   inputSchema: {
     type: 'object' as const,
@@ -119,6 +122,7 @@ export const DeleteCommentTool = defineTool({
 
 export const GetCommentsTool = defineTool({
   name: 'jira_get_comments',
+  annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   description: 'Get comments from a Jira issue.',
   inputSchema: {
     type: 'object' as const,

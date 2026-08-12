@@ -94,6 +94,7 @@ export async function handleViewAttachment(a: ToolArgs): Promise<ToolResponse> {
 
 export const GetAttachmentsTool = defineTool({
   name: 'jira_get_attachments',
+  annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   description: 'Get list of attachments on a Jira issue.',
   inputSchema: {
     type: 'object' as const,
@@ -107,6 +108,7 @@ export const GetAttachmentsTool = defineTool({
 
 export const AddAttachmentTool = defineTool({
   name: 'jira_add_attachment',
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
   description: 'Attach a local file to a Jira issue.',
   inputSchema: {
     type: 'object' as const,
@@ -121,6 +123,7 @@ export const AddAttachmentTool = defineTool({
 
 export const DownloadAttachmentTool = defineTool({
   name: 'jira_download_attachment',
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   description: 'Download an attachment from Jira to a local file. Destination path must be within cwd or user home.',
   inputSchema: {
     type: 'object' as const,
@@ -135,6 +138,7 @@ export const DownloadAttachmentTool = defineTool({
 
 export const ViewAttachmentTool = defineTool({
   name: 'jira_view_attachment',
+  annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   description: 'Fetch an image attachment and return it inline so the model can see it (no file written). Image attachments only (mimeType image/*), capped at 5MB. For non-images or larger files use jira_download_attachment. Get the attachmentId from jira_get_attachments.',
   inputSchema: {
     type: 'object' as const,
@@ -154,6 +158,7 @@ export async function handleDeleteAttachment(a: ToolArgs): Promise<ToolResponse>
 
 export const DeleteAttachmentTool = defineTool({
   name: 'jira_delete_attachment',
+  annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
   description: 'Permanently delete an attachment. Attachment ids come from jira_get_attachments. This cannot be undone — confirm with the user first.',
   inputSchema: {
     type: 'object' as const,

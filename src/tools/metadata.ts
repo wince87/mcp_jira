@@ -60,6 +60,7 @@ export async function handleGetLinkTypes(_a: ToolArgs): Promise<ToolResponse> {
 
 export const GetFieldsTool = defineTool({
   name: 'jira_get_fields',
+  annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   description: 'Get all available Jira fields. Useful for finding custom field IDs.',
   inputSchema: { type: 'object' as const, properties: {} },
   handler: handleGetFields,
@@ -67,6 +68,7 @@ export const GetFieldsTool = defineTool({
 
 export const GetIssueTypesTool = defineTool({
   name: 'jira_get_issue_types',
+  annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   description: 'Get all available issue types for a project. Names are rendered in the Jira account language — prefer the id when passing a type on. For the fields a given type requires, call jira_get_create_fields.',
   inputSchema: {
     type: 'object' as const,
@@ -79,6 +81,7 @@ export const GetIssueTypesTool = defineTool({
 
 export const GetCreateFieldsTool = defineTool({
   name: 'jira_get_create_fields',
+  annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   description: 'Get the create screen definition for one issue type: every field with fieldId, name, required, type and allowedValues, plus a requiredFields shortlist. This is the second createmeta step (jira_get_issue_types is the first) and it is what tells you which fields are mandatory and which values they accept. Call it before jira_create_issue on an unfamiliar project or issue type instead of guessing.',
   inputSchema: {
     type: 'object' as const,
@@ -93,6 +96,7 @@ export const GetCreateFieldsTool = defineTool({
 
 export const GetPrioritiesTool = defineTool({
   name: 'jira_get_priorities',
+  annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   description: 'Get all available issue priorities. Returns id first: the name is rendered in the Jira account language and Jira only accepts the canonical English name or the id on create/update, so pass the id.',
   inputSchema: { type: 'object' as const, properties: {} },
   handler: handleGetPriorities,
@@ -100,6 +104,7 @@ export const GetPrioritiesTool = defineTool({
 
 export const GetLinkTypesTool = defineTool({
   name: 'jira_get_link_types',
+  annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   description: 'Get all available issue link types.',
   inputSchema: { type: 'object' as const, properties: {} },
   handler: handleGetLinkTypes,
@@ -169,6 +174,7 @@ export async function handleGetMyPermissions(a: ToolArgs): Promise<ToolResponse>
 
 export const GetProjectStatusesTool = defineTool({
   name: 'jira_get_project_statuses',
+  annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   description: 'Get every status available per issue type in a project, with its status category. Use it to write correct JQL and to know which statuses exist before trying to transition to one.',
   inputSchema: {
     type: 'object' as const,
@@ -181,6 +187,7 @@ export const GetProjectStatusesTool = defineTool({
 
 export const ListLabelsTool = defineTool({
   name: 'jira_list_labels',
+  annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   description: 'List labels that already exist in this Jira instance. Use it to reuse an existing label instead of inventing a near-duplicate.',
   inputSchema: {
     type: 'object' as const,
@@ -194,6 +201,7 @@ export const ListLabelsTool = defineTool({
 
 export const GetMyPermissionsTool = defineTool({
   name: 'jira_get_my_permissions',
+  annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   description: 'Check what the authenticated user is allowed to do, optionally scoped to a project or an issue. Call it before a bulk operation to fail early with a clear reason instead of collecting permission errors issue by issue.',
   inputSchema: {
     type: 'object' as const,

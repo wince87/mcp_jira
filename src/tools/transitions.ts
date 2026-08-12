@@ -32,6 +32,7 @@ export async function handleListTransitions(a: ToolArgs): Promise<ToolResponse> 
 
 export const ListTransitionsTool = defineTool({
   name: 'jira_list_transitions',
+  annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   description: 'Get available status transitions for a Jira issue. Each entry has the transition id and name plus the target status under "to" — a workflow can name a transition "Start work" while its target status is "In Progress". Set includeFields to also get the fields each transition screen accepts, with required flags and allowed values, for passing via jira_update_issue transitionFields.',
   inputSchema: {
     type: 'object' as const,

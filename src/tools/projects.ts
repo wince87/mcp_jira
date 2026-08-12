@@ -50,6 +50,7 @@ export async function handleGetProjectVersions(a: ToolArgs): Promise<ToolRespons
 
 export const GetProjectInfoTool = defineTool({
   name: 'jira_get_project_info',
+  annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   description: 'Get project information',
   inputSchema: {
     type: 'object' as const,
@@ -62,6 +63,7 @@ export const GetProjectInfoTool = defineTool({
 
 export const ListProjectsTool = defineTool({
   name: 'jira_list_projects',
+  annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   description: 'List all accessible Jira projects.',
   inputSchema: {
     type: 'object' as const,
@@ -76,6 +78,7 @@ export const ListProjectsTool = defineTool({
 
 export const GetProjectComponentsTool = defineTool({
   name: 'jira_get_project_components',
+  annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   description: 'Get components of a Jira project.',
   inputSchema: {
     type: 'object' as const,
@@ -88,6 +91,7 @@ export const GetProjectComponentsTool = defineTool({
 
 export const GetProjectVersionsTool = defineTool({
   name: 'jira_get_project_versions',
+  annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   description: 'Get versions (releases) of a Jira project.',
   inputSchema: {
     type: 'object' as const,
@@ -188,6 +192,7 @@ export async function handleDeleteComponent(a: ToolArgs): Promise<ToolResponse> 
 
 export const CreateVersionTool = defineTool({
   name: 'jira_create_version',
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
   description: 'Create a project version (release). Versions are what fixVersions and affects versions point at, so create one here instead of sending the user to the Jira UI.',
   inputSchema: {
     type: 'object' as const,
@@ -206,6 +211,7 @@ export const CreateVersionTool = defineTool({
 
 export const UpdateVersionTool = defineTool({
   name: 'jira_update_version',
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   description: 'Update a project version. Releasing a version is an update with released set to true (and usually a releaseDate), so there is no separate release tool. Version ids come from jira_get_project_versions.',
   inputSchema: {
     type: 'object' as const,
@@ -225,6 +231,7 @@ export const UpdateVersionTool = defineTool({
 
 export const DeleteVersionTool = defineTool({
   name: 'jira_delete_version',
+  annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
   description: 'Permanently delete a project version. Issues referencing it keep their other fields, but lose this version unless you pass a replacement. This cannot be undone -- confirm with the user first.',
   inputSchema: {
     type: 'object' as const,
@@ -240,6 +247,7 @@ export const DeleteVersionTool = defineTool({
 
 export const CreateComponentTool = defineTool({
   name: 'jira_create_component',
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
   description: 'Create a project component. Components are the values the components field accepts on create and update.',
   inputSchema: {
     type: 'object' as const,
@@ -257,6 +265,7 @@ export const CreateComponentTool = defineTool({
 
 export const UpdateComponentTool = defineTool({
   name: 'jira_update_component',
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   description: 'Update a project component. Component ids come from jira_get_project_components.',
   inputSchema: {
     type: 'object' as const,
@@ -274,6 +283,7 @@ export const UpdateComponentTool = defineTool({
 
 export const DeleteComponentTool = defineTool({
   name: 'jira_delete_component',
+  annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
   description: 'Permanently delete a project component. Pass moveIssuesTo to reassign its issues to another component, otherwise they simply lose it. This cannot be undone -- confirm with the user first.',
   inputSchema: {
     type: 'object' as const,

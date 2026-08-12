@@ -166,6 +166,7 @@ export async function handleBulkUpdateIssues(a: ToolArgs): Promise<ToolResponse>
 
 export const BulkUpdateIssuesTool = defineTool({
   name: 'jira_bulk_update_issues',
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   description: 'Apply the same field changes to many issues. Iterates client-side with a per-issue result, because Jira has no stable bulk edit endpoint. Use addLabels/removeLabels to adjust labels without destroying the ones already there; the labels argument replaces the whole list on every issue.',
   inputSchema: {
     type: 'object' as const,
@@ -185,6 +186,7 @@ export const BulkUpdateIssuesTool = defineTool({
 
 export const BulkCreateIssuesTool = defineTool({
   name: 'jira_bulk_create_issues',
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
   description: 'Create multiple Jira issues at once. Descriptions support Markdown, automatically converted to ADF.',
   inputSchema: {
     type: 'object' as const,
@@ -215,6 +217,7 @@ export const BulkCreateIssuesTool = defineTool({
 
 export const BulkTransitionIssuesTool = defineTool({
   name: 'jira_bulk_transition_issues',
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
   description: 'Apply the same status transition to multiple issues. Iterates client-side; failures are collected per issue and returned. status is matched against each transition target status first, then transition names, case-insensitively — so "In Progress" works even where the transition is called "Start work". Use transitionFields when the transition screen requires input.',
   inputSchema: {
     type: 'object' as const,
