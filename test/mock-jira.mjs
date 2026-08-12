@@ -337,6 +337,7 @@ const ROUTES = [
     return [201, { id: '10001', key: 'TEST-1', self: 'https://mock/rest/api/3/issue/10001' }];
   }],
   ['POST', '/rest/api/3/issueLink', () => [201, null]],
+  ['DELETE', '/rest/api/3/issueLink/:id', () => [204, null]],
 
   ['PUT', '/rest/api/3/issue/:key/assignee', () => [204, null]],
   ['PUT', '/rest/api/3/issue/:key/comment/:id', (p, q, body) => [200, {

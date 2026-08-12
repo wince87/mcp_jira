@@ -1,9 +1,10 @@
-import type { JiraField, JiraIssue, JiraIssueFields, JiraUser } from './types.js';
+import type { JiraField, JiraIssue, JiraIssueFields, JiraIssueLink, JiraUser } from './types.js';
 import { jiraApi } from './http.js';
 import { STORY_POINTS_FIELD } from './config.js';
 import { adfToText } from './adf.js';
 import { createIssueUrl } from './responses.js';
 import { fetchFieldIndex } from './meta.js';
+import { validateFieldSelection } from './validation.js';
 
 export function namesOf(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
@@ -53,6 +54,26 @@ export function mapIssueSummary(issue: JiraIssue): Record<string, unknown> {
   };
 }
 
+export function mapIssueLinks(value: unknown): Record<string, unknown>[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((raw) => {
+    const link = raw as JiraIssueLink;
+    const outward = link.outwardIssue;
+    const other = outward ?? link.inwardIssue;
+    if (!other?.key) return [];
+    return [{
+      id: link.id,
+      type: link.type?.name,
+      direction: outward ? 'outward' : 'inward',
+      relation: outward ? link.type?.outward : link.type?.inward,
+      key: other.key,
+      summary: other.fields?.summary,
+      status: other.fields?.status?.name,
+      url: createIssueUrl(other.key),
+    }];
+  });
+}
+
 export function mapIssue(data: { key: string; fields?: JiraIssueFields }): Record<string, unknown> {
   const f = data.fields ?? {};
   return {
@@ -72,6 +93,7 @@ export function mapIssue(data: { key: string; fields?: JiraIssueFields }): Recor
     components: namesOf(f.components),
     versions: namesOf(f.versions),
     fixVersions: namesOf(f.fixVersions),
+    links: mapIssueLinks(f.issuelinks),
     dueDate: f.duedate ?? null,
     timetracking: f.timetracking ?? null,
     created: f.created,
@@ -108,4 +130,38 @@ export async function issueSnapshot(issueKey: string): Promise<Record<string, un
   } catch {
     return null;
   }
+}
+
+export interface IssueListOptions {
+  selection: string[] | null;
+  includeCustomFields: boolean;
+}
+
+export function readIssueListOptions(a: Record<string, unknown>): IssueListOptions {
+  return {
+    selection: a.fields !== undefined && a.fields !== null ? validateFieldSelection(a.fields) : null,
+    includeCustomFields: a.includeCustomFields === true,
+  };
+}
+
+export function issueListFieldsParam(options: IssueListOptions): string {
+  if (options.selection) return options.selection.join(',');
+  return options.includeCustomFields ? '*all' : ISSUE_LIST_FIELDS;
+}
+
+export async function mapIssueList(issues: JiraIssue[], options: IssueListOptions): Promise<Record<string, unknown>[]> {
+  const mapped = issues.map(issue => (options.selection
+    ? {
+      key: issue.key,
+      url: createIssueUrl(issue.key),
+      fields: Object.fromEntries(Object.entries(issue.fields ?? {}).map(([id, value]) => [id, simplifyFieldValue(value)])),
+    }
+    : mapIssueSummary(issue)));
+
+  if (!options.includeCustomFields) return mapped;
+
+  for (let i = 0; i < mapped.length; i++) {
+    mapped[i].customFields = await mapCustomFields(issues[i].fields ?? {});
+  }
+  return mapped;
 }

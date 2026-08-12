@@ -797,6 +797,24 @@
     "outputSchema": null
   },
   {
+    "name": "jira_delete_issue_link",
+    "description": "Remove a link between two issues. The linkId comes from the links array returned by jira_get_issue, not from the issue keys.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "linkId": {
+          "type": "string",
+          "description": "Link ID from jira_get_issue links[].id"
+        }
+      },
+      "required": [
+        "linkId"
+      ]
+    },
+    "annotations": null,
+    "outputSchema": null
+  },
+  {
     "name": "jira_delete_worklog",
     "description": "Delete a worklog entry from a Jira issue. Permanent.",
     "inputSchema": {
@@ -985,6 +1003,18 @@
         "epicKey": {
           "type": "string",
           "description": "Epic issue key (e.g., PROJ-100)"
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Exact field IDs to return per issue, e.g. [\"summary\", \"customfield_10122\"] or [\"*all\"]. When set, each item returns a raw fields map instead of the default shape."
+        },
+        "includeCustomFields": {
+          "type": "boolean",
+          "description": "Add a customFields map (id -> { name, type, value }) to every issue. Rich-text fields render as Markdown. Requests all fields, so prefer an explicit fields list on large result sets.",
+          "default": false
         }
       },
       "required": [
@@ -1012,6 +1042,18 @@
         "startAt": {
           "type": "number",
           "description": "Zero-based index of the first item to return. Use it with the returned startAt/total/hasMore to page beyond the first batch."
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Exact field IDs to return per issue, e.g. [\"summary\", \"customfield_10122\"] or [\"*all\"]. When set, each item returns a raw fields map instead of the default shape."
+        },
+        "includeCustomFields": {
+          "type": "boolean",
+          "description": "Add a customFields map (id -> { name, type, value }) to every issue. Rich-text fields render as Markdown. Requests all fields, so prefer an explicit fields list on large result sets.",
+          "default": false
         }
       },
       "required": [
@@ -1193,6 +1235,18 @@
         "startAt": {
           "type": "number",
           "description": "Zero-based index of the first item to return. Use it with the returned startAt/total/hasMore to page beyond the first batch."
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Exact field IDs to return per issue, e.g. [\"summary\", \"customfield_10122\"] or [\"*all\"]. When set, each item returns a raw fields map instead of the default shape."
+        },
+        "includeCustomFields": {
+          "type": "boolean",
+          "description": "Add a customFields map (id -> { name, type, value }) to every issue. Rich-text fields render as Markdown. Requests all fields, so prefer an explicit fields list on large result sets.",
+          "default": false
         }
       },
       "required": [
@@ -1224,6 +1278,18 @@
         "status": {
           "type": "string",
           "description": "Filter by status (e.g., \"In Progress\")"
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Exact field IDs to return per issue, e.g. [\"summary\", \"customfield_10122\"] or [\"*all\"]. When set, each item returns a raw fields map instead of the default shape."
+        },
+        "includeCustomFields": {
+          "type": "boolean",
+          "description": "Add a customFields map (id -> { name, type, value }) to every issue. Rich-text fields render as Markdown. Requests all fields, so prefer an explicit fields list on large result sets.",
+          "default": false
         }
       },
       "required": [
@@ -1351,6 +1417,18 @@
         "nextPageToken": {
           "type": "string",
           "description": "Pagination token from previous response"
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Exact field IDs to return per epic, e.g. [\"summary\", \"customfield_10122\"] or [\"*all\"]. When set, each item returns a raw fields map instead of the default shape."
+        },
+        "includeCustomFields": {
+          "type": "boolean",
+          "description": "Add a customFields map (id -> { name, type, value }) to every epic. Rich-text fields render as Markdown.",
+          "default": false
         }
       }
     },
@@ -1552,6 +1630,18 @@
         "nextPageToken": {
           "type": "string",
           "description": "Pagination token from previous response"
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Exact field IDs to return per issue, e.g. [\"summary\", \"customfield_10122\"] or [\"*all\"]. When set, each item returns a raw fields map instead of the default shape."
+        },
+        "includeCustomFields": {
+          "type": "boolean",
+          "description": "Add a customFields map (id -> { name, type, value }) to every issue. Rich-text fields render as Markdown. Requests all fields, so prefer an explicit fields list on large result sets.",
+          "default": false
         }
       },
       "required": [
@@ -1579,6 +1669,25 @@
           "type": "number",
           "description": "Maximum number of results (1-100)",
           "default": 50
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Exact field IDs to return per issue, e.g. [\"summary\", \"customfield_10122\"] or [\"*all\"]. When set, each item returns a raw fields map instead of the default shape."
+        },
+        "includeCustomFields": {
+          "type": "boolean",
+          "description": "Add a customFields map (id -> { name, type, value }) to every issue. Rich-text fields render as Markdown. Requests all fields, so prefer an explicit fields list on large result sets.",
+          "default": false
+        },
+        "expand": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Jira expand names, e.g. [\"changelog\", \"renderedFields\"]."
         }
       },
       "required": [

@@ -44,6 +44,7 @@ const CASES = [
   ['jira_update_comment', { issueKey: 'TEST-1', commentId: '30001', comment: 'Edited' }],
   ['jira_delete_comment', { issueKey: 'TEST-1', commentId: '30001' }],
   ['jira_link_issues', { inwardIssue: 'TEST-1', outwardIssue: 'TEST-2', linkType: 'Blocks' }],
+  ['jira_delete_issue_link', { linkId: '20001' }],
   ['jira_get_project_info', { projectKey: 'TEST' }],
   ['jira_delete_issue', { issueKey: 'TEST-2' }],
   ['jira_create_subtask', { parentKey: 'TEST-1', summary: 'Subtask', description: 'Do the thing' }],
@@ -144,9 +145,44 @@ test('stdout carries JSON-RPC only', () => {
 
 test('every tool declaration carries a handler and a unique name', async () => {
   const { tools } = await server.listTools();
-  assert.equal(tools.length, 54, 'tool count changed; update this number deliberately');
+  assert.equal(tools.length, 55, 'tool count changed; update this number deliberately');
   for (const tool of tools) {
     assert.ok(tool.description && tool.description.length > 20, `${tool.name} needs a real description`);
     assert.equal(tool.inputSchema.type, 'object', `${tool.name} must take an object`);
   }
+});
+
+test('field selection reaches Jira and reshapes every list tool the same way', async () => {
+  for (const [tool, args] of [
+    ['jira_search_issues', { jql: 'project = TEST' }],
+    ['jira_get_user_issues', { accountId: '5b10a2844c20165700ede21g' }],
+    ['jira_get_sprint', { sprintId: 10 }],
+    ['jira_get_epic_issues', { epicKey: 'TEST-100' }],
+    ['jira_search_by_filter', { filterId: '1000' }],
+    ['jira_list_epics', { projectKey: 'TEST' }],
+  ]) {
+    mock.reset();
+    const result = await server.call(tool, { ...args, fields: ['summary', 'versions'] });
+    const items = result.data.issues ?? result.data.epics;
+    assert.ok(items?.[0]?.fields, `${tool} must return a raw fields map when fields is given`);
+    assert.equal(typeof items[0].fields.summary, 'string', `${tool} returned the wrong shape`);
+    assert.equal(items[0].summary, undefined, `${tool} must not mix both shapes`);
+    const search = mock.requests.find(r => r.query?.fields);
+    assert.equal(search.query.fields, 'summary,versions', `${tool} must forward the field list to Jira`);
+  }
+});
+
+test('includeCustomFields resolves ids to names on every list tool', async () => {
+  const result = await server.call('jira_search_issues', { jql: 'project = TEST', includeCustomFields: true });
+  assert.equal(result.data.issues[0].customFields.customfield_10500.name, 'For QA');
+  assert.equal(result.data.issues[0].customFields.customfield_10500.value, 'QA notes');
+  const search = mock.requests.find(r => r.path === '/rest/api/3/search/jql');
+  assert.equal(search.query.fields, '*all', 'custom fields can only be mapped if they were requested');
+});
+
+test('expand is forwarded and validated', async () => {
+  await server.call('jira_search_issues', { jql: 'project = TEST', expand: ['changelog'] });
+  assert.equal(mock.requests[0].query.expand, 'changelog');
+  const bad = await server.call('jira_search_issues', { jql: 'project = TEST', expand: ['drop table'] });
+  assert.equal(bad.isError, true);
 });

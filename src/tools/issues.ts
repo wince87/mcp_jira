@@ -11,7 +11,7 @@ import {
   isImageMime, resolveProjectKey,
 } from '../responses.js';
 import {
-  sanitizeString, validateAccountId, validateFieldMap, validateIssueKey, validateProjectKey, validateSafeParam,
+  sanitizeString, validateAccountId, validateFieldMap, validateIssueKey, validateProjectKey, validateSafeParam, validateFieldSelection,
 } from '../validation.js';
 import {
   applyOptionalFields, convertDocFields, dryRunResult, fetchIssueTypes, postIssue, putIssue,
@@ -53,21 +53,6 @@ export async function handleCreateIssue(a: ToolArgs): Promise<ToolResponse> {
   });
 }
 
-export function validateFieldSelection(input: unknown): string[] {
-  if (!Array.isArray(input) || input.length === 0) {
-    throw new Error('fields must be a non-empty array of field IDs (e.g. ["summary", "customfield_10122"] or ["*all"])');
-  }
-  if (input.length > 50) {
-    throw new Error('fields accepts at most 50 entries');
-  }
-  return input.map((item, index) => {
-    const value = sanitizeString(item, 64, `fields[${index}]`);
-    if (!/^[*a-zA-Z0-9_-]+$/.test(value)) {
-      throw new Error(`Invalid field ID "${value}": use plain field IDs like "summary", "customfield_10122", "*all"`);
-    }
-    return value;
-  });
-}
 
 export async function handleGetIssue(a: ToolArgs): Promise<ToolResponse> {
   const issueKey = validateIssueKey(a.issueKey);
@@ -397,6 +382,25 @@ export const UpdateIssueTool = defineTool({
   handler: handleUpdateIssue,
 });
 
+export async function handleDeleteIssueLink(a: ToolArgs): Promise<ToolResponse> {
+  const linkId = validateSafeParam(a.linkId, 'linkId', 30);
+  await jiraApi.delete(`/issueLink/${linkId}`);
+  return createSuccessResponse({ success: true, message: `Issue link ${linkId} deleted` });
+}
+
+export const DeleteIssueLinkTool = defineTool({
+  name: 'jira_delete_issue_link',
+  description: 'Remove a link between two issues. The linkId comes from the links array returned by jira_get_issue, not from the issue keys.',
+  inputSchema: {
+    type: 'object' as const,
+    properties: {
+      linkId: { type: 'string', description: 'Link ID from jira_get_issue links[].id' },
+    },
+    required: ['linkId'],
+  },
+  handler: handleDeleteIssueLink,
+});
+
 export const LinkIssuesTool = defineTool({
   name: 'jira_link_issues',
   description: 'Create a link between two issues. The inward side uses the linkType.inward phrasing ("is blocked by", "duplicates"), the outward side uses linkType.outward ("blocks", "is duplicated by"). If unsure which linkType names exist in this instance, call jira_get_link_types. Call sequentially (2-3 at a time) to avoid permission prompt storms in Claude Code.',
@@ -500,6 +504,7 @@ export const ISSUES_TOOLS = [
   GetIssueTool,
   UpdateIssueTool,
   LinkIssuesTool,
+  DeleteIssueLinkTool,
   DeleteIssueTool,
   CreateSubtaskTool,
   AssignIssueTool,

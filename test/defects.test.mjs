@@ -54,11 +54,22 @@ test('B1: bulk transition accepts transition screen fields', async () => {
   assert.equal(result.data.successCount, 1, 'a transition screen requiring an estimate must be satisfiable');
 });
 
-test('B2: get_issue returns issue links', { todo: 'fixed in phase 3.4' }, async () => {
+test('B2: get_issue returns issue links the dependency-map prompt can walk', async () => {
   const result = await server.call('jira_get_issue', { issueKey: 'TEST-1' });
   assert.ok(Array.isArray(result.data.links), 'jira-dependency-map prompt depends on links being returned');
-  assert.equal(result.data.links[0].key, 'TEST-2');
-  assert.equal(result.data.links[0].direction, 'inward');
+  const link = result.data.links[0];
+  assert.equal(link.key, 'TEST-2');
+  assert.equal(link.direction, 'inward');
+  assert.equal(link.relation, 'is blocked by', 'the phrasing must be from this issue\'s point of view');
+  assert.equal(link.type, 'Blocks');
+  assert.equal(link.id, '20001', 'the link id is what jira_delete_issue_link needs');
+  assert.equal(link.summary, 'Blocker');
+  assert.equal(link.status, 'In Progress');
+});
+
+test('an issue with no links reports an empty list, not undefined', async () => {
+  const result = await server.call('jira_get_issue', { issueKey: 'TEST-2' });
+  assert.deepStrictEqual(result.data.links, []);
 });
 
 test('B3: assignee has one shape across every list tool', async () => {

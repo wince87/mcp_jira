@@ -87,6 +87,19 @@ export interface JiraIssue {
   fields: JiraIssueFields;
 }
 
+export interface JiraLinkedIssue {
+  id?: string;
+  key?: string;
+  fields?: { summary?: string; status?: JiraStatus };
+}
+
+export interface JiraIssueLink {
+  id?: string;
+  type?: { id?: string; name?: string; inward?: string; outward?: string };
+  inwardIssue?: JiraLinkedIssue;
+  outwardIssue?: JiraLinkedIssue;
+}
+
 export interface JiraComment {
   id?: string;
   author?: JiraUser;

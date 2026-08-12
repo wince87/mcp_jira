@@ -36,6 +36,18 @@
       "fixVersions": [
         "1.1"
       ],
+      "links": [
+        {
+          "id": "20001",
+          "type": "Blocks",
+          "direction": "inward",
+          "relation": "is blocked by",
+          "key": "TEST-2",
+          "summary": "Blocker",
+          "status": "In Progress",
+          "url": "https://jira.test/browse/TEST-2"
+        }
+      ],
       "dueDate": "2026-09-01",
       "timetracking": {
         "originalEstimate": "3h",

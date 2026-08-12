@@ -182,3 +182,32 @@ export function validateAttachmentPath(filePath: string): string {
   }
   return absolutePath;
 }
+
+export function validateFieldSelection(input: unknown): string[] {
+  if (!Array.isArray(input) || input.length === 0) {
+    throw new Error('fields must be a non-empty array of field IDs (e.g. ["summary", "customfield_10122"] or ["*all"])');
+  }
+  if (input.length > 50) {
+    throw new Error('fields accepts at most 50 entries');
+  }
+  return input.map((item, index) => {
+    const value = sanitizeString(item, 64, `fields[${index}]`);
+    if (!/^[*a-zA-Z0-9_-]+$/.test(value)) {
+      throw new Error(`Invalid field ID "${value}": use plain field IDs like "summary", "customfield_10122", "*all"`);
+    }
+    return value;
+  });
+}
+
+export function validateExpandList(input: unknown): string[] {
+  if (!Array.isArray(input) || input.length === 0) {
+    throw new Error('expand must be a non-empty array of expand names (e.g. ["changelog", "renderedFields"])');
+  }
+  return input.map((item, index) => {
+    const value = sanitizeString(item, 40, `expand[${index}]`);
+    if (!/^[a-zA-Z.]+$/.test(value)) {
+      throw new Error(`Invalid expand value "${value}"`);
+    }
+    return value;
+  });
+}

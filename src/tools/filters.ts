@@ -1,7 +1,7 @@
 import type { JiraIssue, ToolArgs, ToolResponse } from '../types.js';
 import { jiraApi } from '../http.js';
 import { offsetPage, offsetParams, readMaxResults, readPageToken, tokenPage } from '../args.js';
-import { ISSUE_LIST_FIELDS, mapIssueSummary } from '../mappers.js';
+import { ISSUE_LIST_FIELDS, issueListFieldsParam, mapIssueList, mapIssueSummary, readIssueListOptions } from '../mappers.js';
 import { createSuccessResponse } from '../responses.js';
 import { sanitizeString, validateAccountId, validateSafeParam } from '../validation.js';
 import { defineTool } from '../registry.js';
@@ -59,7 +59,8 @@ export async function handleSearchByFilter(a: ToolArgs): Promise<ToolResponse> {
   const jql: string = filterResponse.data.jql;
   if (!jql || typeof jql !== 'string') throw new Error(`Filter ${filterId} has no JQL`);
 
-  const params: Record<string, unknown> = { jql, maxResults: readMaxResults(a), fields: ISSUE_LIST_FIELDS };
+  const options = readIssueListOptions(a);
+  const params: Record<string, unknown> = { jql, maxResults: readMaxResults(a), fields: issueListFieldsParam(options) };
   const pageToken = readPageToken(a);
   if (pageToken) params.nextPageToken = pageToken;
 
@@ -71,7 +72,7 @@ export async function handleSearchByFilter(a: ToolArgs): Promise<ToolResponse> {
     filterName: filterResponse.data.name,
     jql,
     ...tokenPage(response.data, issues.length),
-    issues: issues.map(mapIssueSummary),
+    issues: await mapIssueList(issues, options),
   });
 }
 
@@ -112,6 +113,8 @@ export const SearchByFilterTool = defineTool({
       filterId: { type: 'string', description: 'Numeric filter ID' },
       maxResults: { type: 'number', description: 'Maximum results (1-100)', default: 50 },
       nextPageToken: { type: 'string', description: 'Pagination token from previous response' },
+      fields: { type: 'array', items: { type: 'string' }, description: 'Exact field IDs to return per issue, e.g. ["summary", "customfield_10122"] or ["*all"]. When set, each item returns a raw fields map instead of the default shape.' },
+      includeCustomFields: { type: 'boolean', description: 'Add a customFields map (id -> { name, type, value }) to every issue. Rich-text fields render as Markdown. Requests all fields, so prefer an explicit fields list on large result sets.', default: false },
     },
     required: ['filterId'],
   },

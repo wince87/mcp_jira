@@ -1,7 +1,7 @@
 import type { JiraBoard, JiraIssue, JiraSprint, ToolArgs, ToolResponse } from '../types.js';
 import { agileApi, jiraApi } from '../http.js';
 import { numericId, offsetPage, offsetParams, present, readMaxResults, readPageToken, tokenPage } from '../args.js';
-import { ISSUE_LIST_FIELDS, issueSnapshot, mapIssueSummary } from '../mappers.js';
+import { ISSUE_LIST_FIELDS, issueListFieldsParam, issueSnapshot, mapIssueList, mapIssueSummary, readIssueListOptions } from '../mappers.js';
 import { buildJql, equalsClause } from '../jql.js';
 import { createADFDocument } from '../adf.js';
 import { createIssueUrl, createSuccessResponse, resolveProjectKey } from '../responses.js';
@@ -58,11 +58,12 @@ export async function handleListSprints(a: ToolArgs): Promise<ToolResponse> {
 
 export async function handleGetSprint(a: ToolArgs): Promise<ToolResponse> {
   const sprintId = numericId(a.sprintId, 'sprintId');
+  const options = readIssueListOptions(a);
 
   const [sprintRes, issuesRes] = await Promise.all([
     agileApi.get(`/sprint/${sprintId}`),
     agileApi.get(`/sprint/${sprintId}/issue`, {
-      params: { ...offsetParams(a), fields: ISSUE_LIST_FIELDS },
+      params: { ...offsetParams(a), fields: issueListFieldsParam(options) },
     }),
   ]);
 
@@ -75,7 +76,7 @@ export async function handleGetSprint(a: ToolArgs): Promise<ToolResponse> {
     endDate: sprintRes.data.endDate,
     goal: sprintRes.data.goal,
     ...offsetPage(issuesRes.data, sprintIssues.length, offsetParams(a)),
-    issues: sprintIssues.map(mapIssueSummary),
+    issues: await mapIssueList(sprintIssues, options),
   });
 }
 
@@ -108,7 +109,8 @@ export async function handleListEpics(a: ToolArgs): Promise<ToolResponse> {
     orderBy: 'created DESC',
   });
 
-  const params: Record<string, unknown> = { jql, maxResults: readMaxResults(a), fields: ISSUE_LIST_FIELDS };
+  const options = readIssueListOptions(a);
+  const params: Record<string, unknown> = { jql, maxResults: readMaxResults(a), fields: issueListFieldsParam(options) };
   const pageToken = readPageToken(a);
   if (pageToken) params.nextPageToken = pageToken;
 
@@ -117,7 +119,7 @@ export async function handleListEpics(a: ToolArgs): Promise<ToolResponse> {
 
   return createSuccessResponse({
     ...tokenPage(response.data, epics.length),
-    epics: epics.map(mapIssueSummary),
+    epics: await mapIssueList(epics, options),
   });
 }
 
@@ -139,9 +141,10 @@ export async function handleGetEpic(a: ToolArgs): Promise<ToolResponse> {
 
 export async function handleGetEpicIssues(a: ToolArgs): Promise<ToolResponse> {
   const epicKey = validateIssueKey(a.epicKey);
+  const options = readIssueListOptions(a);
 
   const response = await agileApi.get(`/epic/${epicKey}/issue`, {
-    params: { ...offsetParams(a), fields: ISSUE_LIST_FIELDS },
+    params: { ...offsetParams(a), fields: issueListFieldsParam(options) },
   });
 
   const issues: JiraIssue[] = response.data.issues ?? [];
@@ -155,7 +158,7 @@ export async function handleGetEpicIssues(a: ToolArgs): Promise<ToolResponse> {
     done,
     inProgress,
     todo,
-    issues: issues.map(mapIssueSummary),
+    issues: await mapIssueList(issues, options),
   });
 }
 
@@ -297,6 +300,8 @@ export const GetSprintTool = defineTool({
       sprintId: { type: 'number', description: 'Sprint ID (use jira_list_sprints to find it)' },
       maxResults: { type: 'number', description: 'Maximum number of issues (1-100)', default: 50 },
       startAt: { type: 'number', description: 'Zero-based index of the first item to return. Use it with the returned startAt/total/hasMore to page beyond the first batch.' },
+      fields: { type: 'array', items: { type: 'string' }, description: 'Exact field IDs to return per issue, e.g. ["summary", "customfield_10122"] or ["*all"]. When set, each item returns a raw fields map instead of the default shape.' },
+      includeCustomFields: { type: 'boolean', description: 'Add a customFields map (id -> { name, type, value }) to every issue. Rich-text fields render as Markdown. Requests all fields, so prefer an explicit fields list on large result sets.', default: false },
     },
     required: ['sprintId'],
   },
@@ -327,6 +332,8 @@ export const ListEpicsTool = defineTool({
       status: { type: 'string', description: 'Filter by status name (e.g., "In Progress", "Done")' },
       maxResults: { type: 'number', description: 'Maximum results (1-100)', default: 50 },
       nextPageToken: { type: 'string', description: 'Pagination token from previous response' },
+      fields: { type: 'array', items: { type: 'string' }, description: 'Exact field IDs to return per epic, e.g. ["summary", "customfield_10122"] or ["*all"]. When set, each item returns a raw fields map instead of the default shape.' },
+      includeCustomFields: { type: 'boolean', description: 'Add a customFields map (id -> { name, type, value }) to every epic. Rich-text fields render as Markdown.', default: false },
     },
   },
   handler: handleListEpics,
@@ -339,6 +346,8 @@ export const GetEpicTool = defineTool({
     type: 'object' as const,
     properties: {
       epicKey: { type: 'string', description: 'Epic issue key (e.g., PROJ-100)' },
+      fields: { type: 'array', items: { type: 'string' }, description: 'Exact field IDs to return per issue, e.g. ["summary", "customfield_10122"] or ["*all"]. When set, each item returns a raw fields map instead of the default shape.' },
+      includeCustomFields: { type: 'boolean', description: 'Add a customFields map (id -> { name, type, value }) to every issue. Rich-text fields render as Markdown. Requests all fields, so prefer an explicit fields list on large result sets.', default: false },
     },
     required: ['epicKey'],
   },
@@ -354,6 +363,8 @@ export const GetEpicIssuesTool = defineTool({
       epicKey: { type: 'string', description: 'Epic issue key' },
       maxResults: { type: 'number', description: 'Maximum results (1-100)', default: 50 },
       startAt: { type: 'number', description: 'Zero-based index of the first item to return. Use it with the returned startAt/total/hasMore to page beyond the first batch.' },
+      fields: { type: 'array', items: { type: 'string' }, description: 'Exact field IDs to return per issue, e.g. ["summary", "customfield_10122"] or ["*all"]. When set, each item returns a raw fields map instead of the default shape.' },
+      includeCustomFields: { type: 'boolean', description: 'Add a customFields map (id -> { name, type, value }) to every issue. Rich-text fields render as Markdown. Requests all fields, so prefer an explicit fields list on large result sets.', default: false },
     },
     required: ['epicKey'],
   },
