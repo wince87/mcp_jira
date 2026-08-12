@@ -157,34 +157,43 @@ resolution surprises for npx, easier to audit"). Після цього релі�
 
 Пастка Node16: відносні імпорти пишуться з `.js`, хоча джерела `.ts`.
 
-### 1.1 Реєстр інструментів (закриває R9, вмикає Фазу 4)
+### 1.1 Реєстр інструментів (закриває R9, вмикає Фазу 4) — ГОТОВО
 
-- [ ] `defineTool({ name, description, annotations, inputSchema, outputSchema, handler })`
-- [ ] `tools/list` і диспетчер `tools/call` виводяться з одного масиву
-- [ ] Додати інструмент = один об'єкт в одному місці замість трьох правок
+- [x] `defineTool({ name, description, annotations, inputSchema, handler })`, `tools/definitions.ts` видалено
+- [x] `tools/list` і диспетчер `tools/call` виводяться з одного масиву
+- [x] `handlerMap` кидає на дубльоване ім'я інструмента
+- [x] Знімок `tools/list` не змінився — доказ, що перенос точний
+- [x] Тест на кількість інструментів, тип схеми і непорожній опис
 
-### 1.2 Транспортний шар (готує Фазу 2)
+### 1.2 Транспортний шар (готує Фазу 2) — ГОТОВО
 
-- [ ] Усі виклики йдуть через `get/post/put/del` — єдина точка для ретраїв, пагінації, заголовків
-- [ ] `JiraClient` як інтерфейс, щоб тести могли підмінити транспорт без HTTP
+- [x] `createClient()` — одна точка створення обох клієнтів; `clients[]` для навішування ретраю
+- [x] `JIRA_TIMEOUT_MS`, `JIRA_MAX_RETRIES`, `JIRA_FORCE_ENGLISH`
+- [x] Відхилення від плану: замість переписування ~100 місць виклику на обгортки
+      `get/post/put/del` — перехоплювачі axios. Та сама єдина точка для ретраїв і
+      заголовків, без churn у кожному хендлері. Підміна транспорту в тестах уже
+      вирішена HTTPS-моком, тож інтерфейс `JiraClient` не потрібен.
 
-### 1.3 Мапери (закриває R1, R2, R7, R8)
+### 1.3 Мапери (закриває R1, R2, B3, B4, R6) — ГОТОВО
 
-- [ ] `ISSUE_LIST_FIELDS` — одна константа замість 6 хардкодів
-- [ ] `mapIssueSummary()` — один мапер для списків, `mapIssue()` — для повної задачі
-- [ ] `mapUser`, `mapAttachment`, `mapWorklog`, `mapComment`, `mapFilter`, `mapSprint`, `mapBoard`, `mapVersion`, `mapComponent`
-- [ ] Локальні інтерфейси з тіл функцій переїжджають у типи
+- [x] `ISSUE_LIST_FIELDS` — одна константа замість 6 хардкодів у 4 варіантах
+- [x] `mapIssueSummary()` для списків, `mapIssue()` для повної задачі, `mapUser()` для людей
+- [x] Єдиний конверт пагінації `{returned, hasMore}` + `{startAt, total}` або `{nextPageToken}`
+- [x] `startAt` у 11 інструментах
+- [ ] `mapAttachment`, `mapWorklog`, `mapComment`, `mapFilter` — лишились дублі по 2 місця (R8)
+- [ ] Локальні інтерфейси з тіл функцій переїжджають у типи (R7)
 
-### 1.4 Хелпери аргументів (закриває R4, R5)
+### 1.4 Хелпери аргументів (закриває R4, R5) — ГОТОВО
 
-- [ ] `str/num/bool/arr/obj(a, 'name', opts)` замість `a.x !== undefined && a.x !== null`
-- [ ] `readPaging(a)` — один розбір `maxResults` / `startAt` / `nextPageToken`
-- [ ] `validateNumericId` для `boardId` / `sprintId` (зараз три ad-hoc перевірки `typeof !== 'number'`)
+- [x] `present()`, `readMaxResults()`, `readStartAt()`, `readPageToken()`, `optionalText()`
+- [x] `offsetParams` / `offsetPage` / `tokenPage` — один розбір і один конверт пагінації
+- [x] `numericId` для `boardId` / `sprintId` замість трьох ad-hoc перевірок
 
-### 1.5 JQL (закриває R3)
+### 1.5 JQL (закриває R3) — ГОТОВО
 
-- [ ] `jql.project(key).and.status(s).orderBy(...)` або простий `buildJql()` з єдиним екрануванням
-- [ ] Єдине місце, де взагалі відбувається екранування лапок
+- [x] `buildJql()` / `equalsClause()` / `quoteJqlValue()` — єдине місце екранування
+- [x] Екранується і зворотний слеш, не лише лапка: раніше кінцевий `\` міг екранувати
+      закривальну лапку і вийти зі стрічки. Покрито тестом.
 
 ### 1.6 Переходи (закриває B1, R11) — ГОТОВО
 
