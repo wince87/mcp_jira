@@ -1,0 +1,33 @@
+{
+  "isError": false,
+  "data": {
+    "success": true,
+    "projectKey": "TEST",
+    "version": {
+      "id": "10102",
+      "name": "2.0",
+      "released": false,
+      "archived": false,
+      "startDate": null,
+      "releaseDate": "2026-12-01"
+    }
+  },
+  "contentTypes": [
+    "text"
+  ],
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/rest/api/3/project/TEST"
+    },
+    {
+      "method": "POST",
+      "path": "/rest/api/3/version",
+      "body": {
+        "name": "2.0",
+        "projectId": 10000,
+        "releaseDate": "2026-12-01"
+      }
+    }
+  ]
+}

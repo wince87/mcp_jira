@@ -416,6 +416,46 @@
     "outputSchema": null
   },
   {
+    "name": "jira_create_component",
+    "description": "Create a project component. Components are the values the components field accepts on create and update.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Component name"
+        },
+        "projectKey": {
+          "type": "string",
+          "description": "Project key (defaults to configured JIRA_PROJECT_KEY)"
+        },
+        "description": {
+          "type": "string",
+          "description": "Component description"
+        },
+        "leadAccountId": {
+          "type": "string",
+          "description": "Component lead accountId (from jira_search_users)"
+        },
+        "assigneeType": {
+          "type": "string",
+          "enum": [
+            "PROJECT_DEFAULT",
+            "COMPONENT_LEAD",
+            "PROJECT_LEAD",
+            "UNASSIGNED"
+          ],
+          "description": "Default assignee rule for issues in this component"
+        }
+      },
+      "required": [
+        "name"
+      ]
+    },
+    "annotations": null,
+    "outputSchema": null
+  },
+  {
     "name": "jira_create_epic",
     "description": "Create a new epic. Convenience wrapper that sets issueType to Epic.",
     "inputSchema": {
@@ -636,6 +676,41 @@
     "outputSchema": null
   },
   {
+    "name": "jira_create_sprint",
+    "description": "Create a sprint on a Scrum board. A new sprint starts in the \"future\" state; use jira_update_sprint with state \"active\" to start it. Board ids come from jira_list_boards.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "boardId": {
+          "type": "number",
+          "description": "Board the sprint belongs to (use jira_list_boards)"
+        },
+        "name": {
+          "type": "string",
+          "description": "Sprint name"
+        },
+        "goal": {
+          "type": "string",
+          "description": "Sprint goal"
+        },
+        "startDate": {
+          "type": "string",
+          "description": "ISO 8601 with timezone, e.g. \"2026-08-01T09:00:00.000Z\""
+        },
+        "endDate": {
+          "type": "string",
+          "description": "ISO 8601 with timezone"
+        }
+      },
+      "required": [
+        "boardId",
+        "name"
+      ]
+    },
+    "annotations": null,
+    "outputSchema": null
+  },
+  {
     "name": "jira_create_subtask",
     "description": "Create a subtask under a parent issue. Description supports standard Markdown, automatically converted to ADF. The subtask issue type is discovered from the project (handles \"Sub-task\" vs \"Subtask\" and localized names) unless issueType is given.",
     "inputSchema": {
@@ -751,6 +826,45 @@
     "outputSchema": null
   },
   {
+    "name": "jira_create_version",
+    "description": "Create a project version (release). Versions are what fixVersions and affects versions point at, so create one here instead of sending the user to the Jira UI.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Version name, e.g. \"1.4.0\""
+        },
+        "projectKey": {
+          "type": "string",
+          "description": "Project key (defaults to configured JIRA_PROJECT_KEY)"
+        },
+        "description": {
+          "type": "string",
+          "description": "Version description"
+        },
+        "startDate": {
+          "type": "string",
+          "description": "Start date as YYYY-MM-DD"
+        },
+        "releaseDate": {
+          "type": "string",
+          "description": "Release date as YYYY-MM-DD"
+        },
+        "released": {
+          "type": "boolean",
+          "description": "Mark as already released",
+          "default": false
+        }
+      },
+      "required": [
+        "name"
+      ]
+    },
+    "annotations": null,
+    "outputSchema": null
+  },
+  {
     "name": "jira_delete_comment",
     "description": "Delete a comment from a Jira issue.",
     "inputSchema": {
@@ -768,6 +882,28 @@
       "required": [
         "issueKey",
         "commentId"
+      ]
+    },
+    "annotations": null,
+    "outputSchema": null
+  },
+  {
+    "name": "jira_delete_component",
+    "description": "Permanently delete a project component. Pass moveIssuesTo to reassign its issues to another component, otherwise they simply lose it. This cannot be undone -- confirm with the user first.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "componentId": {
+          "type": "string",
+          "description": "Component ID to delete"
+        },
+        "moveIssuesTo": {
+          "type": "string",
+          "description": "Component ID to move issues to. Omit to clear the field on those issues."
+        }
+      },
+      "required": [
+        "componentId"
       ]
     },
     "annotations": null,
@@ -809,6 +945,50 @@
       },
       "required": [
         "linkId"
+      ]
+    },
+    "annotations": null,
+    "outputSchema": null
+  },
+  {
+    "name": "jira_delete_sprint",
+    "description": "Permanently delete a sprint. Issues in it are moved to the backlog. This cannot be undone -- confirm with the user first.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "sprintId": {
+          "type": "number",
+          "description": "Sprint ID (use jira_list_sprints)"
+        }
+      },
+      "required": [
+        "sprintId"
+      ]
+    },
+    "annotations": null,
+    "outputSchema": null
+  },
+  {
+    "name": "jira_delete_version",
+    "description": "Permanently delete a project version. Issues referencing it keep their other fields, but lose this version unless you pass a replacement. This cannot be undone -- confirm with the user first.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "versionId": {
+          "type": "string",
+          "description": "Version ID to delete"
+        },
+        "moveFixIssuesTo": {
+          "type": "string",
+          "description": "Version ID to move fixVersion references to. Omit to clear them."
+        },
+        "moveAffectedIssuesTo": {
+          "type": "string",
+          "description": "Version ID to move affects-version references to. Omit to clear them."
+        }
+      },
+      "required": [
+        "versionId"
       ]
     },
     "annotations": null,
@@ -1753,6 +1933,46 @@
     "outputSchema": null
   },
   {
+    "name": "jira_update_component",
+    "description": "Update a project component. Component ids come from jira_get_project_components.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "componentId": {
+          "type": "string",
+          "description": "Component ID (use jira_get_project_components)"
+        },
+        "name": {
+          "type": "string",
+          "description": "New name"
+        },
+        "description": {
+          "type": "string",
+          "description": "New description"
+        },
+        "leadAccountId": {
+          "type": "string",
+          "description": "New component lead accountId"
+        },
+        "assigneeType": {
+          "type": "string",
+          "enum": [
+            "PROJECT_DEFAULT",
+            "COMPONENT_LEAD",
+            "PROJECT_LEAD",
+            "UNASSIGNED"
+          ],
+          "description": "Default assignee rule"
+        }
+      },
+      "required": [
+        "componentId"
+      ]
+    },
+    "annotations": null,
+    "outputSchema": null
+  },
+  {
     "name": "jira_update_issue",
     "description": "Update fields and/or status of an issue. status is matched against the target status of each available transition first (so \"In Progress\" works even when the transition is named \"Start work\"), then against transition names, case-insensitively. Use transitionId for an exact transition and transitionFields when the transition screen requires input (e.g. an estimate) — jira_list_transitions with includeFields lists what each one needs. On a 400 the response carries missingRequired and allowedValues.",
     "inputSchema": {
@@ -1864,6 +2084,91 @@
       },
       "required": [
         "issueKey"
+      ]
+    },
+    "annotations": null,
+    "outputSchema": null
+  },
+  {
+    "name": "jira_update_sprint",
+    "description": "Update a sprint: rename it, set the goal or dates, or move it through the workflow with state (\"future\" -> \"active\" -> \"closed\"). Starting a sprint requires startDate and endDate to be set. Closing a sprint moves unfinished issues to the backlog in Jira, so confirm before setting state to \"closed\".",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "sprintId": {
+          "type": "number",
+          "description": "Sprint ID (use jira_list_sprints)"
+        },
+        "name": {
+          "type": "string",
+          "description": "New sprint name"
+        },
+        "goal": {
+          "type": "string",
+          "description": "New sprint goal"
+        },
+        "startDate": {
+          "type": "string",
+          "description": "ISO 8601 with timezone"
+        },
+        "endDate": {
+          "type": "string",
+          "description": "ISO 8601 with timezone"
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "future",
+            "active",
+            "closed"
+          ],
+          "description": "Sprint state"
+        }
+      },
+      "required": [
+        "sprintId"
+      ]
+    },
+    "annotations": null,
+    "outputSchema": null
+  },
+  {
+    "name": "jira_update_version",
+    "description": "Update a project version. Releasing a version is an update with released set to true (and usually a releaseDate), so there is no separate release tool. Version ids come from jira_get_project_versions.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "versionId": {
+          "type": "string",
+          "description": "Version ID (use jira_get_project_versions)"
+        },
+        "name": {
+          "type": "string",
+          "description": "New name"
+        },
+        "description": {
+          "type": "string",
+          "description": "New description"
+        },
+        "startDate": {
+          "type": "string",
+          "description": "Start date as YYYY-MM-DD"
+        },
+        "releaseDate": {
+          "type": "string",
+          "description": "Release date as YYYY-MM-DD"
+        },
+        "released": {
+          "type": "boolean",
+          "description": "Set true to release the version, false to unrelease it"
+        },
+        "archived": {
+          "type": "boolean",
+          "description": "Archive or unarchive the version"
+        }
+      },
+      "required": [
+        "versionId"
       ]
     },
     "annotations": null,

@@ -1,0 +1,26 @@
+{
+  "isError": false,
+  "data": {
+    "success": true,
+    "sprint": {
+      "id": 10,
+      "name": "Sprint 1",
+      "state": "closed",
+      "startDate": "2026-08-01T00:00:00.000Z",
+      "endDate": "2026-08-14T00:00:00.000Z",
+      "goal": "Ship auth"
+    }
+  },
+  "contentTypes": [
+    "text"
+  ],
+  "requests": [
+    {
+      "method": "POST",
+      "path": "/rest/agile/1.0/sprint/10",
+      "body": {
+        "state": "closed"
+      }
+    }
+  ]
+}

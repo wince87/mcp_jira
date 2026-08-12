@@ -1,0 +1,28 @@
+{
+  "isError": false,
+  "data": {
+    "success": true,
+    "version": {
+      "id": "10101",
+      "name": "1.1",
+      "description": "Next",
+      "released": true,
+      "archived": false,
+      "startDate": "2026-08-01",
+      "releaseDate": "2026-10-01"
+    }
+  },
+  "contentTypes": [
+    "text"
+  ],
+  "requests": [
+    {
+      "method": "PUT",
+      "path": "/rest/api/3/version/10101",
+      "body": {
+        "releaseDate": "2026-10-01",
+        "released": true
+      }
+    }
+  ]
+}

@@ -254,6 +254,12 @@ const ROUTES = [
   ['GET', '/rest/api/3/issue/createmeta/:key/issuetypes', () => [200, { values: ISSUE_TYPES, total: ISSUE_TYPES.length, maxResults: 200, startAt: 0 }]],
 
   ['GET', '/rest/api/3/project/search', (p, q) => [200, page([projectPayload()], q, 'values')]],
+  ['POST', '/rest/api/3/version/:id/removeAndSwap', () => [204, null]],
+  ['POST', '/rest/api/3/version', (p, q, body) => [201, { id: '10102', archived: false, released: false, ...body }]],
+  ['PUT', '/rest/api/3/version/:id', (p, q, body) => [200, { ...VERSIONS[1], id: p.id, ...body }]],
+  ['POST', '/rest/api/3/component', (p, q, body) => [201, { id: '10201', ...body, lead: body.leadAccountId ? USER : undefined }]],
+  ['PUT', '/rest/api/3/component/:id', (p, q, body) => [200, { ...COMPONENTS[0], id: p.id, ...body }]],
+  ['DELETE', '/rest/api/3/component/:id', () => [204, null]],
   ['GET', '/rest/api/3/project/:key/components', () => [200, COMPONENTS]],
   ['GET', '/rest/api/3/project/:key/versions', () => [200, VERSIONS]],
   ['GET', '/rest/api/3/project/:key', () => [200, projectPayload()]],
@@ -356,6 +362,9 @@ const ROUTES = [
   ['GET', '/rest/agile/1.0/board/:boardId/epic', (p, q) => [200, page([{ id: 10100, key: 'TEST-100', name: 'Auth', summary: 'Auth epic', done: false, color: { key: 'color_1' } }], q, 'values')]],
   ['GET', '/rest/agile/1.0/board/:boardId/sprint', (p, q) => [200, page(SPRINTS.filter(s => !q.state || s.state === q.state), q, 'values')]],
   ['GET', '/rest/agile/1.0/board', (p, q) => [200, page(BOARDS, q, 'values')]],
+  ['POST', '/rest/agile/1.0/sprint/:id', (p, q, body) => [200, { ...SPRINTS[0], id: Number(p.id), ...body }]],
+  ['POST', '/rest/agile/1.0/sprint', (p, q, body) => [201, { id: 11, state: 'future', ...body }]],
+  ['DELETE', '/rest/agile/1.0/sprint/:id', () => [204, null]],
   ['GET', '/rest/agile/1.0/epic/:key/issue', (p, q) => [200, page(issueList(['TEST-1', 'TEST-2']).map(i => pick(i, q.fields)), q, 'issues')]],
   ['GET', '/rest/agile/1.0/epic/:key', () => [200, {
     id: 10100, key: 'TEST-100', name: 'Auth', summary: 'Auth epic', done: false, color: { key: 'color_1' },

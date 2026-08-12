@@ -60,6 +60,12 @@ const CASES = [
   ['jira_list_projects', {}],
   ['jira_get_project_components', { projectKey: 'TEST' }],
   ['jira_get_project_versions', { projectKey: 'TEST' }],
+  ['jira_create_version', { name: '2.0', projectKey: 'TEST', releaseDate: '2026-12-01' }],
+  ['jira_update_version', { versionId: '10101', released: true, releaseDate: '2026-10-01' }],
+  ['jira_delete_version', { versionId: '10101', moveFixIssuesTo: '10100' }],
+  ['jira_create_component', { name: 'Billing', projectKey: 'TEST', leadAccountId: '5b10a2844c20165700ede21g' }],
+  ['jira_update_component', { componentId: '10200', description: 'Auth and SSO' }],
+  ['jira_delete_component', { componentId: '10200', moveIssuesTo: '10201' }],
   ['jira_get_fields', {}],
   ['jira_get_issue_types', { projectKey: 'TEST' }],
   ['jira_get_create_fields', { projectKey: 'TEST', issueType: 'Помилка' }],
@@ -74,6 +80,9 @@ const CASES = [
   ['jira_list_sprints', { boardId: 1 }],
   ['jira_get_sprint', { sprintId: 10 }],
   ['jira_move_to_sprint', { sprintId: 10, issueKeys: ['TEST-1'] }],
+  ['jira_create_sprint', { boardId: 1, name: 'Sprint 2', goal: 'Ship versions', startDate: '2026-09-01T00:00:00.000Z', endDate: '2026-09-14T00:00:00.000Z' }],
+  ['jira_update_sprint', { sprintId: 10, state: 'closed' }],
+  ['jira_delete_sprint', { sprintId: 10 }],
   ['jira_get_attachments', { issueKey: 'TEST-1' }],
   ['jira_add_attachment', { issueKey: 'TEST-1', filePath: UPLOAD_PATH }],
   ['jira_list_epics', { projectKey: 'TEST' }],
@@ -145,7 +154,7 @@ test('stdout carries JSON-RPC only', () => {
 
 test('every tool declaration carries a handler and a unique name', async () => {
   const { tools } = await server.listTools();
-  assert.equal(tools.length, 55, 'tool count changed; update this number deliberately');
+  assert.equal(tools.length, 64, 'tool count changed; update this number deliberately');
   for (const tool of tools) {
     assert.ok(tool.description && tool.description.length > 20, `${tool.name} needs a real description`);
     assert.equal(tool.inputSchema.type, 'object', `${tool.name} must take an object`);
@@ -185,4 +194,55 @@ test('expand is forwarded and validated', async () => {
   assert.equal(mock.requests[0].query.expand, 'changelog');
   const bad = await server.call('jira_search_issues', { jql: 'project = TEST', expand: ['drop table'] });
   assert.equal(bad.isError, true);
+});
+
+test('sprint state moves through the workflow and is validated', async () => {
+  mock.reset();
+  const closed = await server.call('jira_update_sprint', { sprintId: 10, state: 'CLOSED' });
+  assert.equal(closed.isError, false, 'state must be case-insensitive');
+  assert.equal(mock.requests[0].body.state, 'closed');
+
+  const bad = await server.call('jira_update_sprint', { sprintId: 10, state: 'finished' });
+  assert.equal(bad.isError, true, 'an unknown state must be rejected before reaching Jira');
+
+  const empty = await server.call('jira_update_sprint', { sprintId: 10 });
+  assert.equal(empty.isError, true, 'an update with nothing to change must be rejected');
+});
+
+test('sprint dates must carry a timezone', async () => {
+  const bad = await server.call('jira_create_sprint', { boardId: 1, name: 'S', startDate: '2026-09-01' });
+  assert.equal(bad.isError, true);
+  const ok = await server.call('jira_create_sprint', { boardId: 1, name: 'S', startDate: '2026-09-01T00:00:00.000+03:00' });
+  assert.equal(ok.isError, false, 'an offset with a colon is valid ISO 8601');
+});
+
+test('creating a version resolves the project key to the numeric id Jira requires', async () => {
+  mock.reset();
+  const result = await server.call('jira_create_version', { name: '3.0', projectKey: 'TEST' });
+  assert.equal(result.isError, false);
+  const post = mock.requests.find(r => r.method === 'POST' && r.path === '/rest/api/3/version');
+  assert.equal(post.body.projectId, 10000, 'Jira rejects a project key here, it needs the id');
+  assert.equal(post.body.name, '3.0');
+});
+
+test('releasing a version is an update, not a separate tool', async () => {
+  mock.reset();
+  const result = await server.call('jira_update_version', { versionId: '10101', released: true, releaseDate: '2026-10-01' });
+  assert.equal(result.data.version.released, true);
+  assert.equal(mock.requests[0].body.released, true);
+});
+
+test('component assigneeType is validated against the allowed set', async () => {
+  const bad = await server.call('jira_create_component', { name: 'X', assigneeType: 'WHOEVER' });
+  assert.equal(bad.isError, true);
+  const ok = await server.call('jira_create_component', { name: 'X', assigneeType: 'component_lead' });
+  assert.equal(ok.isError, false, 'assigneeType must be case-insensitive');
+});
+
+test('deleting a version uses removeAndSwap so issues can be repointed', async () => {
+  mock.reset();
+  await server.call('jira_delete_version', { versionId: '10101', moveFixIssuesTo: '10100' });
+  const call = mock.requests[0];
+  assert.equal(call.path, '/rest/api/3/version/10101/removeAndSwap', 'the plain DELETE endpoint is deprecated');
+  assert.equal(call.body.moveFixIssuesTo, '10100');
 });

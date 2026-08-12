@@ -1,0 +1,29 @@
+{
+  "isError": false,
+  "data": {
+    "success": true,
+    "projectKey": "TEST",
+    "component": {
+      "id": "10201",
+      "name": "Billing",
+      "lead": {
+        "accountId": "5b10a2844c20165700ede21g",
+        "displayName": "Vova Press"
+      }
+    }
+  },
+  "contentTypes": [
+    "text"
+  ],
+  "requests": [
+    {
+      "method": "POST",
+      "path": "/rest/api/3/component",
+      "body": {
+        "name": "Billing",
+        "project": "TEST",
+        "leadAccountId": "5b10a2844c20165700ede21g"
+      }
+    }
+  ]
+}

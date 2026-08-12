@@ -211,3 +211,23 @@ export function validateExpandList(input: unknown): string[] {
     return value;
   });
 }
+
+export function validateISODateTime(value: unknown, fieldName: string): string {
+  if (typeof value !== 'string') {
+    throw new Error(`Invalid ${fieldName}: must be a string`);
+  }
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?(Z|[+-]\d{2}:?\d{2})$/.test(value)) {
+    throw new Error(`Invalid ${fieldName}: must be ISO 8601 with a timezone, e.g. "2026-08-01T09:00:00.000Z" or "2026-08-01T09:00:00.000+03:00"`);
+  }
+  return value;
+}
+
+const ASSIGNEE_TYPES = ['PROJECT_DEFAULT', 'COMPONENT_LEAD', 'PROJECT_LEAD', 'UNASSIGNED'];
+
+export function validateAssigneeType(value: unknown): string {
+  const assigneeType = sanitizeString(value, 30, 'assigneeType').toUpperCase();
+  if (!ASSIGNEE_TYPES.includes(assigneeType)) {
+    throw new Error(`assigneeType must be one of: ${ASSIGNEE_TYPES.join(', ')}`);
+  }
+  return assigneeType;
+}

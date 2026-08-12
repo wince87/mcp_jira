@@ -374,7 +374,7 @@ Never pass displayName or email to jira_assign_issue - always resolve to account
 Step 1 - Find target sprint:
 - jira_list_boards for the project
 - jira_list_sprints with state="future" (the upcoming planned sprint)
-- If none, ask user to create one via the Jira UI first
+- If none exists, create it: jira_create_sprint with boardId, name and dates
 
 Step 2 - Determine capacity:
 - Use jira-velocity-check to get average completed points over last 5 sprints
@@ -413,7 +413,8 @@ Skipped (needs refinement):
 
 Step 1 - Identify the version:
 - jira_get_project_versions; pick one unreleased and undated, or user-specified
-- If the target version does not exist, stop and ask user to create via Jira UI
+- If the target version does not exist, create it: jira_create_version with name and releaseDate
+- After the release ships, close it out: jira_update_version with released=true
 
 Step 2 - Discover candidates:
 - jira_search_issues with JQL:

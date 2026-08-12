@@ -30,6 +30,19 @@ export const issueTypesCache = new Map<string, CacheEntry<JiraIssueType[]>>();
 export const createFieldsCache = new Map<string, CacheEntry<CreateMetaField[]>>();
 export const fieldIndexCache = new Map<string, CacheEntry<Map<string, JiraField>>>();
 export const prioritiesCache = new Map<string, CacheEntry<JiraPriority[]>>();
+const projectIdCache = new Map<string, CacheEntry<string>>();
+
+export async function fetchProjectId(projectKey: string): Promise<string> {
+  const cached = cacheGet(projectIdCache, projectKey);
+  if (cached) return cached;
+  const response = await jiraApi.get(`/project/${projectKey}`);
+  const value = response.data?.id;
+  if (typeof value !== 'string') {
+    throw new Error(`Could not resolve a numeric project id for ${projectKey}`);
+  }
+  projectIdCache.set(projectKey, { at: Date.now(), value });
+  return value;
+}
 
 export async function fetchIssueTypes(projectKey: string): Promise<JiraIssueType[]> {
   const cached = cacheGet(issueTypesCache, projectKey);

@@ -1,0 +1,20 @@
+{
+  "isError": false,
+  "data": {
+    "success": true,
+    "message": "Version 10101 deleted permanently",
+    "movedIssuesTo": "10100"
+  },
+  "contentTypes": [
+    "text"
+  ],
+  "requests": [
+    {
+      "method": "POST",
+      "path": "/rest/api/3/version/10101/removeAndSwap",
+      "body": {
+        "moveFixIssuesTo": "10100"
+      }
+    }
+  ]
+}

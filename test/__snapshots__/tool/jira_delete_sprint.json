@@ -1,0 +1,16 @@
+{
+  "isError": false,
+  "data": {
+    "success": true,
+    "message": "Sprint 10 deleted permanently"
+  },
+  "contentTypes": [
+    "text"
+  ],
+  "requests": [
+    {
+      "method": "DELETE",
+      "path": "/rest/agile/1.0/sprint/10"
+    }
+  ]
+}

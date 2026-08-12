@@ -8,7 +8,7 @@ Model Context Protocol (MCP) server for Jira API integration with automatic Mark
 
 ## Features
 
-- 54 Jira API tools via MCP protocol
+- 64 Jira API tools via MCP protocol
 - 34 pre-baked MCP prompts covering every tool (sprint planning, bug triage, epic health, standup, weekly reports, bulk ops, attachments, watchers, filters, reorg, etc.)
 - Automatic Markdown to ADF conversion (write Markdown, get proper Jira formatting)
 - ADF to Markdown conversion when reading issues and comments
@@ -138,7 +138,7 @@ Bulk operations run `JIRA_CONCURRENCY` requests in parallel and report results i
 
 ## MCP Prompts
 
-Pre-baked workflows your AI agent can invoke directly (via MCP `prompts/list` + `prompts/get`). Every one of the 54 tools is referenced in at least one prompt.
+Pre-baked workflows your AI agent can invoke directly (via MCP `prompts/list` + `prompts/get`). Every one of the 64 tools is referenced in at least one prompt.
 
 **Formatting & lookup**
 - `jira-formatting-guide` - Markdown formatting rules for Jira (ADF)
@@ -202,6 +202,7 @@ Pre-baked workflows your AI agent can invoke directly (via MCP `prompts/list` + 
 - `jira_delete_comment` - Delete comment
 - `jira_get_comments` - Get issue comments
 - `jira_link_issues` - Link two issues
+- `jira_delete_issue_link` - Remove a link between two issues
 - `jira_list_transitions` - Get available status transitions
 - `jira_get_changelog` - Get issue change history
 - `jira_add_worklog` - Add time tracking entry
@@ -216,6 +217,9 @@ Pre-baked workflows your AI agent can invoke directly (via MCP `prompts/list` + 
 - `jira_list_sprints` - List sprints for a board
 - `jira_get_sprint` - Get sprint details with all issues
 - `jira_move_to_sprint` - Move issues to a sprint
+- `jira_create_sprint` - Create a sprint on a board
+- `jira_update_sprint` - Rename, re-goal, re-date, or start/close a sprint via state
+- `jira_delete_sprint` - Delete a sprint (issues return to the backlog)
 
 ### Epic Management
 - `jira_list_epics` - List all epics in a project
@@ -230,7 +234,9 @@ Pre-baked workflows your AI agent can invoke directly (via MCP `prompts/list` + 
 - `jira_list_projects` - List all projects
 - `jira_get_project_info` - Get project details
 - `jira_get_project_components` - Get project components
+- `jira_create_component` / `jira_update_component` / `jira_delete_component` - Manage components
 - `jira_get_project_versions` - Get project versions/releases
+- `jira_create_version` / `jira_update_version` / `jira_delete_version` - Manage versions (releasing is an update)
 
 ### Metadata
 - `jira_get_fields` - Get all fields (find custom field IDs)

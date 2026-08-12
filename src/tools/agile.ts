@@ -5,7 +5,7 @@ import { issueListFieldsParam, issueSnapshot, mapIssueList, mapSprint, readIssue
 import { buildJql, equalsClause } from '../jql.js';
 import { createADFDocument } from '../adf.js';
 import { createIssueUrl, createSuccessResponse, resolveProjectKey } from '../responses.js';
-import { sanitizeString, validateIssueKey, validateProjectKey } from '../validation.js';
+import { sanitizeString, validateISODateTime, validateIssueKey, validateProjectKey } from '../validation.js';
 import {
   applyOptionalFields, dryRunResult, metaFieldId, postIssue, resolveIssueTypeValue, safeCreateMeta,
 } from '../meta.js';
@@ -433,7 +433,103 @@ export const CreateEpicTool = defineTool({
   handler: handleCreateEpic,
 });
 
+export async function handleCreateSprint(a: ToolArgs): Promise<ToolResponse> {
+  const originBoardId = numericId(a.boardId, 'boardId');
+  const payload: Record<string, unknown> = {
+    name: sanitizeString(a.name, 255, 'name'),
+    originBoardId,
+  };
+  if (present(a.goal)) payload.goal = sanitizeString(a.goal, 500, 'goal');
+  if (present(a.startDate)) payload.startDate = validateISODateTime(a.startDate, 'startDate');
+  if (present(a.endDate)) payload.endDate = validateISODateTime(a.endDate, 'endDate');
+
+  const response = await agileApi.post('/sprint', payload);
+  return createSuccessResponse({ success: true, sprint: mapSprint(response.data) });
+}
+
+const SPRINT_STATES = ['future', 'active', 'closed'];
+
+export async function handleUpdateSprint(a: ToolArgs): Promise<ToolResponse> {
+  const sprintId = numericId(a.sprintId, 'sprintId');
+  const payload: Record<string, unknown> = {};
+
+  if (present(a.name)) payload.name = sanitizeString(a.name, 255, 'name');
+  if (present(a.goal)) payload.goal = sanitizeString(a.goal, 500, 'goal');
+  if (present(a.startDate)) payload.startDate = validateISODateTime(a.startDate, 'startDate');
+  if (present(a.endDate)) payload.endDate = validateISODateTime(a.endDate, 'endDate');
+  if (present(a.state)) {
+    const state = sanitizeString(a.state, 20, 'state').toLowerCase();
+    if (!SPRINT_STATES.includes(state)) {
+      throw new Error(`state must be one of: ${SPRINT_STATES.join(', ')}`);
+    }
+    payload.state = state;
+  }
+  if (Object.keys(payload).length === 0) {
+    throw new Error('Provide at least one of name, goal, startDate, endDate or state');
+  }
+
+  const response = await agileApi.post(`/sprint/${sprintId}`, payload);
+  return createSuccessResponse({ success: true, sprint: mapSprint(response.data) });
+}
+
+export async function handleDeleteSprint(a: ToolArgs): Promise<ToolResponse> {
+  const sprintId = numericId(a.sprintId, 'sprintId');
+  await agileApi.delete(`/sprint/${sprintId}`);
+  return createSuccessResponse({ success: true, message: `Sprint ${sprintId} deleted permanently` });
+}
+
+export const CreateSprintTool = defineTool({
+  name: 'jira_create_sprint',
+  description: 'Create a sprint on a Scrum board. A new sprint starts in the "future" state; use jira_update_sprint with state "active" to start it. Board ids come from jira_list_boards.',
+  inputSchema: {
+    type: 'object' as const,
+    properties: {
+      boardId: { type: 'number', description: 'Board the sprint belongs to (use jira_list_boards)' },
+      name: { type: 'string', description: 'Sprint name' },
+      goal: { type: 'string', description: 'Sprint goal' },
+      startDate: { type: 'string', description: 'ISO 8601 with timezone, e.g. "2026-08-01T09:00:00.000Z"' },
+      endDate: { type: 'string', description: 'ISO 8601 with timezone' },
+    },
+    required: ['boardId', 'name'],
+  },
+  handler: handleCreateSprint,
+});
+
+export const UpdateSprintTool = defineTool({
+  name: 'jira_update_sprint',
+  description: 'Update a sprint: rename it, set the goal or dates, or move it through the workflow with state ("future" -> "active" -> "closed"). Starting a sprint requires startDate and endDate to be set. Closing a sprint moves unfinished issues to the backlog in Jira, so confirm before setting state to "closed".',
+  inputSchema: {
+    type: 'object' as const,
+    properties: {
+      sprintId: { type: 'number', description: 'Sprint ID (use jira_list_sprints)' },
+      name: { type: 'string', description: 'New sprint name' },
+      goal: { type: 'string', description: 'New sprint goal' },
+      startDate: { type: 'string', description: 'ISO 8601 with timezone' },
+      endDate: { type: 'string', description: 'ISO 8601 with timezone' },
+      state: { type: 'string', enum: ['future', 'active', 'closed'], description: 'Sprint state' },
+    },
+    required: ['sprintId'],
+  },
+  handler: handleUpdateSprint,
+});
+
+export const DeleteSprintTool = defineTool({
+  name: 'jira_delete_sprint',
+  description: 'Permanently delete a sprint. Issues in it are moved to the backlog. This cannot be undone -- confirm with the user first.',
+  inputSchema: {
+    type: 'object' as const,
+    properties: {
+      sprintId: { type: 'number', description: 'Sprint ID (use jira_list_sprints)' },
+    },
+    required: ['sprintId'],
+  },
+  handler: handleDeleteSprint,
+});
+
 export const AGILE_TOOLS = [
+  CreateSprintTool,
+  UpdateSprintTool,
+  DeleteSprintTool,
   ListBoardsTool,
   ListSprintsTool,
   GetSprintTool,
