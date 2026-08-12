@@ -3,12 +3,13 @@ import type { BulkIssueInput, JiraIssue, JiraIssuePayload, ToolArgs, ToolRespons
 import { jiraApi } from '../http.js';
 import { JIRA_CONCURRENCY } from '../config.js';
 import { mapWithConcurrency } from '../concurrency.js';
+import { present } from '../args.js';
 import { JiraDiagnosticError } from '../errors.js';
 import { describeTransitions, fetchTransitions, postTransition, resolveTransition } from '../transitions.js';
 import { createADFDocument } from '../adf.js';
 import { createIssueUrl, createSuccessResponse, resolveProjectKey } from '../responses.js';
-import { sanitizeString, validateFieldMap, validateIssueKey, validateSafeParam } from '../validation.js';
-import { applyOptionalFields, convertDocFields, resolveIssueTypeValue, safeCreateMeta } from '../meta.js';
+import { sanitizeString, validateFieldMap, validateIssueKey, validateLabels, validateSafeParam } from '../validation.js';
+import { applyOptionalFields, convertDocFields, putIssue, resolveIssueTypeValue, safeCreateMeta } from '../meta.js';
 import { defineTool } from '../registry.js';
 import { PRIORITY_SCHEMA, COMMON_ISSUE_FIELDS_SCHEMA } from '../schemas.js';
 import { JIRA_PROJECT_KEY } from '../config.js';
@@ -113,6 +114,75 @@ export async function handleBulkTransitionIssues(a: ToolArgs): Promise<ToolRespo
   });
 }
 
+export async function handleBulkUpdateIssues(a: ToolArgs): Promise<ToolResponse> {
+  const { issueKeys } = a;
+  if (!Array.isArray(issueKeys) || issueKeys.length === 0) {
+    throw new Error('issueKeys must be a non-empty array');
+  }
+  if (issueKeys.length > 100) {
+    throw new Error('Maximum 100 issues per bulk update');
+  }
+  const validatedKeys = issueKeys.map(k => validateIssueKey(k));
+
+  const fields: Record<string, unknown> = {};
+  await applyOptionalFields(a, fields, null);
+
+  const update: Record<string, unknown> = {};
+  if (present(a.addLabels)) {
+    update.labels = validateLabels(a.addLabels).map(label => ({ add: label }));
+  }
+  if (present(a.removeLabels)) {
+    const removals = validateLabels(a.removeLabels).map(label => ({ remove: label }));
+    update.labels = [...((update.labels as unknown[]) ?? []), ...removals];
+  }
+
+  if (Object.keys(fields).length === 0 && Object.keys(update).length === 0) {
+    throw new Error('Provide at least one field to change, or addLabels / removeLabels');
+  }
+  if (fields.labels !== undefined && update.labels !== undefined) {
+    throw new Error('Use either labels (which replaces the whole list) or addLabels/removeLabels, not both');
+  }
+
+  const outcomes = await mapWithConcurrency(validatedKeys, JIRA_CONCURRENCY, async (issueKey) => {
+    try {
+      await putIssue(issueKey, fields, update);
+      return { issueKey };
+    } catch (error) {
+      return { issueKey, error: describeFailure(error) };
+    }
+  });
+
+  const succeeded = outcomes.filter(o => !('error' in o)).map(o => o.issueKey);
+  const failed = outcomes.filter((o): o is { issueKey: string; error: string } => 'error' in o);
+
+  return createSuccessResponse({
+    total: validatedKeys.length,
+    succeeded,
+    failed,
+    successCount: succeeded.length,
+    failedCount: failed.length,
+  });
+}
+
+export const BulkUpdateIssuesTool = defineTool({
+  name: 'jira_bulk_update_issues',
+  description: 'Apply the same field changes to many issues. Iterates client-side with a per-issue result, because Jira has no stable bulk edit endpoint. Use addLabels/removeLabels to adjust labels without destroying the ones already there; the labels argument replaces the whole list on every issue.',
+  inputSchema: {
+    type: 'object' as const,
+    properties: {
+      issueKeys: { type: 'array', items: { type: 'string' }, description: 'Issue keys to update (max 100)' },
+      addLabels: { type: 'array', items: { type: 'string' }, description: 'Labels to add, leaving existing ones alone' },
+      removeLabels: { type: 'array', items: { type: 'string' }, description: 'Labels to remove, leaving the rest alone' },
+      priority: PRIORITY_SCHEMA,
+      storyPoints: { type: 'number', description: 'Story points estimate (0-1000)' },
+      parent: { type: 'string', description: 'New parent issue key for every listed issue' },
+      ...COMMON_ISSUE_FIELDS_SCHEMA,
+    },
+    required: ['issueKeys'],
+  },
+  handler: handleBulkUpdateIssues,
+});
+
 export const BulkCreateIssuesTool = defineTool({
   name: 'jira_bulk_create_issues',
   description: 'Create multiple Jira issues at once. Descriptions support Markdown, automatically converted to ADF.',
@@ -166,6 +236,7 @@ export const BulkTransitionIssuesTool = defineTool({
 });
 
 export const BULK_TOOLS = [
+  BulkUpdateIssuesTool,
   BulkCreateIssuesTool,
   BulkTransitionIssuesTool,
 ];

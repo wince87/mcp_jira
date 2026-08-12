@@ -100,6 +100,14 @@ export interface JiraIssueLink {
   outwardIssue?: JiraLinkedIssue;
 }
 
+export interface JiraRemoteLink {
+  id?: number;
+  globalId?: string;
+  relationship?: string;
+  application?: { name?: string };
+  object?: { url?: string; title?: string; summary?: string };
+}
+
 export interface JiraComment {
   id?: string;
   author?: JiraUser;

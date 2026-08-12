@@ -1,0 +1,25 @@
+{
+  "isError": false,
+  "data": {
+    "success": true,
+    "issueKey": "TEST-1",
+    "id": 60002,
+    "url": "https://github.com/acme/repo/pull/42"
+  },
+  "contentTypes": [
+    "text"
+  ],
+  "requests": [
+    {
+      "method": "POST",
+      "path": "/rest/api/3/issue/TEST-1/remotelink",
+      "body": {
+        "object": {
+          "url": "https://github.com/acme/repo/pull/42",
+          "title": "PR #42"
+        },
+        "relationship": "implemented by"
+      }
+    }
+  ]
+}

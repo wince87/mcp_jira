@@ -1,20 +1,15 @@
 import type { AxiosError } from 'axios';
-import type { ImageContent, JiraAttachment, JiraChangelogHistory, JiraIssueFields, ToolArgs, ToolResponse } from '../types.js';
+import type { CreateMetaField, ImageContent, JiraAttachment, JiraChangelogHistory, JiraIssueFields, JiraRemoteLink, ToolArgs, ToolResponse } from '../types.js';
 import { jiraApi } from '../http.js';
-import { offsetPage, offsetParams } from '../args.js';
+import { offsetPage, offsetParams, present } from '../args.js';
 import { JIRA_PROJECT_KEY, STORY_POINTS_FIELD } from '../config.js';
 import { collectMediaIds, createADFDocument } from '../adf.js';
 import {
   MAX_INLINE_IMAGE_BYTES, createIssueUrl, createMixedResponse, createSuccessResponse, imageContent,
   isImageMime, resolveProjectKey,
 } from '../responses.js';
-import {
-  sanitizeString, validateAccountId, validateFieldMap, validateIssueKey, validateProjectKey, validateSafeParam, validateFieldSelection,
-} from '../validation.js';
-import {
-  applyOptionalFields, convertDocFields, dryRunResult, fetchIssueTypes, postIssue, putIssue,
-  resolveIssueTypeValue, resolvePriorityValue, safeCreateMeta,
-} from '../meta.js';
+import { sanitizeString, validateAccountId, validateFieldMap, validateFieldSelection, validateHttpUrl, validateIssueKey, validateProjectKey, validateSafeParam } from '../validation.js';
+import { applyOptionalFields, convertDocFields, describeMetaField, dryRunResult, fetchIssueTypes, postIssue, putIssue, resolveIssueTypeValue, resolvePriorityValue, safeCreateMeta } from '../meta.js';
 import { describeTransitions, fetchTransitions, postTransition, resolveTransition } from '../transitions.js';
 import { issueSnapshot, mapCustomFields, mapIssue, mapUser, namesOf, simplifyFieldValue } from '../mappers.js';
 import { defineTool } from '../registry.js';
@@ -497,7 +492,124 @@ export const CloneIssueTool = defineTool({
   handler: handleCloneIssue,
 });
 
+export async function handleGetEditFields(a: ToolArgs): Promise<ToolResponse> {
+  const issueKey = validateIssueKey(a.issueKey);
+  const response = await jiraApi.get(`/issue/${issueKey}/editmeta`);
+  const raw: Record<string, CreateMetaField> = response.data.fields ?? {};
+  const described = Object.entries(raw).map(([fieldId, field]) => describeMetaField({ ...field, fieldId }));
+
+  return createSuccessResponse({
+    issueKey,
+    editableFields: described.map(f => f.fieldId),
+    requiredFields: described.filter(f => f.required === true && f.hasDefaultValue !== true).map(f => f.fieldId),
+    fields: described,
+  });
+}
+
+export async function handleGetRemoteLinks(a: ToolArgs): Promise<ToolResponse> {
+  const issueKey = validateIssueKey(a.issueKey);
+  const response = await jiraApi.get(`/issue/${issueKey}/remotelink`);
+  const links: JiraRemoteLink[] = response.data ?? [];
+  return createSuccessResponse({
+    issueKey,
+    returned: links.length,
+    links: links.map(link => ({
+      id: link.id,
+      globalId: link.globalId,
+      relationship: link.relationship,
+      url: link.object?.url,
+      title: link.object?.title,
+      summary: link.object?.summary,
+      application: link.application?.name,
+    })),
+  });
+}
+
+export async function handleAddRemoteLink(a: ToolArgs): Promise<ToolResponse> {
+  const issueKey = validateIssueKey(a.issueKey);
+  const url = validateHttpUrl(a.url, 'url');
+
+  const object: Record<string, unknown> = { url, title: sanitizeString(a.title, 255, 'title') };
+  if (present(a.summary)) object.summary = sanitizeString(a.summary, 2000, 'summary');
+
+  const payload: Record<string, unknown> = { object };
+  if (present(a.relationship)) payload.relationship = sanitizeString(a.relationship, 100, 'relationship');
+  if (present(a.globalId)) payload.globalId = sanitizeString(a.globalId, 255, 'globalId');
+
+  const response = await jiraApi.post(`/issue/${issueKey}/remotelink`, payload);
+  return createSuccessResponse({ success: true, issueKey, id: response.data?.id, url });
+}
+
+export async function handleDeleteRemoteLink(a: ToolArgs): Promise<ToolResponse> {
+  const issueKey = validateIssueKey(a.issueKey);
+  const linkId = validateSafeParam(a.linkId, 'linkId', 40);
+  await jiraApi.delete(`/issue/${issueKey}/remotelink/${linkId}`);
+  return createSuccessResponse({ success: true, message: `Remote link ${linkId} removed from ${issueKey}` });
+}
+
+export const GetEditFieldsTool = defineTool({
+  name: 'jira_get_edit_fields',
+  description: 'Get the edit screen for one existing issue: every field you may change, with required flags, types and allowed values. This is the update-time mirror of jira_get_create_fields, and the way to find out why a field is rejected on jira_update_issue.',
+  inputSchema: {
+    type: 'object' as const,
+    properties: {
+      issueKey: { type: 'string', description: 'Issue key (e.g., PROJ-123)' },
+    },
+    required: ['issueKey'],
+  },
+  handler: handleGetEditFields,
+});
+
+export const GetRemoteLinksTool = defineTool({
+  name: 'jira_get_remote_links',
+  description: 'List web links attached to an issue — pull requests, Confluence pages, dashboards, anything outside Jira. These are separate from issue-to-issue links, which jira_get_issue returns.',
+  inputSchema: {
+    type: 'object' as const,
+    properties: {
+      issueKey: { type: 'string', description: 'Issue key (e.g., PROJ-123)' },
+    },
+    required: ['issueKey'],
+  },
+  handler: handleGetRemoteLinks,
+});
+
+export const AddRemoteLinkTool = defineTool({
+  name: 'jira_add_remote_link',
+  description: 'Attach a web link to an issue, e.g. the pull request that implements it or the Confluence page that specifies it.',
+  inputSchema: {
+    type: 'object' as const,
+    properties: {
+      issueKey: { type: 'string', description: 'Issue key (e.g., PROJ-123)' },
+      url: { type: 'string', description: 'Link target. Must be http or https.' },
+      title: { type: 'string', description: 'Link text shown on the issue' },
+      summary: { type: 'string', description: 'Optional longer description' },
+      relationship: { type: 'string', description: 'How the link relates, e.g. "implemented by", "documented in"' },
+      globalId: { type: 'string', description: 'Stable identifier. Posting the same globalId again updates that link instead of adding a duplicate.' },
+    },
+    required: ['issueKey', 'url', 'title'],
+  },
+  handler: handleAddRemoteLink,
+});
+
+export const DeleteRemoteLinkTool = defineTool({
+  name: 'jira_delete_remote_link',
+  description: 'Remove a web link from an issue. Link ids come from jira_get_remote_links.',
+  inputSchema: {
+    type: 'object' as const,
+    properties: {
+      issueKey: { type: 'string', description: 'Issue key (e.g., PROJ-123)' },
+      linkId: { type: 'string', description: 'Remote link ID from jira_get_remote_links' },
+    },
+    required: ['issueKey', 'linkId'],
+  },
+  handler: handleDeleteRemoteLink,
+});
+
 export const ISSUES_TOOLS = [
+  GetEditFieldsTool,
+  GetRemoteLinksTool,
+  AddRemoteLinkTool,
+  DeleteRemoteLinkTool,
   CreateIssueTool,
   GetIssueTool,
   UpdateIssueTool,

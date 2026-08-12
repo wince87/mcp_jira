@@ -1,7 +1,8 @@
 import type { JiraLinkType, ToolArgs, ToolResponse } from '../types.js';
 import { jiraApi } from '../http.js';
+import { offsetPage, offsetParams, present } from '../args.js';
 import { createSuccessResponse, resolveProjectKey } from '../responses.js';
-import { validateSafeParam } from '../validation.js';
+import { validateIssueKey, validatePermissionKeys, validateProjectKey, validateSafeParam } from '../validation.js';
 import {
   describeMetaField, fetchCreateFields, fetchFieldIndex, fetchIssueTypes, fetchPriorities, resolveIssueType,
 } from '../meta.js';
@@ -104,7 +105,111 @@ export const GetLinkTypesTool = defineTool({
   handler: handleGetLinkTypes,
 });
 
+export async function handleGetProjectStatuses(a: ToolArgs): Promise<ToolResponse> {
+  const projectKey = resolveProjectKey(a);
+  const response = await jiraApi.get(`/project/${projectKey}/statuses`);
+  const types: { id?: string; name?: string; statuses?: { id?: string; name?: string; statusCategory?: { key?: string } }[] }[] = response.data ?? [];
+
+  return createSuccessResponse({
+    projectKey,
+    note: 'Status names are rendered in the Jira account language. Match them case-insensitively, and prefer jira_list_transitions when changing a status.',
+    issueTypes: types.map(type => ({
+      id: type.id,
+      name: type.name,
+      statuses: (type.statuses ?? []).map(status => ({
+        id: status.id,
+        name: status.name,
+        category: status.statusCategory?.key,
+      })),
+    })),
+  });
+}
+
+export async function handleListLabels(a: ToolArgs): Promise<ToolResponse> {
+  const params = offsetParams(a, 100);
+  const response = await jiraApi.get('/label', { params });
+  const labels: string[] = response.data.values ?? [];
+  return createSuccessResponse({
+    ...offsetPage(response.data, labels.length, params),
+    labels,
+  });
+}
+
+const DEFAULT_PERMISSIONS = [
+  'BROWSE_PROJECTS', 'CREATE_ISSUES', 'EDIT_ISSUES', 'DELETE_ISSUES', 'ASSIGN_ISSUES',
+  'ASSIGNABLE_USER', 'TRANSITION_ISSUES', 'ADD_COMMENTS', 'DELETE_ALL_COMMENTS',
+  'CREATE_ATTACHMENTS', 'DELETE_ALL_ATTACHMENTS', 'WORK_ON_ISSUES', 'LINK_ISSUES',
+  'MANAGE_WATCHERS', 'RESOLVE_ISSUES', 'CLOSE_ISSUES', 'MODIFY_REPORTER', 'ADMINISTER_PROJECTS',
+];
+
+export async function handleGetMyPermissions(a: ToolArgs): Promise<ToolResponse> {
+  const requested = present(a.permissions)
+    ? validatePermissionKeys(a.permissions)
+    : DEFAULT_PERMISSIONS;
+
+  const params: Record<string, unknown> = { permissions: requested.join(',') };
+  if (present(a.projectKey)) params.projectKey = validateProjectKey(a.projectKey);
+  if (present(a.issueKey)) params.issueKey = validateIssueKey(a.issueKey);
+
+  const response = await jiraApi.get('/mypermissions', { params });
+  const permissions: Record<string, { havePermission?: boolean; name?: string }> = response.data.permissions ?? {};
+
+  const granted: string[] = [];
+  const denied: string[] = [];
+  for (const [key, value] of Object.entries(permissions)) {
+    (value.havePermission ? granted : denied).push(key);
+  }
+
+  return createSuccessResponse({
+    scope: { projectKey: params.projectKey ?? null, issueKey: params.issueKey ?? null },
+    granted,
+    denied,
+  });
+}
+
+export const GetProjectStatusesTool = defineTool({
+  name: 'jira_get_project_statuses',
+  description: 'Get every status available per issue type in a project, with its status category. Use it to write correct JQL and to know which statuses exist before trying to transition to one.',
+  inputSchema: {
+    type: 'object' as const,
+    properties: {
+      projectKey: { type: 'string', description: 'Project key (defaults to configured JIRA_PROJECT_KEY)' },
+    },
+  },
+  handler: handleGetProjectStatuses,
+});
+
+export const ListLabelsTool = defineTool({
+  name: 'jira_list_labels',
+  description: 'List labels that already exist in this Jira instance. Use it to reuse an existing label instead of inventing a near-duplicate.',
+  inputSchema: {
+    type: 'object' as const,
+    properties: {
+      maxResults: { type: 'number', description: 'Maximum number of labels (1-100)', default: 100 },
+      startAt: { type: 'number', description: 'Zero-based index of the first label to return' },
+    },
+  },
+  handler: handleListLabels,
+});
+
+export const GetMyPermissionsTool = defineTool({
+  name: 'jira_get_my_permissions',
+  description: 'Check what the authenticated user is allowed to do, optionally scoped to a project or an issue. Call it before a bulk operation to fail early with a clear reason instead of collecting permission errors issue by issue.',
+  inputSchema: {
+    type: 'object' as const,
+    properties: {
+      projectKey: { type: 'string', description: 'Scope the check to a project' },
+      issueKey: { type: 'string', description: 'Scope the check to a single issue' },
+      permissions: { type: 'array', items: { type: 'string' }, description: 'Permission keys to check, e.g. ["EDIT_ISSUES", "DELETE_ISSUES"]. Defaults to the common project permissions.' },
+    },
+  },
+  handler: handleGetMyPermissions,
+});
+
 export const METADATA_TOOLS = [
+  GetProjectStatusesTool,
+  ListLabelsTool,
+  GetMyPermissionsTool,
   GetFieldsTool,
   GetIssueTypesTool,
   GetCreateFieldsTool,

@@ -2,7 +2,16 @@
   "isError": false,
   "data": {
     "success": true,
-    "message": "Comment 30001 updated on TEST-1"
+    "message": "Comment 30001 updated on TEST-1",
+    "comment": {
+      "id": "30001",
+      "author": {
+        "accountId": "5b10a2844c20165700ede21g",
+        "displayName": "Vova Press"
+      },
+      "body": "Edited",
+      "updated": "2026-08-03T13:00:00.000+0000"
+    }
   },
   "contentTypes": [
     "text"

@@ -2,7 +2,16 @@
   "isError": false,
   "data": {
     "success": true,
-    "message": "Comment added to TEST-1"
+    "message": "Comment added to TEST-1",
+    "comment": {
+      "id": "30003",
+      "author": {
+        "accountId": "5b10a2844c20165700ede21g",
+        "displayName": "Vova Press"
+      },
+      "body": "A comment with **bold**",
+      "created": "2026-08-03T12:00:00.000+0000"
+    }
   },
   "contentTypes": [
     "text"

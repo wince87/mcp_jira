@@ -526,7 +526,79 @@ export const DeleteSprintTool = defineTool({
   handler: handleDeleteSprint,
 });
 
+export async function handleRankIssues(a: ToolArgs): Promise<ToolResponse> {
+  const { issueKeys } = a;
+  if (!Array.isArray(issueKeys) || issueKeys.length === 0) {
+    throw new Error('issueKeys must be a non-empty array');
+  }
+  if (issueKeys.length > 50) {
+    throw new Error('Maximum 50 issues per rank operation');
+  }
+  const issues = issueKeys.map(k => validateIssueKey(k));
+
+  const before = present(a.rankBeforeIssue) ? validateIssueKey(a.rankBeforeIssue) : null;
+  const after = present(a.rankAfterIssue) ? validateIssueKey(a.rankAfterIssue) : null;
+  if (!before && !after) {
+    throw new Error('Provide rankBeforeIssue or rankAfterIssue to say where the issues should land');
+  }
+  if (before && after) {
+    throw new Error('Provide either rankBeforeIssue or rankAfterIssue, not both');
+  }
+
+  const payload: Record<string, unknown> = { issues };
+  if (before) payload.rankBeforeIssue = before;
+  if (after) payload.rankAfterIssue = after;
+
+  await agileApi.put('/issue/rank', payload);
+  return createSuccessResponse({
+    success: true,
+    ranked: issues,
+    placedBefore: before,
+    placedAfter: after,
+  });
+}
+
+export async function handleMoveToBacklog(a: ToolArgs): Promise<ToolResponse> {
+  const { issueKeys } = a;
+  if (!Array.isArray(issueKeys) || issueKeys.length === 0) {
+    throw new Error('issueKeys must be a non-empty array');
+  }
+  const issues = issueKeys.map(k => validateIssueKey(k));
+  await agileApi.post('/backlog/issue', { issues });
+  return createSuccessResponse({ success: true, movedToBacklog: issues });
+}
+
+export const RankIssuesTool = defineTool({
+  name: 'jira_rank_issues',
+  description: 'Reorder issues in the backlog or on a board by placing them before or after a reference issue. This is what changes the order sprint planning reads as priority.',
+  inputSchema: {
+    type: 'object' as const,
+    properties: {
+      issueKeys: { type: 'array', items: { type: 'string' }, description: 'Issues to move (max 50), kept in the given order' },
+      rankBeforeIssue: { type: 'string', description: 'Place them immediately above this issue' },
+      rankAfterIssue: { type: 'string', description: 'Place them immediately below this issue' },
+    },
+    required: ['issueKeys'],
+  },
+  handler: handleRankIssues,
+});
+
+export const MoveToBacklogTool = defineTool({
+  name: 'jira_move_to_backlog',
+  description: 'Move issues out of their sprint and back to the backlog. The inverse of jira_move_to_sprint.',
+  inputSchema: {
+    type: 'object' as const,
+    properties: {
+      issueKeys: { type: 'array', items: { type: 'string' }, description: 'Issue keys to move to the backlog' },
+    },
+    required: ['issueKeys'],
+  },
+  handler: handleMoveToBacklog,
+});
+
 export const AGILE_TOOLS = [
+  RankIssuesTool,
+  MoveToBacklogTool,
   CreateSprintTool,
   UpdateSprintTool,
   DeleteSprintTool,

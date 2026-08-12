@@ -1,0 +1,26 @@
+{
+  "isError": false,
+  "data": {
+    "success": true,
+    "ranked": [
+      "TEST-1"
+    ],
+    "placedBefore": "TEST-2",
+    "placedAfter": null
+  },
+  "contentTypes": [
+    "text"
+  ],
+  "requests": [
+    {
+      "method": "PUT",
+      "path": "/rest/agile/1.0/issue/rank",
+      "body": {
+        "issues": [
+          "TEST-1"
+        ],
+        "rankBeforeIssue": "TEST-2"
+      }
+    }
+  ]
+}

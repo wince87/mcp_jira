@@ -146,7 +146,27 @@ export const ViewAttachmentTool = defineTool({
   handler: handleViewAttachment,
 });
 
+export async function handleDeleteAttachment(a: ToolArgs): Promise<ToolResponse> {
+  const attachmentId = validateSafeParam(a.attachmentId, 'attachmentId', 50);
+  await jiraApi.delete(`/attachment/${attachmentId}`);
+  return createSuccessResponse({ success: true, message: `Attachment ${attachmentId} deleted permanently` });
+}
+
+export const DeleteAttachmentTool = defineTool({
+  name: 'jira_delete_attachment',
+  description: 'Permanently delete an attachment. Attachment ids come from jira_get_attachments. This cannot be undone — confirm with the user first.',
+  inputSchema: {
+    type: 'object' as const,
+    properties: {
+      attachmentId: { type: 'string', description: 'Attachment ID (use jira_get_attachments)' },
+    },
+    required: ['attachmentId'],
+  },
+  handler: handleDeleteAttachment,
+});
+
 export const ATTACHMENTS_TOOLS = [
+  DeleteAttachmentTool,
   GetAttachmentsTool,
   AddAttachmentTool,
   DownloadAttachmentTool,

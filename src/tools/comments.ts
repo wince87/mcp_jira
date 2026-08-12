@@ -1,23 +1,51 @@
 import type { JiraComment, ToolArgs, ToolResponse } from '../types.js';
 import { jiraApi } from '../http.js';
+import { present } from '../args.js';
 import { mapComment } from '../mappers.js';
 import { offsetPage, offsetParams } from '../args.js';
 import { adfToText, createADFDocument } from '../adf.js';
 import { createSuccessResponse } from '../responses.js';
-import { validateIssueKey, validateSafeParam } from '../validation.js';
+import { sanitizeString, validateIssueKey, validateSafeParam } from '../validation.js';
 import { defineTool } from '../registry.js';
 
+function commentPayload(a: ToolArgs): Record<string, unknown> {
+  const payload: Record<string, unknown> = { body: createADFDocument(a.comment) };
+
+  if (present(a.visibility)) {
+    const visibility = a.visibility as Record<string, unknown>;
+    const type = sanitizeString(visibility.type, 20, 'visibility.type').toLowerCase();
+    if (type !== 'role' && type !== 'group') {
+      throw new Error('visibility.type must be "role" or "group"');
+    }
+    payload.visibility = { type, value: sanitizeString(visibility.value, 255, 'visibility.value') };
+  }
+
+  if (a.internal === true) {
+    payload.properties = [{ key: 'sd.public.comment', value: { internal: true } }];
+  }
+
+  return payload;
+}
+
 export async function handleAddComment(a: ToolArgs): Promise<ToolResponse> {
-  validateIssueKey(a.issueKey);
-  await jiraApi.post(`/issue/${a.issueKey}/comment`, { body: createADFDocument(a.comment) });
-  return createSuccessResponse({ success: true, message: `Comment added to ${a.issueKey}` });
+  const issueKey = validateIssueKey(a.issueKey);
+  const response = await jiraApi.post(`/issue/${issueKey}/comment`, commentPayload(a));
+  return createSuccessResponse({
+    success: true,
+    message: `Comment added to ${issueKey}`,
+    comment: mapComment(response.data),
+  });
 }
 
 export async function handleUpdateComment(a: ToolArgs): Promise<ToolResponse> {
-  validateIssueKey(a.issueKey);
-  validateSafeParam(a.commentId, 'commentId', 50);
-  await jiraApi.put(`/issue/${a.issueKey}/comment/${a.commentId}`, { body: createADFDocument(a.comment) });
-  return createSuccessResponse({ success: true, message: `Comment ${a.commentId} updated on ${a.issueKey}` });
+  const issueKey = validateIssueKey(a.issueKey);
+  const commentId = validateSafeParam(a.commentId, 'commentId', 50);
+  const response = await jiraApi.put(`/issue/${issueKey}/comment/${commentId}`, commentPayload(a));
+  return createSuccessResponse({
+    success: true,
+    message: `Comment ${commentId} updated on ${issueKey}`,
+    comment: mapComment(response.data),
+  });
 }
 
 export async function handleDeleteComment(a: ToolArgs): Promise<ToolResponse> {
@@ -51,6 +79,8 @@ export const AddCommentTool = defineTool({
       issueKey: { type: 'string', description: 'Issue key' },
       comment: { type: 'string', description: 'Comment text in Markdown.' },
     },
+      visibility: { type: 'object', properties: { type: { type: 'string', enum: ['role', 'group'] }, value: { type: 'string' } }, description: 'Restrict who can read the comment, e.g. { "type": "role", "value": "Administrators" }. Omit to leave it visible to everyone who can see the issue.' },
+      internal: { type: 'boolean', description: 'Jira Service Management only: post as an internal note that the customer cannot see.', default: false },
     required: ['issueKey', 'comment'],
   },
   handler: handleAddComment,
@@ -66,6 +96,8 @@ export const UpdateCommentTool = defineTool({
       commentId: { type: 'string', description: 'Comment ID (use jira_get_comments to find it)' },
       comment: { type: 'string', description: 'Updated comment text in Markdown.' },
     },
+      visibility: { type: 'object', properties: { type: { type: 'string', enum: ['role', 'group'] }, value: { type: 'string' } }, description: 'Restrict who can read the comment, e.g. { "type": "role", "value": "Administrators" }. Omit to leave it visible to everyone who can see the issue.' },
+      internal: { type: 'boolean', description: 'Jira Service Management only: post as an internal note that the customer cannot see.', default: false },
     required: ['issueKey', 'commentId', 'comment'],
   },
   handler: handleUpdateComment,

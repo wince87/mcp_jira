@@ -84,6 +84,17 @@ const CASES = [
   ['jira_update_sprint', { sprintId: 10, state: 'closed' }],
   ['jira_delete_sprint', { sprintId: 10 }],
   ['jira_get_attachments', { issueKey: 'TEST-1' }],
+  ['jira_delete_attachment', { attachmentId: '9001' }],
+  ['jira_get_edit_fields', { issueKey: 'TEST-1' }],
+  ['jira_get_remote_links', { issueKey: 'TEST-1' }],
+  ['jira_add_remote_link', { issueKey: 'TEST-1', url: 'https://github.com/acme/repo/pull/42', title: 'PR #42', relationship: 'implemented by' }],
+  ['jira_delete_remote_link', { issueKey: 'TEST-1', linkId: '60001' }],
+  ['jira_bulk_update_issues', { issueKeys: ['TEST-1'], addLabels: ['triaged'] }],
+  ['jira_get_project_statuses', { projectKey: 'TEST' }],
+  ['jira_list_labels', {}],
+  ['jira_get_my_permissions', { projectKey: 'TEST' }],
+  ['jira_rank_issues', { issueKeys: ['TEST-1'], rankBeforeIssue: 'TEST-2' }],
+  ['jira_move_to_backlog', { issueKeys: ['TEST-1'] }],
   ['jira_add_attachment', { issueKey: 'TEST-1', filePath: UPLOAD_PATH }],
   ['jira_list_epics', { projectKey: 'TEST' }],
   ['jira_get_epic', { epicKey: 'TEST-100' }],
@@ -154,7 +165,7 @@ test('stdout carries JSON-RPC only', () => {
 
 test('every tool declaration carries a handler and a unique name', async () => {
   const { tools } = await server.listTools();
-  assert.equal(tools.length, 64, 'tool count changed; update this number deliberately');
+  assert.equal(tools.length, 75, 'tool count changed; update this number deliberately');
   for (const tool of tools) {
     assert.ok(tool.description && tool.description.length > 20, `${tool.name} needs a real description`);
     assert.equal(tool.inputSchema.type, 'object', `${tool.name} must take an object`);
@@ -245,4 +256,57 @@ test('deleting a version uses removeAndSwap so issues can be repointed', async (
   const call = mock.requests[0];
   assert.equal(call.path, '/rest/api/3/version/10101/removeAndSwap', 'the plain DELETE endpoint is deprecated');
   assert.equal(call.body.moveFixIssuesTo, '10100');
+});
+
+test('bulk update adds labels without destroying the existing ones', async () => {
+  mock.reset();
+  await server.call('jira_bulk_update_issues', { issueKeys: ['TEST-1'], addLabels: ['triaged'], removeLabels: ['stale'] });
+  const put = mock.requests.find(r => r.method === 'PUT' && r.path === '/rest/api/3/issue/TEST-1');
+  assert.deepStrictEqual(put.body.update.labels, [{ add: 'triaged' }, { remove: 'stale' }]);
+  assert.equal(put.body.fields, undefined, 'a label-only change must not send a fields block');
+});
+
+test('bulk update refuses to mix replacing and adjusting labels', async () => {
+  const result = await server.call('jira_bulk_update_issues', { issueKeys: ['TEST-1'], labels: ['a'], addLabels: ['b'] });
+  assert.equal(result.isError, true, 'replacing and adding at once is ambiguous and would silently drop labels');
+});
+
+test('bulk update rejects a call with nothing to change', async () => {
+  const result = await server.call('jira_bulk_update_issues', { issueKeys: ['TEST-1'] });
+  assert.equal(result.isError, true);
+});
+
+test('an internal comment carries the service-desk property', async () => {
+  mock.reset();
+  await server.call('jira_add_comment', { issueKey: 'TEST-1', comment: 'internal note', internal: true });
+  assert.deepStrictEqual(mock.requests[0].body.properties, [{ key: 'sd.public.comment', value: { internal: true } }]);
+});
+
+test('comment visibility is validated', async () => {
+  const bad = await server.call('jira_add_comment', { issueKey: 'TEST-1', comment: 'x', visibility: { type: 'everyone', value: 'all' } });
+  assert.equal(bad.isError, true);
+  mock.reset();
+  const ok = await server.call('jira_add_comment', { issueKey: 'TEST-1', comment: 'x', visibility: { type: 'ROLE', value: 'Administrators' } });
+  assert.equal(ok.isError, false);
+  assert.deepStrictEqual(mock.requests[0].body.visibility, { type: 'role', value: 'Administrators' });
+});
+
+test('remote links only accept http and https', async () => {
+  for (const url of ['javascript:alert(1)', 'file:///etc/passwd', 'not a url']) {
+    const result = await server.call('jira_add_remote_link', { issueKey: 'TEST-1', url, title: 'x' });
+    assert.equal(result.isError, true, `${url} must be rejected`);
+  }
+});
+
+test('ranking requires exactly one anchor', async () => {
+  const none = await server.call('jira_rank_issues', { issueKeys: ['TEST-1'] });
+  assert.equal(none.isError, true);
+  const both = await server.call('jira_rank_issues', { issueKeys: ['TEST-1'], rankBeforeIssue: 'TEST-2', rankAfterIssue: 'TEST-3' });
+  assert.equal(both.isError, true);
+});
+
+test('permissions are reported as granted and denied', async () => {
+  const result = await server.call('jira_get_my_permissions', { projectKey: 'TEST', permissions: ['EDIT_ISSUES', 'DELETE_ISSUES'] });
+  assert.deepStrictEqual(result.data.granted, ['EDIT_ISSUES']);
+  assert.deepStrictEqual(result.data.denied, ['DELETE_ISSUES'], 'a denied permission must be visible, not just absent');
 });

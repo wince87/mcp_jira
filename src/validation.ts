@@ -231,3 +231,30 @@ export function validateAssigneeType(value: unknown): string {
   }
   return assigneeType;
 }
+
+export function validateHttpUrl(value: unknown, fieldName: string): string {
+  const raw = sanitizeString(value, 2000, fieldName);
+  let parsed: URL;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    throw new Error(`Invalid ${fieldName}: must be an absolute URL`);
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    throw new Error(`Invalid ${fieldName}: only http and https links are allowed`);
+  }
+  return parsed.toString();
+}
+
+export function validatePermissionKeys(input: unknown): string[] {
+  if (!Array.isArray(input) || input.length === 0) {
+    throw new Error('permissions must be a non-empty array of permission keys');
+  }
+  return input.map((item, index) => {
+    const value = sanitizeString(item, 60, `permissions[${index}]`).toUpperCase();
+    if (!/^[A-Z_]+$/.test(value)) {
+      throw new Error(`Invalid permission key "${value}": expected an upper-case key like EDIT_ISSUES`);
+    }
+    return value;
+  });
+}

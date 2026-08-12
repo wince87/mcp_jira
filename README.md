@@ -8,7 +8,7 @@ Model Context Protocol (MCP) server for Jira API integration with automatic Mark
 
 ## Features
 
-- 64 Jira API tools via MCP protocol
+- 75 Jira API tools via MCP protocol
 - 34 pre-baked MCP prompts covering every tool (sprint planning, bug triage, epic health, standup, weekly reports, bulk ops, attachments, watchers, filters, reorg, etc.)
 - Automatic Markdown to ADF conversion (write Markdown, get proper Jira formatting)
 - ADF to Markdown conversion when reading issues and comments
@@ -138,7 +138,7 @@ Bulk operations run `JIRA_CONCURRENCY` requests in parallel and report results i
 
 ## MCP Prompts
 
-Pre-baked workflows your AI agent can invoke directly (via MCP `prompts/list` + `prompts/get`). Every one of the 64 tools is referenced in at least one prompt.
+Pre-baked workflows your AI agent can invoke directly (via MCP `prompts/list` + `prompts/get`). Every one of the 75 tools is referenced in at least one prompt.
 
 **Formatting & lookup**
 - `jira-formatting-guide` - Markdown formatting rules for Jira (ADF)
@@ -211,6 +211,9 @@ Pre-baked workflows your AI agent can invoke directly (via MCP `prompts/list` + 
 - `jira_delete_worklog` - Delete a worklog entry
 - `jira_get_attachments` - List attachments on an issue
 - `jira_add_attachment` - Attach a local file to an issue
+- `jira_delete_attachment` - Delete an attachment permanently
+- `jira_get_edit_fields` - Get the edit screen for one issue (update-time mirror of `jira_get_create_fields`)
+- `jira_get_remote_links` / `jira_add_remote_link` / `jira_delete_remote_link` - Web links (pull requests, Confluence pages)
 
 ### Sprint & Board Management
 - `jira_list_boards` - List all Scrum/Kanban boards
@@ -220,6 +223,8 @@ Pre-baked workflows your AI agent can invoke directly (via MCP `prompts/list` + 
 - `jira_create_sprint` - Create a sprint on a board
 - `jira_update_sprint` - Rename, re-goal, re-date, or start/close a sprint via state
 - `jira_delete_sprint` - Delete a sprint (issues return to the backlog)
+- `jira_rank_issues` - Reorder issues in the backlog or on a board
+- `jira_move_to_backlog` - Move issues out of a sprint
 
 ### Epic Management
 - `jira_list_epics` - List all epics in a project
@@ -240,6 +245,9 @@ Pre-baked workflows your AI agent can invoke directly (via MCP `prompts/list` + 
 
 ### Metadata
 - `jira_get_fields` - Get all fields (find custom field IDs)
+- `jira_get_project_statuses` - Statuses available per issue type
+- `jira_list_labels` - Labels that already exist in the instance
+- `jira_get_my_permissions` - What the current user may do, optionally scoped to a project or issue
 - `jira_get_issue_types` - Get issue types for project
 - `jira_get_create_fields` - Get the create screen for one issue type: required flags, types, allowed values
 - `jira_get_priorities` - Get available priorities (pass the id, not the localized name)
@@ -260,6 +268,7 @@ Pre-baked workflows your AI agent can invoke directly (via MCP `prompts/list` + 
 
 ### Bulk Operations & Downloads
 - `jira_bulk_transition_issues` - Apply the same status transition to multiple issues
+- `jira_bulk_update_issues` - Apply the same field changes to multiple issues (add/remove labels without replacing)
 - `jira_download_attachment` - Download an attachment to a local file
 
 ## Environment Variables

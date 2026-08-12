@@ -1,0 +1,16 @@
+{
+  "isError": false,
+  "data": {
+    "success": true,
+    "message": "Attachment 9001 deleted permanently"
+  },
+  "contentTypes": [
+    "text"
+  ],
+  "requests": [
+    {
+      "method": "DELETE",
+      "path": "/rest/api/3/attachment/9001"
+    }
+  ]
+}

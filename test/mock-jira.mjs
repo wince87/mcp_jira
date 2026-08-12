@@ -247,6 +247,12 @@ function pick(issue, fieldsParam) {
 const ROUTES = [
   ['GET', '/rest/api/3/myself', () => [200, USER]],
   ['GET', '/rest/api/3/field', () => [200, FIELDS]],
+  ['GET', '/rest/api/3/label', (p, q) => [200, page(['regression', 'epic', 'blocked'], q, 'values')]],
+  ['GET', '/rest/api/3/mypermissions', (p, q) => [200, {
+    permissions: Object.fromEntries((q.permissions ?? '').split(',').filter(Boolean)
+      .map(key => [key, { key, name: key, havePermission: key !== 'DELETE_ISSUES' }])),
+  }]],
+  ['DELETE', '/rest/api/3/attachment/:id', () => [204, null]],
   ['GET', '/rest/api/3/priority/search', () => [200, { values: PRIORITIES, total: PRIORITIES.length, isLast: true }]],
   ['GET', '/rest/api/3/issueLinkType', () => [200, { issueLinkTypes: [{ id: '10000', name: 'Blocks', inward: 'is blocked by', outward: 'blocks' }] }]],
 
@@ -260,6 +266,9 @@ const ROUTES = [
   ['POST', '/rest/api/3/component', (p, q, body) => [201, { id: '10201', ...body, lead: body.leadAccountId ? USER : undefined }]],
   ['PUT', '/rest/api/3/component/:id', (p, q, body) => [200, { ...COMPONENTS[0], id: p.id, ...body }]],
   ['DELETE', '/rest/api/3/component/:id', () => [204, null]],
+  ['GET', '/rest/api/3/project/:key/statuses', () => [200, [
+    { id: '10004', name: 'Помилка', statuses: [{ id: '1', name: 'To Do', statusCategory: { key: 'new' } }, { id: '3', name: 'In Progress', statusCategory: { key: 'indeterminate' } }] },
+  ]]],
   ['GET', '/rest/api/3/project/:key/components', () => [200, COMPONENTS]],
   ['GET', '/rest/api/3/project/:key/versions', () => [200, VERSIONS]],
   ['GET', '/rest/api/3/project/:key', () => [200, projectPayload()]],
@@ -289,6 +298,12 @@ const ROUTES = [
     const ordered = q.orderBy === 'created' ? COMMENTS : [...COMMENTS].reverse();
     return [200, page(ordered, q, 'comments')];
   }],
+  ['GET', '/rest/api/3/issue/:key/remotelink/:linkId', () => [404, { errorMessages: ['not used'] }]],
+  ['DELETE', '/rest/api/3/issue/:key/remotelink/:linkId', () => [204, null]],
+  ['GET', '/rest/api/3/issue/:key/remotelink', () => [200, [
+    { id: 60001, globalId: 'pr-42', relationship: 'implemented by', application: { name: 'GitHub' }, object: { url: 'https://github.com/acme/repo/pull/42', title: 'PR #42', summary: 'Fix login retry' } },
+  ]]],
+  ['POST', '/rest/api/3/issue/:key/remotelink', () => [201, { id: 60002 }]],
   ['GET', '/rest/api/3/issue/:key/editmeta', () => [200, {
     fields: {
       summary: { name: 'Summary', required: true, schema: { type: 'string' }, operations: ['set'] },
@@ -371,6 +386,8 @@ const ROUTES = [
   }]],
   ['GET', '/rest/agile/1.0/sprint/:id/issue', (p, q) => [200, page(issueList(['TEST-1', 'TEST-2']).map(i => pick(i, q.fields)), q, 'issues')]],
   ['GET', '/rest/agile/1.0/sprint/:id', (p) => [200, SPRINTS.find(s => String(s.id) === p.id) ?? SPRINTS[0]]],
+  ['PUT', '/rest/agile/1.0/issue/rank', () => [204, null]],
+  ['POST', '/rest/agile/1.0/backlog/issue', () => [204, null]],
   ['POST', '/rest/agile/1.0/epic/none/issue', () => [204, null]],
   ['POST', '/rest/agile/1.0/epic/:key/issue', () => [204, null]],
   ['POST', '/rest/agile/1.0/sprint/:id/issue', () => [204, null]],

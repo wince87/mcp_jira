@@ -293,9 +293,17 @@ export async function safeEditMeta(issueKey: string): Promise<CreateMetaResult |
   }
 }
 
-export async function putIssue(issueKey: string, fields: Record<string, unknown>): Promise<void> {
+export async function putIssue(
+  issueKey: string,
+  fields: Record<string, unknown>,
+  update?: Record<string, unknown>,
+): Promise<void> {
+  const payload: Record<string, unknown> = {};
+  if (Object.keys(fields).length > 0) payload.fields = fields;
+  if (update && Object.keys(update).length > 0) payload.update = update;
+
   try {
-    await jiraApi.put(`/issue/${issueKey}`, { fields });
+    await jiraApi.put(`/issue/${issueKey}`, payload);
   } catch (error) {
     const axiosError = error as AxiosError;
     if (axiosError.response?.status !== 400) throw error;

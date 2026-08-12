@@ -37,6 +37,27 @@
           "description": "Comment text in Markdown."
         }
       },
+      "visibility": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "role",
+              "group"
+            ]
+          },
+          "value": {
+            "type": "string"
+          }
+        },
+        "description": "Restrict who can read the comment, e.g. { \"type\": \"role\", \"value\": \"Administrators\" }. Omit to leave it visible to everyone who can see the issue."
+      },
+      "internal": {
+        "type": "boolean",
+        "description": "Jira Service Management only: post as an internal note that the customer cannot see.",
+        "default": false
+      },
       "required": [
         "issueKey",
         "comment"
@@ -66,6 +87,46 @@
       "required": [
         "epicKey",
         "issueKeys"
+      ]
+    },
+    "annotations": null,
+    "outputSchema": null
+  },
+  {
+    "name": "jira_add_remote_link",
+    "description": "Attach a web link to an issue, e.g. the pull request that implements it or the Confluence page that specifies it.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "issueKey": {
+          "type": "string",
+          "description": "Issue key (e.g., PROJ-123)"
+        },
+        "url": {
+          "type": "string",
+          "description": "Link target. Must be http or https."
+        },
+        "title": {
+          "type": "string",
+          "description": "Link text shown on the issue"
+        },
+        "summary": {
+          "type": "string",
+          "description": "Optional longer description"
+        },
+        "relationship": {
+          "type": "string",
+          "description": "How the link relates, e.g. \"implemented by\", \"documented in\""
+        },
+        "globalId": {
+          "type": "string",
+          "description": "Stable identifier. Posting the same globalId again updates that link instead of adding a duplicate."
+        }
+      },
+      "required": [
+        "issueKey",
+        "url",
+        "title"
       ]
     },
     "annotations": null,
@@ -302,6 +363,119 @@
         "comment": {
           "type": "string",
           "description": "Optional comment added during the transition (Markdown)"
+        }
+      },
+      "required": [
+        "issueKeys"
+      ]
+    },
+    "annotations": null,
+    "outputSchema": null
+  },
+  {
+    "name": "jira_bulk_update_issues",
+    "description": "Apply the same field changes to many issues. Iterates client-side with a per-issue result, because Jira has no stable bulk edit endpoint. Use addLabels/removeLabels to adjust labels without destroying the ones already there; the labels argument replaces the whole list on every issue.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "issueKeys": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Issue keys to update (max 100)"
+        },
+        "addLabels": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Labels to add, leaving existing ones alone"
+        },
+        "removeLabels": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Labels to remove, leaving the rest alone"
+        },
+        "priority": {
+          "type": "string",
+          "description": "Priority id (preferred) or name. Names are localized on non-English instances and only the canonical English name works — pass the id from jira_get_priorities or jira_get_create_fields. A localized name is matched against the allowed values and converted to an id automatically."
+        },
+        "storyPoints": {
+          "type": "number",
+          "description": "Story points estimate (0-1000)"
+        },
+        "parent": {
+          "type": "string",
+          "description": "New parent issue key for every listed issue"
+        },
+        "labels": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Labels. Sent only when provided."
+        },
+        "versions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Affects versions, by name or numeric id (ids are used verbatim). Required on many Bug screens. List them with jira_get_project_versions."
+        },
+        "fixVersions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Fix versions, by name or numeric id. List them with jira_get_project_versions."
+        },
+        "components": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Components, by name or numeric id. List them with jira_get_project_components."
+        },
+        "assignee": {
+          "type": "string",
+          "description": "Assignee accountId (not email). Resolve via jira_search_users or jira_get_myself."
+        },
+        "reporter": {
+          "type": "string",
+          "description": "Reporter accountId (not email). Requires the Modify Reporter permission."
+        },
+        "dueDate": {
+          "type": "string",
+          "description": "Due date as YYYY-MM-DD."
+        },
+        "timetracking": {
+          "type": "object",
+          "properties": {
+            "originalEstimate": {
+              "type": "string",
+              "description": "Jira duration, e.g. \"3h 30m\", \"2d\"."
+            },
+            "remainingEstimate": {
+              "type": "string",
+              "description": "Jira duration, e.g. \"1h\"."
+            }
+          },
+          "description": "Time tracking estimates."
+        },
+        "customFields": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Custom field values keyed by field ID (customfield_NNNNN). Use the shape the field expects: single-select { \"id\": \"10001\" } or { \"value\": \"X\" }; multi-select [ { \"id\": \"10001\" } ]; user { \"accountId\": \"...\" }; text \"string\". Rich-text (schema.type \"doc\") fields accept a plain Markdown string and are converted to ADF automatically. Call jira_get_create_fields for ids and allowed values."
+        },
+        "customFieldsMarkdown": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Rich-text custom fields keyed by field ID, values as Markdown strings converted to ADF. Use when the field type is \"doc\" and you want the conversion to be explicit."
         }
       },
       "required": [
@@ -865,6 +1039,24 @@
     "outputSchema": null
   },
   {
+    "name": "jira_delete_attachment",
+    "description": "Permanently delete an attachment. Attachment ids come from jira_get_attachments. This cannot be undone — confirm with the user first.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "attachmentId": {
+          "type": "string",
+          "description": "Attachment ID (use jira_get_attachments)"
+        }
+      },
+      "required": [
+        "attachmentId"
+      ]
+    },
+    "annotations": null,
+    "outputSchema": null
+  },
+  {
     "name": "jira_delete_comment",
     "description": "Delete a comment from a Jira issue.",
     "inputSchema": {
@@ -944,6 +1136,29 @@
         }
       },
       "required": [
+        "linkId"
+      ]
+    },
+    "annotations": null,
+    "outputSchema": null
+  },
+  {
+    "name": "jira_delete_remote_link",
+    "description": "Remove a web link from an issue. Link ids come from jira_get_remote_links.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "issueKey": {
+          "type": "string",
+          "description": "Issue key (e.g., PROJ-123)"
+        },
+        "linkId": {
+          "type": "string",
+          "description": "Remote link ID from jira_get_remote_links"
+        }
+      },
+      "required": [
+        "issueKey",
         "linkId"
       ]
     },
@@ -1175,6 +1390,24 @@
     "outputSchema": null
   },
   {
+    "name": "jira_get_edit_fields",
+    "description": "Get the edit screen for one existing issue: every field you may change, with required flags, types and allowed values. This is the update-time mirror of jira_get_create_fields, and the way to find out why a field is rejected on jira_update_issue.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "issueKey": {
+          "type": "string",
+          "description": "Issue key (e.g., PROJ-123)"
+        }
+      },
+      "required": [
+        "issueKey"
+      ]
+    },
+    "annotations": null,
+    "outputSchema": null
+  },
+  {
     "name": "jira_get_epic",
     "description": "Get epic details via Agile API (name, summary, color, done status).",
     "inputSchema": {
@@ -1332,6 +1565,32 @@
     "outputSchema": null
   },
   {
+    "name": "jira_get_my_permissions",
+    "description": "Check what the authenticated user is allowed to do, optionally scoped to a project or an issue. Call it before a bulk operation to fail early with a clear reason instead of collecting permission errors issue by issue.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "projectKey": {
+          "type": "string",
+          "description": "Scope the check to a project"
+        },
+        "issueKey": {
+          "type": "string",
+          "description": "Scope the check to a single issue"
+        },
+        "permissions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Permission keys to check, e.g. [\"EDIT_ISSUES\", \"DELETE_ISSUES\"]. Defaults to the common project permissions."
+        }
+      }
+    },
+    "annotations": null,
+    "outputSchema": null
+  },
+  {
     "name": "jira_get_myself",
     "description": "Get the authenticated user (accountId, displayName, email, timezone, locale). Useful to know who the MCP server is acting as.",
     "inputSchema": {
@@ -1383,6 +1642,21 @@
     "outputSchema": null
   },
   {
+    "name": "jira_get_project_statuses",
+    "description": "Get every status available per issue type in a project, with its status category. Use it to write correct JQL and to know which statuses exist before trying to transition to one.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "projectKey": {
+          "type": "string",
+          "description": "Project key (defaults to configured JIRA_PROJECT_KEY)"
+        }
+      }
+    },
+    "annotations": null,
+    "outputSchema": null
+  },
+  {
     "name": "jira_get_project_versions",
     "description": "Get versions (releases) of a Jira project.",
     "inputSchema": {
@@ -1393,6 +1667,24 @@
           "description": "Project key (defaults to configured JIRA_PROJECT_KEY)"
         }
       }
+    },
+    "annotations": null,
+    "outputSchema": null
+  },
+  {
+    "name": "jira_get_remote_links",
+    "description": "List web links attached to an issue — pull requests, Confluence pages, dashboards, anything outside Jira. These are separate from issue-to-issue links, which jira_get_issue returns.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "issueKey": {
+          "type": "string",
+          "description": "Issue key (e.g., PROJ-123)"
+        }
+      },
+      "required": [
+        "issueKey"
+      ]
     },
     "annotations": null,
     "outputSchema": null
@@ -1644,6 +1936,26 @@
     "outputSchema": null
   },
   {
+    "name": "jira_list_labels",
+    "description": "List labels that already exist in this Jira instance. Use it to reuse an existing label instead of inventing a near-duplicate.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "maxResults": {
+          "type": "number",
+          "description": "Maximum number of labels (1-100)",
+          "default": 100
+        },
+        "startAt": {
+          "type": "number",
+          "description": "Zero-based index of the first label to return"
+        }
+      }
+    },
+    "annotations": null,
+    "outputSchema": null
+  },
+  {
     "name": "jira_list_projects",
     "description": "List all accessible Jira projects.",
     "inputSchema": {
@@ -1723,6 +2035,27 @@
     "outputSchema": null
   },
   {
+    "name": "jira_move_to_backlog",
+    "description": "Move issues out of their sprint and back to the backlog. The inverse of jira_move_to_sprint.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "issueKeys": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Issue keys to move to the backlog"
+        }
+      },
+      "required": [
+        "issueKeys"
+      ]
+    },
+    "annotations": null,
+    "outputSchema": null
+  },
+  {
     "name": "jira_move_to_sprint",
     "description": "Move one or more issues to a sprint.",
     "inputSchema": {
@@ -1742,6 +2075,35 @@
       },
       "required": [
         "sprintId",
+        "issueKeys"
+      ]
+    },
+    "annotations": null,
+    "outputSchema": null
+  },
+  {
+    "name": "jira_rank_issues",
+    "description": "Reorder issues in the backlog or on a board by placing them before or after a reference issue. This is what changes the order sprint planning reads as priority.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "issueKeys": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Issues to move (max 50), kept in the given order"
+        },
+        "rankBeforeIssue": {
+          "type": "string",
+          "description": "Place them immediately above this issue"
+        },
+        "rankAfterIssue": {
+          "type": "string",
+          "description": "Place them immediately below this issue"
+        }
+      },
+      "required": [
         "issueKeys"
       ]
     },
@@ -1922,6 +2284,27 @@
           "type": "string",
           "description": "Updated comment text in Markdown."
         }
+      },
+      "visibility": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "role",
+              "group"
+            ]
+          },
+          "value": {
+            "type": "string"
+          }
+        },
+        "description": "Restrict who can read the comment, e.g. { \"type\": \"role\", \"value\": \"Administrators\" }. Omit to leave it visible to everyone who can see the issue."
+      },
+      "internal": {
+        "type": "boolean",
+        "description": "Jira Service Management only: post as an internal note that the customer cannot see.",
+        "default": false
       },
       "required": [
         "issueKey",

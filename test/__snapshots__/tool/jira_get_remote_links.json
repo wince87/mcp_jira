@@ -1,0 +1,27 @@
+{
+  "isError": false,
+  "data": {
+    "issueKey": "TEST-1",
+    "returned": 1,
+    "links": [
+      {
+        "id": 60001,
+        "globalId": "pr-42",
+        "relationship": "implemented by",
+        "url": "https://github.com/acme/repo/pull/42",
+        "title": "PR #42",
+        "summary": "Fix login retry",
+        "application": "GitHub"
+      }
+    ]
+  },
+  "contentTypes": [
+    "text"
+  ],
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/rest/api/3/issue/TEST-1/remotelink"
+    }
+  ]
+}
