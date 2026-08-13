@@ -1,10 +1,25 @@
-# Jira MCP Server v3.0.0
+# Jira MCP Server v3.0.1
 
 Model Context Protocol (MCP) server for Jira API integration with automatic Markdown-to-ADF conversion.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org/)
+[![Node.js Version](https://img.shields.io/badge/node-%3E%3D20.0.0-brightgreen)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue)](https://www.typescriptlang.org/)
+
+> **Upgrading from 2.x?** 3.0 changes several response shapes and defaults — [MIGRATION.md](MIGRATION.md) walks through every one with before/after examples. Full history in [CHANGELOG.md](CHANGELOG.md).
+
+## Contents
+
+- [Features](#features)
+- [Setup](#setup) — MCP client config or shell env
+- [Formatting](#formatting) — Markdown in, ADF out
+- [Creating issues on an unfamiliar screen](#creating-issues-on-an-unfamiliar-screen)
+- [Rate limits and retries](#rate-limits-and-retries)
+- [MCP protocol surface](#mcp-protocol-surface) — annotations, structured output, resources
+- [MCP Prompts](#mcp-prompts) — 35 ready-made workflows
+- [Available Tools](#available-tools) — all 75, grouped by area
+- [Environment Variables](#environment-variables)
+- [Changelog](#changelog) · [Development](#development) · [License](#license)
 
 ## Features
 
@@ -304,6 +319,7 @@ See [CHANGELOG.md](CHANGELOG.md) for full version history.
 
 ### Recent
 
+- **3.0.0** — Major release. 75 tools (22 new: sprint/version/component lifecycle, edit-screen introspection, bulk field updates, issue links management, remote links, attachment deletion, comment visibility/JSM internal notes, permissions, ranking, backlog). Monolith split into 28 modules with a single tool registry. Rate-limit retries with `Retry-After` and exponential backoff; `startAt` pagination everywhere with one envelope. Full MCP surface: tool annotations, `structuredContent` + 44 `outputSchema`s, prompt arguments with `completion/complete`, resources. Transition matching targets the destination status first (case-insensitive). **Breaking** — see [MIGRATION.md](MIGRATION.md) for the 2.x upgrade path. Requires Node 20+.
 - **2.8.0** — Added `customFields` on create/update/subtask/epic/bulk/clone (set mandatory `customfield_NNNNN`). Added `jira_view_attachment` (inline image view, 53 tools). Added Markdown image embedding (`![alt](media:<id>)`, external URLs) and `includeImages` on `jira_get_issue`. ADF media now reads as `[image: ...]`. Changed: `priority` no longer forced to Medium on create (sent only when provided).
 - **2.7.0** — Added `jira_update_worklog` + `jira_delete_worklog` (52 tools). Fix: `handleAddWatcher` self-watch (was sending null body, now empty string). Fix: `handleGetEpicIssues` split status into todo / inProgress / done. Bump axios 1.15.0 → 1.15.2.
 - **2.6.2** — Fix: `SERVER_VERSION` constant now matches package version (was stale at 2.6.0)
@@ -324,9 +340,12 @@ See [CHANGELOG.md](CHANGELOG.md) for full version history.
 ## Development
 
 ```bash
+npm ci
 npm run build
-npm start
+npm test          # offline: contract snapshots + behaviour + security, no Jira needed
 ```
+
+The test suite runs against a bundled mock of every Jira endpoint the server touches — 173 tests, no credentials required. `UPDATE_SNAPSHOTS=1 npm test` refreshes contract snapshots after an intentional change.
 
 ## License
 

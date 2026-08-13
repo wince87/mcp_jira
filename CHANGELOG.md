@@ -2,9 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.0.1] - 2026-08-13
+
+### Fixed
+- `visibility` and `internal` on `jira_add_comment` / `jira_update_comment` were declared outside the inputSchema `properties` block, making the JSM internal-note and comment-visibility parameters invisible to MCP clients; a contract test now rejects stray top-level schema keys
+- `jira://my-open-issues` resource queried `/search/jql` without a `fields` list, returning issues with every field undefined
+- `jira_add_watcher` without `accountId` sent a JSON `""` body instead of an empty one, breaking self-watch
+- `jira_update_issue` 400 diagnostics no longer report `missingRequired` for fields a partial update legitimately omits
+- `jira_get_epic` no longer advertises `fields` / `includeCustomFields` parameters its endpoint cannot honour
+- `jira_delete_comment` builds the URL from validated, trimmed values
+
+### Changed
+- `JIRA_EPIC_NAME_FIELD` env var replaces the hardcoded `customfield_10011` in `jira_create_epic`
+- README: contents section, 3.0.0 release summary, Node ≥20 badge, documented test workflow
+- CI test matrix green on Node 20/22/24 (`node --test` invoked with an explicit glob); snapshots are machine-independent
+
 ## [3.0.0] - 2026-08-13
 
-- `JIRA_EPIC_NAME_FIELD` env var replaces the hardcoded `customfield_10011` in `jira_create_epic`, mirroring `JIRA_STORY_POINTS_FIELD`.
 
 Major release. 75 tools (was 53), full MCP protocol surface, and a regression
 suite that did not exist before. See [MIGRATION.md](MIGRATION.md) for every
