@@ -95,9 +95,15 @@ no parent.
 The transition is resolved per issue, so which one actually ran can differ between issues.
 
 That tool also changed behaviour: `status` (and the older `transitionName`) is matched against
-each transition's **target status** first, then against transition names. In 2.x it only
-matched transition names, so `"In Progress"` never found a transition called
+each transition's **target status** first, then against transition names, case-insensitively.
+In 2.x it only matched transition names, so `"In Progress"` never found a transition called
 `"Start work (estimate)"`. `transitionName` still works as an alias.
+
+**The same matching applies to `jira_update_issue`'s `status` argument.** If a workflow has a
+transition *named* like some *other* status (say, a transition "Done" that leads to *Closed*,
+next to a transition "Resolve" that leads to *Done*), the target status now wins: 2.x ran the
+transition named "Done" and left the issue *Closed*; 3.0 runs the one leading **to** "Done".
+Pass `transitionId` when you need to pick an exact transition.
 
 ## 7. `labels` is only sent when you pass it
 
@@ -129,6 +135,12 @@ ambiguity at the source.
 - `jira_add_comment` and `jira_update_comment` now return the resulting `comment` alongside the
   existing `message`. This is additive.
 - Create tools return the created `issue` alongside `key` and `url`. Additive.
+- `jira_clone_issue` now also copies `versions`, `fixVersions` and `components` (by name) from
+  the source issue. When cloning into another project via `projectKey`, names that do not exist
+  in the target project make Jira reject the create — pass `customFields` overrides or clone
+  within the same project. 2.x copied only labels, priority and story points.
+- `jira_add_worklog` returns `author` as `{accountId, displayName}` like every other person
+  field (see §2). In 2.x it was a display-name string.
 
 ## 10. New in 3.0, nothing to change
 
@@ -141,7 +153,7 @@ ambiguity at the source.
   `jira://project/{key}/create-fields/{issueType}`, `jira://filter/{id}`, `jira://my-open-issues`.
 - Rate-limit handling: `429` is retried with backoff. Writes are never retried on `5xx`, only
   on `429`, because a write that returned `5xx` may already have been applied.
-- 21 new tools: sprint, version and component lifecycle; `jira_get_edit_fields`;
+- 22 new tools: sprint, version and component lifecycle; `jira_get_edit_fields`;
   `jira_bulk_update_issues`; remote links; `jira_delete_attachment`; `jira_delete_issue_link`;
   project statuses; labels; permissions; ranking; backlog.
 

@@ -180,8 +180,8 @@ resolution surprises for npx, easier to audit"). Після цього релі�
 - [x] `mapIssueSummary()` для списків, `mapIssue()` для повної задачі, `mapUser()` для людей
 - [x] Єдиний конверт пагінації `{returned, hasMore}` + `{startAt, total}` або `{nextPageToken}`
 - [x] `startAt` у 11 інструментах
-- [ ] `mapAttachment`, `mapWorklog`, `mapComment`, `mapFilter` — лишились дублі по 2 місця (R8)
-- [ ] Локальні інтерфейси з тіл функцій переїжджають у типи (R7)
+- [x] `mapAttachment`, `mapWorklog`, `mapComment`, `mapFilter` — зведені до одного місця (R8)
+- [x] Локальні інтерфейси з тіл функцій переїхали у типи (R7; останній — `JiraFilter` у filters.ts, прибраний на рев'ю)
 
 ### 1.4 Хелпери аргументів (закриває R4, R5) — ГОТОВО
 
@@ -210,8 +210,9 @@ resolution surprises for npx, easier to audit"). Після цього релі�
 
 ### 1.8 Розділення відповідальностей у хендлерах (SRP)
 
-- [ ] Кожен хендлер: розбір аргументів -> побудова payload -> виклик клієнта -> мапінг. Без змішування
-- [ ] Побудова payload для create/update вже винесена (`applyOptionalFields`) — довести до кінця
+- [x] Кожен хендлер: розбір аргументів -> побудова payload -> виклик клієнта -> мапінг (рев'ю: залишки — інлайн image-логіка у `handleGetIssue`, дубльований create-пайплайн ×4, транзишн-секвенція ×2 — прийнято як борг 3.1)
+- [x] Побудова payload для create/update винесена (`applyOptionalFields`)
+- [x] `noUnusedLocals`/`noUnusedParameters` увімкнені; мертві локали й експорти (`optionalText`, `GENERIC_OUTPUT`, `clients[]`) прибрані на рев'ю
 
 Критерій виходу: `npm test` зелений, дифи знімків або порожні, або збігаються з D4.
 
