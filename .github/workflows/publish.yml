@@ -21,7 +21,7 @@ jobs:
       - run: npm ci
       - run: npm run build
       - name: Contract and security tests
-        run: node --test test/
+        run: node --test test/*.test.mjs
       - name: Check npm auth
         run: npm whoami
         env:
