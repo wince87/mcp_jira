@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [3.0.0] - unreleased
+## [3.0.0] - 2026-08-13
 
 Major release. 75 tools (was 53), full MCP protocol surface, and a regression
 suite that did not exist before. See [MIGRATION.md](MIGRATION.md) for every

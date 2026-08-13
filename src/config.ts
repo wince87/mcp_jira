@@ -11,7 +11,7 @@ export function getRequiredEnv(name: string, fallback: string | null = null): st
   throw new Error(`Required environment variable ${name} is not set. Set it via your MCP client config or shell environment.`);
 }
 
-export const SERVER_VERSION = '2.8.0';
+export const SERVER_VERSION = '3.0.0';
 
 export const JIRA_URL: string = getRequiredEnv('JIRA_HOST', process.env.JIRA_URL ?? null);
 export const JIRA_EMAIL: string = getRequiredEnv('JIRA_EMAIL');
