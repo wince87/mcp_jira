@@ -173,6 +173,25 @@ test('every tool declaration carries a handler and a unique name', async () => {
   }
 });
 
+test('inputSchema declarations contain no stray top-level keys', async () => {
+  // A property accidentally placed outside `properties` is silently
+  // ignored by JSON Schema, so the parameter becomes invisible to every
+  // client while the handler still supports it. This happened to
+  // jira_add_comment's visibility/internal once.
+  const KNOWN_SCHEMA_KEYS = new Set([
+    'type', 'properties', 'required', 'additionalProperties', 'description', '$schema',
+  ]);
+  const { tools } = await server.listTools();
+  for (const tool of tools) {
+    for (const key of Object.keys(tool.inputSchema)) {
+      assert.ok(
+        KNOWN_SCHEMA_KEYS.has(key),
+        `${tool.name}: stray top-level inputSchema key "${key}" — did a property land outside \`properties\`?`,
+      );
+    }
+  }
+});
+
 test('field selection reaches Jira and reshapes every list tool the same way', async () => {
   for (const [tool, args] of [
     ['jira_search_issues', { jql: 'project = TEST' }],

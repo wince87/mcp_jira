@@ -57,28 +57,28 @@
         "comment": {
           "type": "string",
           "description": "Comment text in Markdown."
-        }
-      },
-      "visibility": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "enum": [
-              "role",
-              "group"
-            ]
-          },
-          "value": {
-            "type": "string"
-          }
         },
-        "description": "Restrict who can read the comment, e.g. { \"type\": \"role\", \"value\": \"Administrators\" }. Omit to leave it visible to everyone who can see the issue."
-      },
-      "internal": {
-        "type": "boolean",
-        "description": "Jira Service Management only: post as an internal note that the customer cannot see.",
-        "default": false
+        "visibility": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "role",
+                "group"
+              ]
+            },
+            "value": {
+              "type": "string"
+            }
+          },
+          "description": "Restrict who can read the comment, e.g. { \"type\": \"role\", \"value\": \"Administrators\" }. Omit to leave it visible to everyone who can see the issue."
+        },
+        "internal": {
+          "type": "boolean",
+          "description": "Jira Service Management only: post as an internal note that the customer cannot see.",
+          "default": false
+        }
       },
       "required": [
         "issueKey",
@@ -2354,18 +2354,6 @@
         "epicKey": {
           "type": "string",
           "description": "Epic issue key (e.g., PROJ-100)"
-        },
-        "fields": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "description": "Exact field IDs to return per issue, e.g. [\"summary\", \"customfield_10122\"] or [\"*all\"]. When set, each item returns a raw fields map instead of the default shape."
-        },
-        "includeCustomFields": {
-          "type": "boolean",
-          "description": "Add a customFields map (id -> { name, type, value }) to every issue. Rich-text fields render as Markdown. Requests all fields, so prefer an explicit fields list on large result sets.",
-          "default": false
         }
       },
       "required": [
@@ -4406,28 +4394,28 @@
         "comment": {
           "type": "string",
           "description": "Updated comment text in Markdown."
-        }
-      },
-      "visibility": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "enum": [
-              "role",
-              "group"
-            ]
-          },
-          "value": {
-            "type": "string"
-          }
         },
-        "description": "Restrict who can read the comment, e.g. { \"type\": \"role\", \"value\": \"Administrators\" }. Omit to leave it visible to everyone who can see the issue."
-      },
-      "internal": {
-        "type": "boolean",
-        "description": "Jira Service Management only: post as an internal note that the customer cannot see.",
-        "default": false
+        "visibility": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "role",
+                "group"
+              ]
+            },
+            "value": {
+              "type": "string"
+            }
+          },
+          "description": "Restrict who can read the comment, e.g. { \"type\": \"role\", \"value\": \"Administrators\" }. Omit to leave it visible to everyone who can see the issue."
+        },
+        "internal": {
+          "type": "boolean",
+          "description": "Jira Service Management only: post as an internal note that the customer cannot see.",
+          "default": false
+        }
       },
       "required": [
         "issueKey",

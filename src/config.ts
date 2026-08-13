@@ -18,6 +18,7 @@ export const JIRA_EMAIL: string = getRequiredEnv('JIRA_EMAIL');
 export const JIRA_API_TOKEN: string = getRequiredEnv('JIRA_API_TOKEN');
 export const JIRA_PROJECT_KEY: string = validateProjectKey(process.env.JIRA_PROJECT_KEY || 'PROJ');
 export const STORY_POINTS_FIELD: string = process.env.JIRA_STORY_POINTS_FIELD || 'customfield_10016';
+export const EPIC_NAME_FIELD: string = process.env.JIRA_EPIC_NAME_FIELD || 'customfield_10011';
 
 function readPositiveInt(name: string, fallback: number): number {
   const raw = process.env[name];

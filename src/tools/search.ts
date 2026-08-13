@@ -5,7 +5,6 @@ import { createSuccessResponse, resolveProjectKey } from '../responses.js';
 import { validateAccountId, validateJQL } from '../validation.js';
 import { defineTool } from '../registry.js';
 import { ISSUE_LIST_OUTPUT } from '../outputs.js';
-import { JIRA_PROJECT_KEY } from '../config.js';
 
 export async function handleSearchIssues(a: ToolArgs): Promise<ToolResponse> {
   const jql = validateJQL(a.jql);

@@ -8,7 +8,6 @@ import {
 } from '../meta.js';
 import { defineTool } from '../registry.js';
 import { META_FIELDS_OUTPUT } from '../outputs.js';
-import { JIRA_PROJECT_KEY } from '../config.js';
 
 export async function handleGetFields(_a: ToolArgs): Promise<ToolResponse> {
   const fields = [...(await fetchFieldIndex()).values()];

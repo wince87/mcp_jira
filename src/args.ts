@@ -30,10 +30,6 @@ export function numericId(value: unknown, fieldName: string): number {
   return value;
 }
 
-export function optionalText(a: ToolArgs, name: string, maxLength: number = 1000): string | null {
-  return present(a[name]) ? sanitizeString(a[name], maxLength, name) : null;
-}
-
 export function offsetParams(a: ToolArgs, fallbackMaxResults: number | null = 50): Record<string, unknown> {
   const params: Record<string, unknown> = {};
   if (fallbackMaxResults !== null || present(a.maxResults)) {

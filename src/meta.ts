@@ -242,9 +242,16 @@ export function validateAgainstMeta(fields: Record<string, unknown>, meta: Creat
   return { missingRequired, invalidValues, unknownFields };
 }
 
-export function collectDiagnostics(fields: Record<string, unknown>, meta: CreateMetaResult, error: unknown, hint: string): Record<string, unknown> | null {
+export function collectDiagnostics(
+  fields: Record<string, unknown>,
+  meta: CreateMetaResult,
+  error: unknown,
+  hint: string,
+  options: { checkRequired?: boolean } = {},
+): Record<string, unknown> | null {
   const axiosError = error as AxiosError<{ errors?: Record<string, string> }>;
   const report = validateAgainstMeta(fields, meta);
+  if (options.checkRequired === false) report.missingRequired = [];
   const mentioned = new Set(Object.keys(axiosError.response?.data?.errors ?? {}));
 
   const allowedValues: Record<string, unknown> = {};
@@ -309,7 +316,11 @@ export async function putIssue(
     if (axiosError.response?.status !== 400) throw error;
     const meta = await safeEditMeta(issueKey);
     const hint = `Edit screen for ${issueKey}. Fields listed under fieldsNotOnScreen are not editable on this issue.`;
-    const diagnostics = meta ? collectDiagnostics(fields, meta, error, hint) : null;
+    // Partial updates legitimately omit required fields that are already
+    // set on the issue, so a missingRequired report would only mislead.
+    const diagnostics = meta
+      ? collectDiagnostics(fields, meta, error, hint, { checkRequired: false })
+      : null;
     if (diagnostics) throw new JiraDiagnosticError(error, diagnostics);
     throw error;
   }

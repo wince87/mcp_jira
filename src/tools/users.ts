@@ -37,7 +37,11 @@ export async function handleAddWatcher(a: ToolArgs): Promise<ToolResponse> {
   const accountId = a.accountId === undefined || a.accountId === null
     ? null
     : validateAccountId(a.accountId);
-  await jiraApi.post(`/issue/${issueKey}/watchers`, accountId ?? '');
+  if (accountId === null) {
+    await jiraApi.post(`/issue/${issueKey}/watchers`);
+  } else {
+    await jiraApi.post(`/issue/${issueKey}/watchers`, accountId);
+  }
   return createSuccessResponse({ success: true, issueKey, accountId: accountId ?? 'self' });
 }
 

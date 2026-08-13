@@ -15,7 +15,6 @@ import { applyOptionalFields, convertDocFields, putIssue, resolveIssueTypeValue,
 import { defineTool } from '../registry.js';
 import { BULK_RESULT_OUTPUT } from '../outputs.js';
 import { PRIORITY_SCHEMA, COMMON_ISSUE_FIELDS_SCHEMA } from '../schemas.js';
-import { JIRA_PROJECT_KEY } from '../config.js';
 
 export async function handleBulkCreateIssues(a: ToolArgs): Promise<ToolResponse> {
   const { issues } = a;

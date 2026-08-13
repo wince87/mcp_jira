@@ -50,10 +50,10 @@ export async function handleUpdateComment(a: ToolArgs): Promise<ToolResponse> {
 }
 
 export async function handleDeleteComment(a: ToolArgs): Promise<ToolResponse> {
-  validateIssueKey(a.issueKey);
-  validateSafeParam(a.commentId, 'commentId', 50);
-  await jiraApi.delete(`/issue/${a.issueKey}/comment/${a.commentId}`);
-  return createSuccessResponse({ success: true, message: `Comment ${a.commentId} deleted from ${a.issueKey}` });
+  const issueKey = validateIssueKey(a.issueKey);
+  const commentId = validateSafeParam(a.commentId, 'commentId', 50);
+  await jiraApi.delete(`/issue/${issueKey}/comment/${commentId}`);
+  return createSuccessResponse({ success: true, message: `Comment ${commentId} deleted from ${issueKey}` });
 }
 
 export async function handleGetComments(a: ToolArgs): Promise<ToolResponse> {
@@ -80,9 +80,9 @@ export const AddCommentTool = defineTool({
     properties: {
       issueKey: { type: 'string', description: 'Issue key' },
       comment: { type: 'string', description: 'Comment text in Markdown.' },
-    },
       visibility: { type: 'object', properties: { type: { type: 'string', enum: ['role', 'group'] }, value: { type: 'string' } }, description: 'Restrict who can read the comment, e.g. { "type": "role", "value": "Administrators" }. Omit to leave it visible to everyone who can see the issue.' },
       internal: { type: 'boolean', description: 'Jira Service Management only: post as an internal note that the customer cannot see.', default: false },
+    },
     required: ['issueKey', 'comment'],
   },
   handler: handleAddComment,
@@ -98,9 +98,9 @@ export const UpdateCommentTool = defineTool({
       issueKey: { type: 'string', description: 'Issue key (e.g., PROJ-123)' },
       commentId: { type: 'string', description: 'Comment ID (use jira_get_comments to find it)' },
       comment: { type: 'string', description: 'Updated comment text in Markdown.' },
-    },
       visibility: { type: 'object', properties: { type: { type: 'string', enum: ['role', 'group'] }, value: { type: 'string' } }, description: 'Restrict who can read the comment, e.g. { "type": "role", "value": "Administrators" }. Omit to leave it visible to everyone who can see the issue.' },
       internal: { type: 'boolean', description: 'Jira Service Management only: post as an internal note that the customer cannot see.', default: false },
+    },
     required: ['issueKey', 'commentId', 'comment'],
   },
   handler: handleUpdateComment,

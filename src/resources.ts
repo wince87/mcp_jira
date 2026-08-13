@@ -2,7 +2,7 @@ import { JIRA_PROJECT_KEY } from './config.js';
 import { jiraApi } from './http.js';
 import { validateIssueKey, validateProjectKey, validateSafeParam } from './validation.js';
 import { fetchCreateFields, describeMetaField, resolveIssueType } from './meta.js';
-import { mapFilter, mapIssue, mapIssueSummary, mapProject } from './mappers.js';
+import { ISSUE_LIST_FIELDS, mapFilter, mapIssue, mapIssueSummary, mapProject } from './mappers.js';
 import { buildJql, equalsClause } from './jql.js';
 import type { JiraIssue } from './types.js';
 
@@ -10,7 +10,7 @@ export const RESOURCE_TEMPLATES = [
   {
     uriTemplate: 'jira://issue/{issueKey}',
     name: 'Jira issue',
-    description: 'A single issue with its fields, links and custom fields, as JSON.',
+    description: 'A single issue with its fields and links, as JSON.',
     mimeType: 'application/json',
   },
   {
@@ -59,7 +59,7 @@ async function readMyOpenIssues(): Promise<unknown> {
     ],
     orderBy: 'updated DESC',
   });
-  const response = await jiraApi.get('/search/jql', { params: { jql, maxResults: 50 } });
+  const response = await jiraApi.get('/search/jql', { params: { jql, maxResults: 50, fields: ISSUE_LIST_FIELDS } });
   const issues: JiraIssue[] = response.data.issues ?? [];
   return { jql, returned: issues.length, issues: issues.map(mapIssueSummary) };
 }

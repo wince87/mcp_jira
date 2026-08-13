@@ -1,6 +1,6 @@
 import type { JiraFilter, ToolArgs, ToolResponse } from '../types.js';
 import { jiraApi } from '../http.js';
-import { offsetPage, offsetParams } from '../args.js';
+import { offsetPage, offsetParams, present } from '../args.js';
 import { mapFilter, runJqlSearch } from '../mappers.js';
 import { createSuccessResponse } from '../responses.js';
 import { sanitizeString, validateAccountId, validateSafeParam } from '../validation.js';
@@ -8,18 +8,17 @@ import { defineTool } from '../registry.js';
 import { ISSUE_LIST_OUTPUT } from '../outputs.js';
 
 export async function handleListFilters(a: ToolArgs): Promise<ToolResponse> {
-  const { filterName, accountId, maxResults = 50 } = a;
+  const { filterName, accountId } = a;
 
   const params: Record<string, unknown> = { ...offsetParams(a), expand: 'description,jql,owner' };
-  if (filterName !== undefined && filterName !== null) {
+  if (present(filterName)) {
     params.filterName = sanitizeString(filterName, 200, 'filterName');
   }
-  if (accountId !== undefined && accountId !== null) {
+  if (present(accountId)) {
     params.accountId = validateAccountId(accountId);
   }
 
   const response = await jiraApi.get('/filter/search', { params });
-  interface JiraFilter { id: string; name: string; description?: string; jql?: string; owner?: { accountId: string; displayName: string }; favourite?: boolean; favouritedCount?: number }
   const filters: JiraFilter[] = response.data.values ?? [];
 
   return createSuccessResponse({
@@ -36,10 +35,9 @@ export async function handleGetFilter(a: ToolArgs): Promise<ToolResponse> {
 
 export async function handleSearchByFilter(a: ToolArgs): Promise<ToolResponse> {
   const filterId = validateSafeParam(a.filterId, 'filterId', 30);
-  const { nextPageToken } = a;
 
   const filterResponse = await jiraApi.get(`/filter/${filterId}`);
-  const jql: string = filterResponse.data.jql;
+  const jql: unknown = filterResponse.data.jql;
   if (!jql || typeof jql !== 'string') throw new Error(`Filter ${filterId} has no JQL`);
 
   return createSuccessResponse(await runJqlSearch(jql, a, 'issues', {

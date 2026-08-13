@@ -15,7 +15,7 @@ import {
 import { defineTool } from '../registry.js';
 import { ACK_OUTPUT, CREATED_ISSUE_OUTPUT, ISSUE_LIST_OUTPUT, SPRINT_LIST_OUTPUT } from '../outputs.js';
 import { PRIORITY_SCHEMA, COMMON_ISSUE_FIELDS_SCHEMA } from '../schemas.js';
-import { JIRA_PROJECT_KEY } from '../config.js';
+import { EPIC_NAME_FIELD } from '../config.js';
 
 export async function handleListBoards(a: ToolArgs): Promise<ToolResponse> {
   const params: Record<string, unknown> = offsetParams(a);
@@ -56,11 +56,12 @@ export async function handleListSprints(a: ToolArgs): Promise<ToolResponse> {
 export async function handleGetSprint(a: ToolArgs): Promise<ToolResponse> {
   const sprintId = numericId(a.sprintId, 'sprintId');
   const options = readIssueListOptions(a);
+  const params = offsetParams(a);
 
   const [sprintRes, issuesRes] = await Promise.all([
     agileApi.get(`/sprint/${sprintId}`),
     agileApi.get(`/sprint/${sprintId}/issue`, {
-      params: { ...offsetParams(a), fields: issueListFieldsParam(options) },
+      params: { ...params, fields: issueListFieldsParam(options) },
     }),
   ]);
 
@@ -72,7 +73,7 @@ export async function handleGetSprint(a: ToolArgs): Promise<ToolResponse> {
     startDate: sprintRes.data.startDate,
     endDate: sprintRes.data.endDate,
     goal: sprintRes.data.goal,
-    ...offsetPage(issuesRes.data, sprintIssues.length, offsetParams(a)),
+    ...offsetPage(issuesRes.data, sprintIssues.length, params),
     issues: await mapIssueList(sprintIssues, options),
   });
 }
@@ -94,7 +95,7 @@ export async function handleMoveToSprint(a: ToolArgs): Promise<ToolResponse> {
 }
 
 export async function handleListEpics(a: ToolArgs): Promise<ToolResponse> {
-  const { nextPageToken, status } = a;
+  const { status } = a;
   const projectKey = resolveProjectKey(a);
 
   const jql = buildJql({
@@ -127,7 +128,6 @@ export async function handleGetEpic(a: ToolArgs): Promise<ToolResponse> {
 
 export async function handleGetEpicIssues(a: ToolArgs): Promise<ToolResponse> {
   const epicKey = validateIssueKey(a.epicKey);
-  const options = readIssueListOptions(a);
 
   const { body, issues } = await runAgileIssueList(`/epic/${epicKey}/issue`, a, { epicKey });
   const countBy = (category: string): number =>
@@ -218,8 +218,8 @@ export async function handleCreateEpic(a: ToolArgs): Promise<ToolResponse> {
     issuetype: await resolveIssueTypeValue('Epic', projectKey),
   };
 
-  if (!meta || meta.fields.some(f => metaFieldId(f) === 'customfield_10011')) {
-    fields.customfield_10011 = resolvedEpicName;
+  if (!meta || meta.fields.some(f => metaFieldId(f) === EPIC_NAME_FIELD)) {
+    fields[EPIC_NAME_FIELD] = resolvedEpicName;
   }
 
   await applyOptionalFields(a, fields, meta);
@@ -332,8 +332,6 @@ export const GetEpicTool = defineTool({
     type: 'object' as const,
     properties: {
       epicKey: { type: 'string', description: 'Epic issue key (e.g., PROJ-100)' },
-      fields: { type: 'array', items: { type: 'string' }, description: 'Exact field IDs to return per issue, e.g. ["summary", "customfield_10122"] or ["*all"]. When set, each item returns a raw fields map instead of the default shape.' },
-      includeCustomFields: { type: 'boolean', description: 'Add a customFields map (id -> { name, type, value }) to every issue. Rich-text fields render as Markdown. Requests all fields, so prefer an explicit fields list on large result sets.', default: false },
     },
     required: ['epicKey'],
   },

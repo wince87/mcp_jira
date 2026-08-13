@@ -32,4 +32,3 @@ function createClient(path: string): AxiosInstance {
 export const jiraApi: AxiosInstance = createClient('/rest/api/3');
 export const agileApi: AxiosInstance = createClient('/rest/agile/1.0');
 
-export const clients: AxiosInstance[] = [jiraApi, agileApi];

@@ -181,4 +181,3 @@ export const SPRINT_LIST_OUTPUT = pagedOutput('sprints', object({
   goal: { type: ['string', 'null'] },
 }));
 
-export const GENERIC_OUTPUT = object({}, []);
