@@ -3,7 +3,9 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
 
-const SNAPSHOT_DIR = join(dirname(fileURLToPath(import.meta.url)), '__snapshots__');
+const TEST_DIR = dirname(fileURLToPath(import.meta.url));
+const SNAPSHOT_DIR = join(TEST_DIR, '__snapshots__');
+const REPO_ROOT = dirname(TEST_DIR);
 const UPDATE = process.env.UPDATE_SNAPSHOTS === '1';
 
 function load(file) {
@@ -16,8 +18,14 @@ function save(file, value) {
 }
 
 function normalize(value) {
+  // The mock listens on an ephemeral port and the repo lives at a
+  // machine-specific path; both must not leak into committed snapshots
+  // or CI diverges from every dev machine.
+  const rootPattern = new RegExp(REPO_ROOT.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
   return JSON.parse(
-    JSON.stringify(value).replace(/https:\\?\/\\?\/127\.0\.0\.1:\d+/g, 'https://jira.test'),
+    JSON.stringify(value)
+      .replace(/https:\\?\/\\?\/127\.0\.0\.1:\d+/g, 'https://jira.test')
+      .replace(rootPattern, '<repo>'),
   );
 }
 

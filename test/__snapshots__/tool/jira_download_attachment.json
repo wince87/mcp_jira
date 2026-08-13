@@ -6,7 +6,7 @@
     "filename": "screen.png",
     "mimeType": "image/png",
     "size": 8,
-    "savedTo": "/Users/wince/projects/mcp_jira/test/.tmp/downloaded.png"
+    "savedTo": "<repo>/test/.tmp/downloaded.png"
   },
   "contentTypes": [
     "text"
