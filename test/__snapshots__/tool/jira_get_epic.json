@@ -1,0 +1,22 @@
+{
+  "isError": false,
+  "data": {
+    "id": 10100,
+    "key": "TEST-100",
+    "name": "Auth",
+    "summary": "Auth epic",
+    "done": false,
+    "color": "color_1",
+    "url": "https://jira.test/browse/TEST-100"
+  },
+  "contentTypes": [
+    "text"
+  ],
+  "hasStructuredContent": true,
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/rest/agile/1.0/epic/TEST-100"
+    }
+  ]
+}

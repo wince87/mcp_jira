@@ -1,0 +1,45 @@
+{
+  "isError": false,
+  "data": {
+    "scope": {
+      "projectKey": "TEST",
+      "issueKey": null
+    },
+    "granted": [
+      "BROWSE_PROJECTS",
+      "CREATE_ISSUES",
+      "EDIT_ISSUES",
+      "ASSIGN_ISSUES",
+      "ASSIGNABLE_USER",
+      "TRANSITION_ISSUES",
+      "ADD_COMMENTS",
+      "DELETE_ALL_COMMENTS",
+      "CREATE_ATTACHMENTS",
+      "DELETE_ALL_ATTACHMENTS",
+      "WORK_ON_ISSUES",
+      "LINK_ISSUES",
+      "MANAGE_WATCHERS",
+      "RESOLVE_ISSUES",
+      "CLOSE_ISSUES",
+      "MODIFY_REPORTER",
+      "ADMINISTER_PROJECTS"
+    ],
+    "denied": [
+      "DELETE_ISSUES"
+    ]
+  },
+  "contentTypes": [
+    "text"
+  ],
+  "hasStructuredContent": true,
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/rest/api/3/mypermissions",
+      "query": {
+        "permissions": "BROWSE_PROJECTS,CREATE_ISSUES,EDIT_ISSUES,DELETE_ISSUES,ASSIGN_ISSUES,ASSIGNABLE_USER,TRANSITION_ISSUES,ADD_COMMENTS,DELETE_ALL_COMMENTS,CREATE_ATTACHMENTS,DELETE_ALL_ATTACHMENTS,WORK_ON_ISSUES,LINK_ISSUES,MANAGE_WATCHERS,RESOLVE_ISSUES,CLOSE_ISSUES,MODIFY_REPORTER,ADMINISTER_PROJECTS",
+        "projectKey": "TEST"
+      }
+    }
+  ]
+}

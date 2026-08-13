@@ -1,0 +1,21 @@
+{
+  "isError": false,
+  "data": {
+    "success": true,
+    "message": "Component 10200 deleted permanently",
+    "movedIssuesTo": "10201"
+  },
+  "contentTypes": [
+    "text"
+  ],
+  "hasStructuredContent": true,
+  "requests": [
+    {
+      "method": "DELETE",
+      "path": "/rest/api/3/component/10200",
+      "query": {
+        "moveIssuesTo": "10201"
+      }
+    }
+  ]
+}

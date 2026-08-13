@@ -1,0 +1,31 @@
+{
+  "isError": false,
+  "data": {
+    "total": 1,
+    "succeeded": [
+      "TEST-1"
+    ],
+    "failed": [],
+    "successCount": 1,
+    "failedCount": 0
+  },
+  "contentTypes": [
+    "text"
+  ],
+  "hasStructuredContent": true,
+  "requests": [
+    {
+      "method": "PUT",
+      "path": "/rest/api/3/issue/TEST-1",
+      "body": {
+        "update": {
+          "labels": [
+            {
+              "add": "triaged"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

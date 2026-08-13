@@ -1,0 +1,26 @@
+{
+  "isError": false,
+  "data": {
+    "key": "TEST-1",
+    "url": "https://jira.test/browse/TEST-1",
+    "fields": {
+      "summary": "Broken login",
+      "versions": [
+        "1.0"
+      ]
+    }
+  },
+  "contentTypes": [
+    "text"
+  ],
+  "hasStructuredContent": true,
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/rest/api/3/issue/TEST-1",
+      "query": {
+        "fields": "summary,versions"
+      }
+    }
+  ]
+}

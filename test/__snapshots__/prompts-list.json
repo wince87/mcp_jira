@@ -1,0 +1,296 @@
+[
+  {
+    "name": "jira-project-admin",
+    "description": "Audit and fix a project's components, versions, statuses and labels before planning work.",
+    "arguments": [
+      {
+        "name": "projectKey",
+        "description": "Project key to work in. Defaults to the configured JIRA_PROJECT_KEY."
+      }
+    ]
+  },
+  {
+    "name": "jira-formatting-guide",
+    "description": "Markdown formatting rules for Jira descriptions and comments (auto-converted to ADF)."
+  },
+  {
+    "name": "jira-bug-triage",
+    "description": "Workflow guide for triaging open bugs (assign, prioritize, comment).",
+    "arguments": [
+      {
+        "name": "projectKey",
+        "description": "Project key to work in. Defaults to the configured JIRA_PROJECT_KEY."
+      }
+    ]
+  },
+  {
+    "name": "jira-sprint-summary",
+    "description": "Generate a status report for the current active sprint."
+  },
+  {
+    "name": "jira-epic-breakdown",
+    "description": "Break a product idea into a new epic with child stories and subtasks."
+  },
+  {
+    "name": "jira-standup-prep",
+    "description": "Prepare standup notes (Yesterday / Today / Blockers) for the authenticated user."
+  },
+  {
+    "name": "jira-dependency-map",
+    "description": "Trace all blockers (direct and transitive) for an issue or epic.",
+    "arguments": [
+      {
+        "name": "issueKey",
+        "description": "Issue key the workflow applies to, e.g. PROJ-123.",
+        "required": true
+      }
+    ]
+  },
+  {
+    "name": "jira-release-notes",
+    "description": "Generate release notes from issues resolved in a fixVersion.",
+    "arguments": [
+      {
+        "name": "projectKey",
+        "description": "Project key to work in. Defaults to the configured JIRA_PROJECT_KEY."
+      }
+    ]
+  },
+  {
+    "name": "jira-velocity-check",
+    "description": "Analyze team velocity over the last N completed sprints."
+  },
+  {
+    "name": "jira-workload-balance",
+    "description": "Snapshot current workload per assignee to detect overload.",
+    "arguments": [
+      {
+        "name": "projectKey",
+        "description": "Project key to work in. Defaults to the configured JIRA_PROJECT_KEY."
+      }
+    ]
+  },
+  {
+    "name": "jira-changelog-audit",
+    "description": "Audit history of an issue - who changed what, when, and why.",
+    "arguments": [
+      {
+        "name": "issueKey",
+        "description": "Issue key the workflow applies to, e.g. PROJ-123.",
+        "required": true
+      }
+    ]
+  },
+  {
+    "name": "jira-user-lookup",
+    "description": "Resolve accountId for a person by partial name or email."
+  },
+  {
+    "name": "jira-sprint-planning",
+    "description": "Pull candidates from backlog into the next sprint based on priority and capacity.",
+    "arguments": [
+      {
+        "name": "projectKey",
+        "description": "Project key to work in. Defaults to the configured JIRA_PROJECT_KEY."
+      }
+    ]
+  },
+  {
+    "name": "jira-version-planning",
+    "description": "Assign issues to a fixVersion (release) based on scope and priority.",
+    "arguments": [
+      {
+        "name": "projectKey",
+        "description": "Project key to work in. Defaults to the configured JIRA_PROJECT_KEY."
+      }
+    ]
+  },
+  {
+    "name": "jira-clone-template",
+    "description": "Create standardized work by cloning a template issue (onboarding, checklists, recurring tasks).",
+    "arguments": [
+      {
+        "name": "projectKey",
+        "description": "Project key to work in. Defaults to the configured JIRA_PROJECT_KEY."
+      }
+    ]
+  },
+  {
+    "name": "jira-subtask-breakdown",
+    "description": "Split a story or task into concrete subtasks with acceptance criteria.",
+    "arguments": [
+      {
+        "name": "issueKey",
+        "description": "Issue key the workflow applies to, e.g. PROJ-123.",
+        "required": true
+      }
+    ]
+  },
+  {
+    "name": "jira-backlog-grooming",
+    "description": "Find stale, ambiguous, or low-quality backlog items that need attention.",
+    "arguments": [
+      {
+        "name": "projectKey",
+        "description": "Project key to work in. Defaults to the configured JIRA_PROJECT_KEY."
+      }
+    ]
+  },
+  {
+    "name": "jira-duplicate-detector",
+    "description": "Find potential duplicates of a given issue in the project.",
+    "arguments": [
+      {
+        "name": "projectKey",
+        "description": "Project key to work in. Defaults to the configured JIRA_PROJECT_KEY."
+      },
+      {
+        "name": "issueKey",
+        "description": "Issue key the workflow applies to, e.g. PROJ-123.",
+        "required": true
+      }
+    ]
+  },
+  {
+    "name": "jira-estimation-helper",
+    "description": "Estimate story points for a new issue based on similar completed issues.",
+    "arguments": [
+      {
+        "name": "projectKey",
+        "description": "Project key to work in. Defaults to the configured JIRA_PROJECT_KEY."
+      },
+      {
+        "name": "issueKey",
+        "description": "Issue key the workflow applies to, e.g. PROJ-123.",
+        "required": true
+      }
+    ]
+  },
+  {
+    "name": "jira-retro-data",
+    "description": "Collect data for a sprint retrospective (wins, misses, flow issues)."
+  },
+  {
+    "name": "jira-epic-health",
+    "description": "Traffic-light health check per active epic (progress, blockers, pace)."
+  },
+  {
+    "name": "jira-worklog-summary",
+    "description": "Summarize logged time for a user or team over a period."
+  },
+  {
+    "name": "jira-attachment-review",
+    "description": "Review, download, or add attachments on an issue.",
+    "arguments": [
+      {
+        "name": "issueKey",
+        "description": "Issue key the workflow applies to, e.g. PROJ-123.",
+        "required": true
+      }
+    ]
+  },
+  {
+    "name": "jira-watcher-management",
+    "description": "Manage issue watchers (subscribe team, audit who is watching, unsubscribe stale).",
+    "arguments": [
+      {
+        "name": "issueKey",
+        "description": "Issue key the workflow applies to, e.g. PROJ-123.",
+        "required": true
+      }
+    ]
+  },
+  {
+    "name": "jira-saved-views",
+    "description": "Discover and execute a saved Jira filter for recurring queries."
+  },
+  {
+    "name": "jira-bulk-transition",
+    "description": "Apply one status transition to many issues (with per-issue success report)."
+  },
+  {
+    "name": "jira-bulk-create",
+    "description": "Create many issues in one call (scaffolding a project, import from external list).",
+    "arguments": [
+      {
+        "name": "projectKey",
+        "description": "Project key to work in. Defaults to the configured JIRA_PROJECT_KEY."
+      }
+    ]
+  },
+  {
+    "name": "jira-project-overview",
+    "description": "Snapshot a project for onboarding (metadata, components, versions, epics, activity).",
+    "arguments": [
+      {
+        "name": "projectKey",
+        "description": "Project key to work in. Defaults to the configured JIRA_PROJECT_KEY."
+      }
+    ]
+  },
+  {
+    "name": "jira-field-discovery",
+    "description": "Discover custom fields and enum values for the Jira instance (configuration lookup).",
+    "arguments": [
+      {
+        "name": "projectKey",
+        "description": "Project key to work in. Defaults to the configured JIRA_PROJECT_KEY."
+      }
+    ]
+  },
+  {
+    "name": "jira-comment-maintenance",
+    "description": "Edit or remove existing comments (typo fix, redact sensitive info, delete accidental comment).",
+    "arguments": [
+      {
+        "name": "issueKey",
+        "description": "Issue key the workflow applies to, e.g. PROJ-123.",
+        "required": true
+      }
+    ]
+  },
+  {
+    "name": "jira-epic-reorg",
+    "description": "Move issues between epics (consolidation, splitting, reassignment during reorg)."
+  },
+  {
+    "name": "jira-worklog-maintenance",
+    "description": "Edit or delete an existing worklog entry (correct wrong time, fix typo in comment, remove duplicate)."
+  },
+  {
+    "name": "jira-worklog-entry",
+    "description": "Log time spent on an issue at end of day (single entry).",
+    "arguments": [
+      {
+        "name": "issueKey",
+        "description": "Issue key the workflow applies to, e.g. PROJ-123.",
+        "required": true
+      }
+    ]
+  },
+  {
+    "name": "jira-issue-cleanup",
+    "description": "Safely delete an issue (verify no incoming links, confirm intent).",
+    "arguments": [
+      {
+        "name": "projectKey",
+        "description": "Project key to work in. Defaults to the configured JIRA_PROJECT_KEY."
+      },
+      {
+        "name": "issueKey",
+        "description": "Issue key the workflow applies to, e.g. PROJ-123.",
+        "required": true
+      }
+    ]
+  },
+  {
+    "name": "jira-weekly-report",
+    "description": "Cross-project weekly status for management (delivered / planned / risks).",
+    "arguments": [
+      {
+        "name": "projectKey",
+        "description": "Project key to work in. Defaults to the configured JIRA_PROJECT_KEY."
+      }
+    ]
+  }
+]

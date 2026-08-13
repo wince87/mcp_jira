@@ -1,0 +1,23 @@
+{
+  "isError": false,
+  "data": {
+    "linkTypes": [
+      {
+        "id": "10000",
+        "name": "Blocks",
+        "inward": "is blocked by",
+        "outward": "blocks"
+      }
+    ]
+  },
+  "contentTypes": [
+    "text"
+  ],
+  "hasStructuredContent": true,
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/rest/api/3/issueLinkType"
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "isError": false,
+  "data": {
+    "success": true,
+    "sprintId": 10,
+    "moved": [
+      "TEST-1"
+    ]
+  },
+  "contentTypes": [
+    "text"
+  ],
+  "hasStructuredContent": true,
+  "requests": [
+    {
+      "method": "POST",
+      "path": "/rest/agile/1.0/sprint/10/issue",
+      "body": {
+        "issues": [
+          "TEST-1"
+        ]
+      }
+    }
+  ]
+}

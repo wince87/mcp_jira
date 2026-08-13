@@ -1,0 +1,20 @@
+{
+  "isError": false,
+  "data": {
+    "success": true,
+    "message": "Issue TEST-2 deleted permanently"
+  },
+  "contentTypes": [
+    "text"
+  ],
+  "hasStructuredContent": true,
+  "requests": [
+    {
+      "method": "DELETE",
+      "path": "/rest/api/3/issue/TEST-2",
+      "query": {
+        "deleteSubtasks": "false"
+      }
+    }
+  ]
+}

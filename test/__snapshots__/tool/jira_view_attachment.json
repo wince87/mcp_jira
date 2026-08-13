@@ -1,0 +1,24 @@
+{
+  "isError": false,
+  "data": {
+    "attachmentId": "9001",
+    "filename": "screen.png",
+    "mimeType": "image/png",
+    "size": 8
+  },
+  "contentTypes": [
+    "text",
+    "image"
+  ],
+  "hasStructuredContent": true,
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/rest/api/3/attachment/9001"
+    },
+    {
+      "method": "GET",
+      "path": "/rest/api/3/attachment/content/9001"
+    }
+  ]
+}

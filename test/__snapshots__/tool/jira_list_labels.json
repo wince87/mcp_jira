@@ -1,0 +1,27 @@
+{
+  "isError": false,
+  "data": {
+    "returned": 3,
+    "startAt": 0,
+    "total": 3,
+    "hasMore": false,
+    "labels": [
+      "regression",
+      "epic",
+      "blocked"
+    ]
+  },
+  "contentTypes": [
+    "text"
+  ],
+  "hasStructuredContent": true,
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/rest/api/3/label",
+      "query": {
+        "maxResults": "100"
+      }
+    }
+  ]
+}

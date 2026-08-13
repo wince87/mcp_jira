@@ -1,0 +1,33 @@
+{
+  "isError": false,
+  "data": {
+    "issueKey": "TEST-1",
+    "returned": 1,
+    "startAt": 0,
+    "total": 1,
+    "hasMore": false,
+    "worklogs": [
+      {
+        "id": "40001",
+        "author": {
+          "accountId": "5b10a2844c20165700ede21g",
+          "displayName": "Vova Press"
+        },
+        "timeSpent": "2h",
+        "timeSpentSeconds": 7200,
+        "started": "2026-08-01T09:00:00.000+0000",
+        "comment": "Investigated"
+      }
+    ]
+  },
+  "contentTypes": [
+    "text"
+  ],
+  "hasStructuredContent": true,
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/rest/api/3/issue/TEST-1/worklog"
+    }
+  ]
+}

@@ -1,0 +1,53 @@
+{
+  "isError": false,
+  "data": {
+    "fields": [
+      {
+        "id": "summary",
+        "name": "Summary",
+        "custom": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "id": "customfield_10016",
+        "name": "Story point estimate",
+        "custom": true,
+        "schema": {
+          "type": "number"
+        }
+      },
+      {
+        "id": "customfield_10011",
+        "name": "Epic Name",
+        "custom": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "id": "customfield_10500",
+        "name": "For QA",
+        "custom": true,
+        "schema": {
+          "type": "doc",
+          "custom": "rich-text"
+        }
+      },
+      {
+        "id": "customfield_10122",
+        "name": "Type of Team",
+        "custom": true,
+        "schema": {
+          "type": "option"
+        }
+      }
+    ]
+  },
+  "contentTypes": [
+    "text"
+  ],
+  "hasStructuredContent": true,
+  "requests": []
+}

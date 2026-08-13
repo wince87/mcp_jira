@@ -1,0 +1,25 @@
+{
+  "isError": false,
+  "data": {
+    "success": true,
+    "attachmentId": "9001",
+    "filename": "screen.png",
+    "mimeType": "image/png",
+    "size": 8,
+    "savedTo": "/Users/wince/projects/mcp_jira/test/.tmp/downloaded.png"
+  },
+  "contentTypes": [
+    "text"
+  ],
+  "hasStructuredContent": true,
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/rest/api/3/attachment/9001"
+    },
+    {
+      "method": "GET",
+      "path": "/rest/api/3/attachment/content/9001"
+    }
+  ]
+}

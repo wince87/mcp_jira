@@ -1,0 +1,21 @@
+{
+  "isError": false,
+  "data": {
+    "success": true,
+    "message": "Issue TEST-1 assigned to 5b10a2844c20165700ede21g",
+    "url": "https://jira.test/browse/TEST-1"
+  },
+  "contentTypes": [
+    "text"
+  ],
+  "hasStructuredContent": true,
+  "requests": [
+    {
+      "method": "PUT",
+      "path": "/rest/api/3/issue/TEST-1/assignee",
+      "body": {
+        "accountId": "5b10a2844c20165700ede21g"
+      }
+    }
+  ]
+}

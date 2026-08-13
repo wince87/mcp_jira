@@ -1,0 +1,17 @@
+{
+  "isError": false,
+  "data": {
+    "success": true,
+    "message": "Comment 30001 deleted from TEST-1"
+  },
+  "contentTypes": [
+    "text"
+  ],
+  "hasStructuredContent": true,
+  "requests": [
+    {
+      "method": "DELETE",
+      "path": "/rest/api/3/issue/TEST-1/comment/30001"
+    }
+  ]
+}

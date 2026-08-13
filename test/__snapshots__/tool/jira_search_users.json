@@ -1,0 +1,38 @@
+{
+  "isError": false,
+  "data": {
+    "returned": 2,
+    "startAt": 0,
+    "hasMore": false,
+    "users": [
+      {
+        "accountId": "5b10a2844c20165700ede21g",
+        "displayName": "Vova Press",
+        "emailAddress": "vova@example.com",
+        "active": true,
+        "accountType": "atlassian"
+      },
+      {
+        "accountId": "5b10a2844c20165700ede21h",
+        "displayName": "Olena Q",
+        "emailAddress": "olena@example.com",
+        "active": true,
+        "accountType": "atlassian"
+      }
+    ]
+  },
+  "contentTypes": [
+    "text"
+  ],
+  "hasStructuredContent": true,
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/rest/api/3/user/search",
+      "query": {
+        "maxResults": "10",
+        "query": "vova"
+      }
+    }
+  ]
+}

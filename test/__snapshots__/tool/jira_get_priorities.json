@@ -1,0 +1,36 @@
+{
+  "isError": false,
+  "data": {
+    "note": "name is rendered in the Jira account language and is NOT accepted on create/update. Pass id.",
+    "priorities": [
+      {
+        "id": "1",
+        "name": "Найвищий",
+        "description": "Highest, localized"
+      },
+      {
+        "id": "2",
+        "name": "Високий",
+        "description": "High, localized"
+      },
+      {
+        "id": "3",
+        "name": "Середній",
+        "description": "Medium, localized"
+      }
+    ]
+  },
+  "contentTypes": [
+    "text"
+  ],
+  "hasStructuredContent": true,
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/rest/api/3/priority/search",
+      "query": {
+        "maxResults": "100"
+      }
+    }
+  ]
+}

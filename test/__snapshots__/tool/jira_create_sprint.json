@@ -1,0 +1,31 @@
+{
+  "isError": false,
+  "data": {
+    "success": true,
+    "sprint": {
+      "id": 11,
+      "name": "Sprint 2",
+      "state": "future",
+      "startDate": "2026-09-01T00:00:00.000Z",
+      "endDate": "2026-09-14T00:00:00.000Z",
+      "goal": "Ship versions"
+    }
+  },
+  "contentTypes": [
+    "text"
+  ],
+  "hasStructuredContent": true,
+  "requests": [
+    {
+      "method": "POST",
+      "path": "/rest/agile/1.0/sprint",
+      "body": {
+        "name": "Sprint 2",
+        "originBoardId": 1,
+        "goal": "Ship versions",
+        "startDate": "2026-09-01T00:00:00.000Z",
+        "endDate": "2026-09-14T00:00:00.000Z"
+      }
+    }
+  ]
+}

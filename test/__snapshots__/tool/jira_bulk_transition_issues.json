@@ -1,0 +1,35 @@
+{
+  "isError": false,
+  "data": {
+    "total": 1,
+    "succeeded": [
+      {
+        "issueKey": "TEST-1",
+        "transition": "Back to backlog",
+        "to": "To Do"
+      }
+    ],
+    "failed": [],
+    "successCount": 1,
+    "failedCount": 0
+  },
+  "contentTypes": [
+    "text"
+  ],
+  "hasStructuredContent": true,
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/rest/api/3/issue/TEST-1/transitions"
+    },
+    {
+      "method": "POST",
+      "path": "/rest/api/3/issue/TEST-1/transitions",
+      "body": {
+        "transition": {
+          "id": "21"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,53 @@
+{
+  "isError": false,
+  "data": {
+    "issueKey": "TEST-1",
+    "editableFields": [
+      "summary",
+      "priority"
+    ],
+    "requiredFields": [
+      "summary"
+    ],
+    "fields": [
+      {
+        "fieldId": "summary",
+        "name": "Summary",
+        "required": true,
+        "type": "string",
+        "hasDefaultValue": false
+      },
+      {
+        "fieldId": "priority",
+        "name": "Пріоритет",
+        "required": false,
+        "type": "priority",
+        "hasDefaultValue": false,
+        "allowedValues": [
+          {
+            "id": "1",
+            "value": "Найвищий"
+          },
+          {
+            "id": "2",
+            "value": "Високий"
+          },
+          {
+            "id": "3",
+            "value": "Середній"
+          }
+        ]
+      }
+    ]
+  },
+  "contentTypes": [
+    "text"
+  ],
+  "hasStructuredContent": true,
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/rest/api/3/issue/TEST-1/editmeta"
+    }
+  ]
+}

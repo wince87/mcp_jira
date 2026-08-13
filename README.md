@@ -1,4 +1,4 @@
-# Jira MCP Server v2.8.0
+# Jira MCP Server v3.0.0
 
 Model Context Protocol (MCP) server for Jira API integration with automatic Markdown-to-ADF conversion.
 
@@ -8,14 +8,17 @@ Model Context Protocol (MCP) server for Jira API integration with automatic Mark
 
 ## Features
 
-- 53 Jira API tools via MCP protocol
-- 34 pre-baked MCP prompts covering every tool (sprint planning, bug triage, epic health, standup, weekly reports, bulk ops, attachments, watchers, filters, reorg, etc.)
+- 75 Jira API tools via MCP protocol
+- 35 pre-baked MCP prompts covering every tool (sprint planning, bug triage, epic health, standup, weekly reports, bulk ops, attachments, watchers, filters, reorg, etc.)
 - Automatic Markdown to ADF conversion (write Markdown, get proper Jira formatting)
 - ADF to Markdown conversion when reading issues and comments
-- Custom field support on create/update/clone (set mandatory `customfield_NNNNN` fields)
+- Full create screen introspection (`jira_get_create_fields`): required fields, types, allowed values — plus `dryRun` validation and 400 responses enriched with what was missing
+- Custom field support on create/update/clone (set mandatory `customfield_NNNNN` fields), rich-text ones written as Markdown
+- Works on non-English Jira instances: localized issue type, priority and status names are resolved to ids before sending
 - Image support: view image attachments inline, embed images via Markdown, return embedded images when reading an issue
 - Sprint and board management via Jira Agile API
 - File attachment support
+- Full MCP surface: tool annotations (read-only tools stop prompting for approval), structured output, prompt arguments with autocomplete, and resources (`jira://issue/{key}`)
 - Input validation, HTTPS enforcement, Jira error details in responses
 - TypeScript source with full type definitions
 - Zero runtime dependencies beyond MCP SDK and axios
@@ -86,9 +89,66 @@ All description and comment fields accept standard Markdown:
 
 Automatically converted to Atlassian Document Format (ADF).
 
+Rich-text custom fields (`schema.type: "doc"`) also accept Markdown strings — pass them in `customFields`, or in `customFieldsMarkdown` to be explicit.
+
+## Creating issues on an unfamiliar screen
+
+Jira rejects a create when a mandatory field is missing, but its error names neither the field nor the values it accepts. Two calls remove the guesswork:
+
+```
+jira_get_issue_types   { projectKey: "PROJ" }                      -> issue types with ids
+jira_get_create_fields { projectKey: "PROJ", issueType: "Bug" }    -> every field: required, type, allowedValues
+```
+
+Then create, passing ids where the screen offers a fixed set:
+
+```json
+{
+  "summary": "Login fails on retry",
+  "description": "Steps...",
+  "issueType": "Bug",
+  "versions": ["1.4.0"],
+  "components": ["Auth"],
+  "priority": "2",
+  "customFields": { "customfield_10500": "**Check** the retry path" }
+}
+```
+
+Add `"dryRun": true` to validate the payload without creating anything. If a create still fails, the 400 response carries `missingRequired`, `invalidValues` and `allowedValues` for the fields Jira complained about, so the next attempt is informed rather than guessed.
+
+**Non-English instances:** `jira_get_priorities` and `jira_get_issue_types` return names in the account language (`Високий`, `Помилка`), but Jira only accepts the canonical English name or the id. Pass the **id**. Localized names are matched against the screen's allowed values and converted to ids automatically, so they work too — ids just skip the lookup.
+
+**Status changes:** transitions are often named differently from the status they lead to ("Start work (estimate)" -> "In Progress"). `jira_update_issue` and `jira_bulk_transition_issues` match `status` against the target status first, then the transition name. If a transition screen requires input, list it with `jira_list_transitions { includeFields: true }` and pass the values via `transitionFields`.
+
+## Rate limits and retries
+
+Jira Cloud answers `429` with a `Retry-After` header when you exceed its rate limit. The server honours it and retries with exponential backoff plus jitter, up to `JIRA_MAX_RETRIES`.
+
+The retry policy is deliberately asymmetric:
+
+| Failure | Reads (`GET`) | Writes (`POST`/`PUT`/`DELETE`) |
+|---------|---------------|-------------------------------|
+| `429` rate limit | retried | retried — a rate-limited request never reached the handler |
+| `5xx` server error | retried | **never retried** — the write may have been applied, and a second attempt could create a duplicate issue |
+| Network error / timeout | retried | never retried |
+| Any other `4xx` | not retried | not retried |
+
+A `Retry-After` longer than 60 seconds is not honoured: the call fails immediately with the Jira error rather than blocking the agent for minutes.
+
+Bulk operations run `JIRA_CONCURRENCY` requests in parallel and report results in input order, with a per-issue error for anything that failed.
+
+## MCP protocol surface
+
+Beyond tools, the server exposes:
+
+- **Tool annotations** — 36 of 75 tools are marked `readOnlyHint`, so a client can auto-approve reads instead of asking about every lookup. 10 destructive tools are marked as such.
+- **Structured output** — every successful call returns `structuredContent` next to the JSON text block, and 44 tools declare an `outputSchema`.
+- **Prompt arguments** — prompts take `projectKey`, `issueKey` and friends, with `completion/complete` suggesting real project keys and issue types from your instance.
+- **Resources** — `jira://issue/{issueKey}`, `jira://project/{projectKey}`, `jira://project/{projectKey}/create-fields/{issueType}`, `jira://filter/{filterId}`, plus `jira://my-open-issues`.
+
 ## MCP Prompts
 
-Pre-baked workflows your AI agent can invoke directly (via MCP `prompts/list` + `prompts/get`). Every one of the 50 tools is referenced in at least one prompt.
+Pre-baked workflows your AI agent can invoke directly (via MCP `prompts/list` + `prompts/get`). Every one of the 75 tools is referenced in at least one prompt, and a test keeps that true.
 
 **Formatting & lookup**
 - `jira-formatting-guide` - Markdown formatting rules for Jira (ADF)
@@ -96,6 +156,7 @@ Pre-baked workflows your AI agent can invoke directly (via MCP `prompts/list` + 
 - `jira-changelog-audit` - Audit history of an issue
 - `jira-field-discovery` - Find custom field IDs and enum values
 - `jira-project-overview` - Project snapshot for onboarding
+- `jira-project-admin` - Audit components, versions, statuses and labels before planning
 
 **Planning**
 - `jira-epic-breakdown` - Split an idea into an epic + stories + subtasks
@@ -152,6 +213,7 @@ Pre-baked workflows your AI agent can invoke directly (via MCP `prompts/list` + 
 - `jira_delete_comment` - Delete comment
 - `jira_get_comments` - Get issue comments
 - `jira_link_issues` - Link two issues
+- `jira_delete_issue_link` - Remove a link between two issues
 - `jira_list_transitions` - Get available status transitions
 - `jira_get_changelog` - Get issue change history
 - `jira_add_worklog` - Add time tracking entry
@@ -160,12 +222,20 @@ Pre-baked workflows your AI agent can invoke directly (via MCP `prompts/list` + 
 - `jira_delete_worklog` - Delete a worklog entry
 - `jira_get_attachments` - List attachments on an issue
 - `jira_add_attachment` - Attach a local file to an issue
+- `jira_delete_attachment` - Delete an attachment permanently
+- `jira_get_edit_fields` - Get the edit screen for one issue (update-time mirror of `jira_get_create_fields`)
+- `jira_get_remote_links` / `jira_add_remote_link` / `jira_delete_remote_link` - Web links (pull requests, Confluence pages)
 
 ### Sprint & Board Management
 - `jira_list_boards` - List all Scrum/Kanban boards
 - `jira_list_sprints` - List sprints for a board
 - `jira_get_sprint` - Get sprint details with all issues
 - `jira_move_to_sprint` - Move issues to a sprint
+- `jira_create_sprint` - Create a sprint on a board
+- `jira_update_sprint` - Rename, re-goal, re-date, or start/close a sprint via state
+- `jira_delete_sprint` - Delete a sprint (issues return to the backlog)
+- `jira_rank_issues` - Reorder issues in the backlog or on a board
+- `jira_move_to_backlog` - Move issues out of a sprint
 
 ### Epic Management
 - `jira_list_epics` - List all epics in a project
@@ -180,12 +250,18 @@ Pre-baked workflows your AI agent can invoke directly (via MCP `prompts/list` + 
 - `jira_list_projects` - List all projects
 - `jira_get_project_info` - Get project details
 - `jira_get_project_components` - Get project components
+- `jira_create_component` / `jira_update_component` / `jira_delete_component` - Manage components
 - `jira_get_project_versions` - Get project versions/releases
+- `jira_create_version` / `jira_update_version` / `jira_delete_version` - Manage versions (releasing is an update)
 
 ### Metadata
 - `jira_get_fields` - Get all fields (find custom field IDs)
+- `jira_get_project_statuses` - Statuses available per issue type
+- `jira_list_labels` - Labels that already exist in the instance
+- `jira_get_my_permissions` - What the current user may do, optionally scoped to a project or issue
 - `jira_get_issue_types` - Get issue types for project
-- `jira_get_priorities` - Get available priorities
+- `jira_get_create_fields` - Get the create screen for one issue type: required flags, types, allowed values
+- `jira_get_priorities` - Get available priorities (pass the id, not the localized name)
 - `jira_get_link_types` - Get issue link types
 - `jira_search_users` - Search users by name/email
 - `jira_get_user_issues` - Get all issues assigned to a user
@@ -203,6 +279,7 @@ Pre-baked workflows your AI agent can invoke directly (via MCP `prompts/list` + 
 
 ### Bulk Operations & Downloads
 - `jira_bulk_transition_issues` - Apply the same status transition to multiple issues
+- `jira_bulk_update_issues` - Apply the same field changes to multiple issues (add/remove labels without replacing)
 - `jira_download_attachment` - Download an attachment to a local file
 
 ## Environment Variables
@@ -214,6 +291,11 @@ Pre-baked workflows your AI agent can invoke directly (via MCP `prompts/list` + 
 | `JIRA_API_TOKEN` | Yes | API token from Atlassian |
 | `JIRA_PROJECT_KEY` | No | Default project key used when not specified in tool calls (e.g. `MYPROJECT`) |
 | `JIRA_STORY_POINTS_FIELD` | No | Custom field ID for story points (defaults to `customfield_10016`) |
+| `JIRA_TIMEOUT_MS` | No | Per-request timeout in milliseconds (default `30000`) |
+| `JIRA_MAX_RETRIES` | No | Retries after the first attempt (default `3`). Applies to rate limits, and to reads on server errors — never to writes on server errors |
+| `JIRA_RETRY_BASE_MS` | No | Base backoff delay in milliseconds (default `500`), doubled per attempt with jitter |
+| `JIRA_CONCURRENCY` | No | Parallel requests inside bulk operations (default `5`) |
+| `JIRA_FORCE_ENGLISH` | No | Set to `true` to send `Accept-Language: en-US` with `X-Force-Accept-Language`, so Jira answers with canonical English names instead of the account language |
 
 ## Changelog
 

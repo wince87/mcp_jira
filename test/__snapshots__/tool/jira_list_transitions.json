@@ -1,0 +1,36 @@
+{
+  "isError": false,
+  "data": {
+    "issueKey": "TEST-1",
+    "transitions": [
+      {
+        "id": "11",
+        "name": "Start work (estimate)",
+        "to": {
+          "id": "3",
+          "name": "In Progress",
+          "category": "In Progress"
+        }
+      },
+      {
+        "id": "21",
+        "name": "Back to backlog",
+        "to": {
+          "id": "1",
+          "name": "To Do",
+          "category": "To Do"
+        }
+      }
+    ]
+  },
+  "contentTypes": [
+    "text"
+  ],
+  "hasStructuredContent": true,
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/rest/api/3/issue/TEST-1/transitions"
+    }
+  ]
+}

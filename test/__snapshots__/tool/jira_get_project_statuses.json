@@ -1,0 +1,35 @@
+{
+  "isError": false,
+  "data": {
+    "projectKey": "TEST",
+    "note": "Status names are rendered in the Jira account language. Match them case-insensitively, and prefer jira_list_transitions when changing a status.",
+    "issueTypes": [
+      {
+        "id": "10004",
+        "name": "Помилка",
+        "statuses": [
+          {
+            "id": "1",
+            "name": "To Do",
+            "category": "new"
+          },
+          {
+            "id": "3",
+            "name": "In Progress",
+            "category": "indeterminate"
+          }
+        ]
+      }
+    ]
+  },
+  "contentTypes": [
+    "text"
+  ],
+  "hasStructuredContent": true,
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/rest/api/3/project/TEST/statuses"
+    }
+  ]
+}

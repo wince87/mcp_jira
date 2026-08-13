@@ -1,0 +1,37 @@
+{
+  "isError": false,
+  "data": {
+    "returned": 1,
+    "startAt": 0,
+    "total": 1,
+    "hasMore": false,
+    "projects": [
+      {
+        "id": "10000",
+        "key": "TEST",
+        "name": "Test project",
+        "description": "Mock project",
+        "lead": {
+          "accountId": "5b10a2844c20165700ede21g",
+          "displayName": "Vova Press"
+        },
+        "projectTypeKey": "software",
+        "style": "classic",
+        "url": "https://mock/browse/TEST"
+      }
+    ]
+  },
+  "contentTypes": [
+    "text"
+  ],
+  "hasStructuredContent": true,
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/rest/api/3/project/search",
+      "query": {
+        "maxResults": "50"
+      }
+    }
+  ]
+}

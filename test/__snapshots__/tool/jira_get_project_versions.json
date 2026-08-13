@@ -1,0 +1,36 @@
+{
+  "isError": false,
+  "data": {
+    "projectKey": "TEST",
+    "versions": [
+      {
+        "id": "10100",
+        "name": "1.0",
+        "description": "First",
+        "released": true,
+        "archived": false,
+        "startDate": "2026-05-01",
+        "releaseDate": "2026-06-01"
+      },
+      {
+        "id": "10101",
+        "name": "1.1",
+        "description": "Next",
+        "released": false,
+        "archived": false,
+        "startDate": "2026-08-01",
+        "releaseDate": "2026-10-01"
+      }
+    ]
+  },
+  "contentTypes": [
+    "text"
+  ],
+  "hasStructuredContent": true,
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/rest/api/3/project/TEST/versions"
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "isError": false,
+  "data": {
+    "success": true,
+    "message": "Issue TEST-1 updated successfully",
+    "url": "https://jira.test/browse/TEST-1",
+    "transition": {
+      "id": "11",
+      "name": "Start work (estimate)",
+      "to": "In Progress"
+    }
+  },
+  "contentTypes": [
+    "text"
+  ],
+  "hasStructuredContent": true,
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/rest/api/3/issue/TEST-1/transitions"
+    },
+    {
+      "method": "POST",
+      "path": "/rest/api/3/issue/TEST-1/transitions",
+      "body": {
+        "transition": {
+          "id": "11"
+        },
+        "fields": {
+          "customfield_10016": 5
+        }
+      }
+    }
+  ]
+}

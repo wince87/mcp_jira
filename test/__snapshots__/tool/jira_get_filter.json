@@ -1,0 +1,26 @@
+{
+  "isError": false,
+  "data": {
+    "id": "1000",
+    "name": "My open bugs",
+    "description": "Open bugs",
+    "jql": "project = TEST AND issuetype = Bug",
+    "owner": {
+      "accountId": "5b10a2844c20165700ede21g",
+      "displayName": "Vova Press"
+    },
+    "favourite": true,
+    "favouritedCount": 2,
+    "viewUrl": "https://mock/filter/1000"
+  },
+  "contentTypes": [
+    "text"
+  ],
+  "hasStructuredContent": true,
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/rest/api/3/filter/1000"
+    }
+  ]
+}

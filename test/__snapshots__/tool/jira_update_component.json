@@ -1,0 +1,29 @@
+{
+  "isError": false,
+  "data": {
+    "success": true,
+    "component": {
+      "id": "10200",
+      "name": "Auth",
+      "description": "Auth and SSO",
+      "lead": {
+        "accountId": "5b10a2844c20165700ede21g",
+        "displayName": "Vova Press"
+      },
+      "assigneeType": "PROJECT_LEAD"
+    }
+  },
+  "contentTypes": [
+    "text"
+  ],
+  "hasStructuredContent": true,
+  "requests": [
+    {
+      "method": "PUT",
+      "path": "/rest/api/3/component/10200",
+      "body": {
+        "description": "Auth and SSO"
+      }
+    }
+  ]
+}
