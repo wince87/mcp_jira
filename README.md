@@ -291,6 +291,7 @@ Pre-baked workflows your AI agent can invoke directly (via MCP `prompts/list` + 
 | `JIRA_API_TOKEN` | Yes | API token from Atlassian |
 | `JIRA_PROJECT_KEY` | No | Default project key used when not specified in tool calls (e.g. `MYPROJECT`) |
 | `JIRA_STORY_POINTS_FIELD` | No | Custom field ID for story points (defaults to `customfield_10016`) |
+| `JIRA_EPIC_NAME_FIELD` | No | Custom field ID for the classic Epic Name field (defaults to `customfield_10011`) |
 | `JIRA_TIMEOUT_MS` | No | Per-request timeout in milliseconds (default `30000`) |
 | `JIRA_MAX_RETRIES` | No | Retries after the first attempt (default `3`). Applies to rate limits, and to reads on server errors — never to writes on server errors |
 | `JIRA_RETRY_BASE_MS` | No | Base backoff delay in milliseconds (default `500`), doubled per attempt with jitter |

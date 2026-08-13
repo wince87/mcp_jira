@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [3.0.0] - 2026-08-13
 
+- `JIRA_EPIC_NAME_FIELD` env var replaces the hardcoded `customfield_10011` in `jira_create_epic`, mirroring `JIRA_STORY_POINTS_FIELD`.
+
 Major release. 75 tools (was 53), full MCP protocol surface, and a regression
 suite that did not exist before. See [MIGRATION.md](MIGRATION.md) for every
 externally visible change with before/after examples.
