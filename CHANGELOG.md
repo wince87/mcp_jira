@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.0.2] - 2026-08-14
+
+### Fixed
+- `jira_get_issue_types` returned an empty list on real Jira instances: `/issue/createmeta/{key}/issuetypes` keys its page `issueTypes`, while every other paginated Jira endpoint uses `values` — the code only read `values`. As a result `jira_get_create_fields` failed with `Issue type "Bug" not found. Available: ` and any create that named an issue type instead of passing a numeric id could not resolve it. Both keys are now accepted.
+- The test mock returned the wrong key for that endpoint, which is why the suite stayed green against a broken code path; it now mirrors Jira's real shape, and regression tests cover both shapes.
+- A project whose create screen reports no issue types now returns an actionable message naming the likely causes, instead of `Available: ` with an empty list.
+
 ## [3.0.1] - 2026-08-13
 
 ### Fixed

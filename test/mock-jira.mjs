@@ -257,7 +257,7 @@ const ROUTES = [
   ['GET', '/rest/api/3/issueLinkType', () => [200, { issueLinkTypes: [{ id: '10000', name: 'Blocks', inward: 'is blocked by', outward: 'blocks' }] }]],
 
   ['GET', '/rest/api/3/issue/createmeta/:key/issuetypes/:typeId', (p) => [200, { fields: createMetaFields(p.typeId), total: 8, maxResults: 200, startAt: 0 }]],
-  ['GET', '/rest/api/3/issue/createmeta/:key/issuetypes', () => [200, { values: ISSUE_TYPES, total: ISSUE_TYPES.length, maxResults: 200, startAt: 0 }]],
+  ['GET', '/rest/api/3/issue/createmeta/:key/issuetypes', () => [200, { issueTypes: ISSUE_TYPES, total: ISSUE_TYPES.length, maxResults: 200, startAt: 0 }]],
 
   ['GET', '/rest/api/3/project/search', (p, q) => [200, page([projectPayload()], q, 'values')]],
   ['POST', '/rest/api/3/version/:id/removeAndSwap', () => [204, null]],

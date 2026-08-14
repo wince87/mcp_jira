@@ -29,7 +29,13 @@ export async function handleGetCreateFields(a: ToolArgs): Promise<ToolResponse> 
 
   const resolved = await resolveIssueType(projectKey, issueType);
   if (!resolved?.id) {
-    const available = (await fetchIssueTypes(projectKey)).map(t => `${t.name} (id ${t.id})`).join(', ');
+    const types = await fetchIssueTypes(projectKey);
+    if (types.length === 0) {
+      throw new Error(
+        `Could not read the create screen for project ${projectKey}: it reported no issue types. Check that the project key is right and that your account can create issues in it. Passing a numeric issue type id skips this lookup.`,
+      );
+    }
+    const available = types.map(t => `${t.name} (id ${t.id})`).join(', ');
     throw new Error(`Issue type "${issueType}" not found in project ${projectKey}. Available: ${available}`);
   }
 

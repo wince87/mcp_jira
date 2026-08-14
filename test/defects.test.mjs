@@ -132,3 +132,40 @@ test('worklogs still accept an explicit page window', async () => {
   assert.equal(request.query.maxResults, '10');
   assert.equal(request.query.startAt, '5');
 });
+
+test('createmeta issue types are read from the `issueTypes` key Jira actually sends', async () => {
+  // Regression: the code read `values` (the key every *other* paginated
+  // Jira endpoint uses), so on a real instance the list came back empty
+  // and every create-by-type-name failed with an empty "Available:" list.
+  const result = await server.call('jira_get_issue_types', { projectKey: 'TEST' });
+  assert.ok(result.data.issueTypes.length > 0, 'issue types must not be empty');
+  assert.ok(
+    result.data.issueTypes.some(t => t.name === 'Task'),
+    'a type must be resolvable by name, not only by numeric id',
+  );
+
+  const fields = await server.call('jira_get_create_fields', { projectKey: 'TEST', issueType: 'Task' });
+  assert.ok(fields.data.fields.length > 0, 'resolving a type by name must reach the create screen');
+});
+
+test('createmeta issue types still work if an instance returns the `values` key', async () => {
+  // A fresh project key each time — the metadata cache is process-wide
+  // and would otherwise serve the previous test's list.
+  mock.respondOnce('GET', '/rest/api/3/issue/createmeta/LEGACY/issuetypes', 200, {
+    values: [{ id: '10004', name: 'Bug', subtask: false }],
+    total: 1, maxResults: 200, startAt: 0,
+  });
+  const result = await server.call('jira_get_issue_types', { projectKey: 'LEGACY' });
+  assert.equal(result.data.issueTypes.length, 1);
+  assert.equal(result.data.issueTypes[0].name, 'Bug');
+});
+
+test('an empty create screen explains itself instead of printing "Available: "', async () => {
+  mock.respondOnce('GET', '/rest/api/3/issue/createmeta/EMPTY/issuetypes', 200, {
+    issueTypes: [], total: 0, maxResults: 200, startAt: 0,
+  });
+  const result = await server.call('jira_get_create_fields', { projectKey: 'EMPTY', issueType: 'Bug' });
+  const text = JSON.stringify(result);
+  assert.ok(text.includes('reported no issue types'), `expected an actionable message, got: ${text}`);
+  assert.ok(!text.includes('Available: '), 'must not print an empty Available list');
+});

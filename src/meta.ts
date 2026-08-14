@@ -48,7 +48,10 @@ export async function fetchIssueTypes(projectKey: string): Promise<JiraIssueType
   const cached = cacheGet(issueTypesCache, projectKey);
   if (cached) return cached;
   const response = await jiraApi.get(`/issue/createmeta/${projectKey}/issuetypes`, { params: { maxResults: 200 } });
-  const value: JiraIssueType[] = response.data.values ?? [];
+  // This page keys its list `issueTypes`, unlike every other paginated
+  // Jira endpoint, which uses `values`. Reading both keeps the tool
+  // working whichever shape an instance returns.
+  const value: JiraIssueType[] = response.data.issueTypes ?? response.data.values ?? [];
   issueTypesCache.set(projectKey, { at: Date.now(), value });
   return value;
 }
